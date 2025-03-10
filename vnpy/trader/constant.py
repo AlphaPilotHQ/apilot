@@ -4,16 +4,16 @@ General constant enums used in the trading platform.
 
 from enum import Enum
 
-from .locale import _
+# 已移除国际化，直接使用中文字符串
 
 
 class Direction(Enum):
     """
     Direction of order/trade/position.
     """
-    LONG = _("多")
-    SHORT = _("空")
-    NET = _("净")
+    LONG = "多"
+    SHORT = "空"
+    NET = "净"
 
 
 class Offset(Enum):
@@ -21,61 +21,61 @@ class Offset(Enum):
     Offset of order/trade.
     """
     NONE = ""
-    OPEN = _("开")
-    CLOSE = _("平")
-    CLOSETODAY = _("平今")
-    CLOSEYESTERDAY = _("平昨")
+    OPEN = "开"
+    CLOSE = "平"
+    CLOSETODAY = "平今"
+    CLOSEYESTERDAY = "平昨"
 
 
 class Status(Enum):
     """
     Order status.
     """
-    SUBMITTING = _("提交中")
-    NOTTRADED = _("未成交")
-    PARTTRADED = _("部分成交")
-    ALLTRADED = _("全部成交")
-    CANCELLED = _("已撤销")
-    REJECTED = _("拒单")
+    SUBMITTING = "提交中"
+    NOTTRADED = "未成交"
+    PARTTRADED = "部分成交"
+    ALLTRADED = "全部成交"
+    CANCELLED = "已撤销"
+    REJECTED = "拒单"
 
 
 class Product(Enum):
     """
     Product class.
     """
-    EQUITY = _("股票")
-    FUTURES = _("期货")
-    OPTION = _("期权")
-    INDEX = _("指数")
-    FOREX = _("外汇")
-    SPOT = _("现货")
+    EQUITY = "股票"
+    FUTURES = "期货"
+    OPTION = "期权"
+    INDEX = "指数"
+    FOREX = "外汇"
+    SPOT = "现货"
     ETF = "ETF"
-    BOND = _("债券")
-    WARRANT = _("权证")
-    SPREAD = _("价差")
-    FUND = _("基金")
+    BOND = "债券"
+    WARRANT = "权证"
+    SPREAD = "价差"
+    FUND = "基金"
     CFD = "CFD"
-    SWAP = _("互换")
+    SWAP = "互换"
 
 
 class OrderType(Enum):
     """
     Order type.
     """
-    LIMIT = _("限价")
-    MARKET = _("市价")
+    LIMIT = "限价"
+    MARKET = "市价"
     STOP = "STOP"
     FAK = "FAK"
     FOK = "FOK"
-    RFQ = _("询价")
+    RFQ = "询价"
 
 
 class OptionType(Enum):
     """
     Option type.
     """
-    CALL = _("看涨期权")
-    PUT = _("看跌期权")
+    CALL = "看涨期权"
+    PUT = "看跌期权"
 
 
 class Exchange(Enum):
@@ -135,6 +135,9 @@ class Exchange(Enum):
 
     # Special Function
     LOCAL = "LOCAL"         # For local generated data
+
+    # Crypto Exchanges
+    BINANCE = "BINANCE"     # Binance Cryptocurrency Exchange
 
 
 class Currency(Enum):

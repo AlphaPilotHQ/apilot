@@ -5,7 +5,8 @@ from importlib import import_module
 
 from .object import HistoryRequest, TickData, BarData
 from .setting import SETTINGS
-from .locale import _
+
+# 已移除国际化，直接使用中文字符串
 
 
 class BaseDatafeed(ABC):
@@ -48,7 +49,7 @@ def get_datafeed() -> BaseDatafeed:
     if not datafeed_name:
         datafeed = BaseDatafeed()
 
-        print(_("没有配置要使用的数据服务，请修改全局配置中的datafeed相关内容"))
+        print("没有配置要使用的数据服务，请修改全局配置中的datafeed相关内容")
     else:
         module_name: str = f"vnpy_{datafeed_name}"
 
