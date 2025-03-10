@@ -1,3 +1,16 @@
+# 0.1.1版本 (2025-03-11)
+
+## 新增
+
+1. 测试框架：添加全面的单元测试框架文件，包括：
+   - 核心引擎测试：EventEngine、MainEngine、LogEngine测试
+   - 数据组件测试：Datafeed、DatabaseManager测试
+   - 交易组件测试：OrderManager、PositionManager、RiskManager测试
+   - 网关接口测试：BaseGateway测试
+   - 工具配置测试：Setting、Utility测试
+   - 策略组件测试：CtaEngine、BacktestingEngine测试
+   - 集成测试：数据到策略流程、多网关并行测试
+
 # 0.1.0版本 (2025-03-10)
 
 ## 项目重塑
