@@ -63,6 +63,6 @@ def get_datafeed() -> BaseDatafeed:
         except ModuleNotFoundError:
             datafeed = BaseDatafeed()
 
-            print(_("无法加载数据服务模块，请运行 pip install {} 尝试安装").format(module_name))
+            print(f"无法加载数据服务模块，请运行 pip install {module_name} 尝试安装")
 
     return datafeed

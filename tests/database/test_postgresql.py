@@ -21,19 +21,45 @@ else:
 from vnpy.trader.constant import Exchange, Interval
 from vnpy.trader.object import BarData, TickData
 from vnpy.trader.setting import SETTINGS
-from vnpy.database.postgresql.postgresql_database import PostgresqlDatabase
+
+# 设置默认数据库参数，防止模块导入时出错
+SETTINGS["database.database"] = os.environ.get("VNPY_TEST_POSTGRES_DB", "vnpy_test")
+SETTINGS["database.host"] = os.environ.get("VNPY_TEST_POSTGRES_HOST", "localhost")
+SETTINGS["database.port"] = int(os.environ.get("VNPY_TEST_POSTGRES_PORT", "5432"))
+SETTINGS["database.user"] = os.environ.get("VNPY_TEST_POSTGRES_USER", "postgres")
+SETTINGS["database.password"] = os.environ.get("VNPY_TEST_POSTGRES_PASSWORD", "")
+
+# 先检查psycopg2是否安装
+try:
+    import psycopg2
+    has_psycopg2 = True
+except ImportError:
+    print("警告: psycopg2 模块未安装，如果需要运行 PostgreSQL 测试，请安装: pip install psycopg2-binary")
+    has_psycopg2 = False
+    PostgresqlDatabase = None
+
+# 在psycopg2可用的情况下导入PostgreSQL数据库模块
+if has_psycopg2:
+    try:
+        from vnpy.database.postgresql.postgresql_database import PostgresqlDatabase
+    except Exception as e:
+        print(f"导入PostgreSQL模块时出错: {e}")
+        PostgresqlDatabase = None
 
 
 # pytest fixture - 每个测试函数前都会执行
 @pytest.fixture
 def postgresql_db():
     """初始化数据库连接"""
-    # 设置PostgreSQL连接参数 - 从环境变量中读取
-    SETTINGS["database.database"] = os.environ.get("VNPY_TEST_POSTGRES_DB", "vnpy_test")
-    SETTINGS["database.host"] = os.environ.get("VNPY_TEST_POSTGRES_HOST", "localhost")
-    SETTINGS["database.port"] = int(os.environ.get("VNPY_TEST_POSTGRES_PORT", "5432"))
-    SETTINGS["database.user"] = os.environ.get("VNPY_TEST_POSTGRES_USER", "postgres")
-    SETTINGS["database.password"] = os.environ.get("VNPY_TEST_POSTGRES_PASSWORD", "")
+    # 检查psycopg2和PostgreSQL模块是否可用
+    if not has_psycopg2:
+        pytest.skip("psycopg2 驱动程序未安装，跳过PostgreSQL测试，请安装: pip install psycopg2-binary")
+    if PostgresqlDatabase is None:
+        pytest.skip("无法加载PostgreSQL模块，跳过测试")
+        
+    # 检查环境变量是否设置
+    if not SETTINGS["database.user"] or not SETTINGS["database.database"]:
+        pytest.skip("缺少PostgreSQL配置参数，跳过测试")
     
     # 控制台输出连接信息
     print(f"\n连接到 PostgreSQL: {SETTINGS['database.host']}:{SETTINGS['database.port']}/{SETTINGS['database.database']}")

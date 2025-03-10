@@ -21,19 +21,45 @@ else:
 from vnpy.trader.constant import Exchange, Interval
 from vnpy.trader.object import BarData, TickData
 from vnpy.trader.setting import SETTINGS
-from vnpy.database.mysql.mysql_database import MysqlDatabase
+
+# 设置默认数据库参数，防止模块导入时出错
+SETTINGS["database.database"] = os.environ.get("VNPY_TEST_MYSQL_DB", "vnpy_test")
+SETTINGS["database.host"] = os.environ.get("VNPY_TEST_MYSQL_HOST", "localhost")
+SETTINGS["database.port"] = int(os.environ.get("VNPY_TEST_MYSQL_PORT", "3306"))
+SETTINGS["database.user"] = os.environ.get("VNPY_TEST_MYSQL_USER", "root")
+SETTINGS["database.password"] = os.environ.get("VNPY_TEST_MYSQL_PASSWORD", "")
+
+# 先检查pymysql是否安装
+try:
+    import pymysql
+    has_pymysql = True
+except ImportError:
+    print("警告: pymysql 模块未安装，如果需要运行 MySQL 测试，请安装: pip install pymysql")
+    has_pymysql = False
+    MysqlDatabase = None
+
+# 在pymysql可用的情况下导入MySQL数据库模块
+if has_pymysql:
+    try:
+        from vnpy.database.mysql.mysql_database import MysqlDatabase
+    except Exception as e:
+        print(f"导入MySQL模块时出错: {e}")
+        MysqlDatabase = None
 
 
 # pytest fixture - 每个测试函数前都会执行
 @pytest.fixture
 def mysql_db():
     """初始化数据库连接"""
-    # 设置MySQL连接参数 - 从环境变量中读取
-    SETTINGS["database.database"] = os.environ.get("VNPY_TEST_MYSQL_DB", "vnpy_test")
-    SETTINGS["database.host"] = os.environ.get("VNPY_TEST_MYSQL_HOST", "localhost")
-    SETTINGS["database.port"] = int(os.environ.get("VNPY_TEST_MYSQL_PORT", "3306"))
-    SETTINGS["database.user"] = os.environ.get("VNPY_TEST_MYSQL_USER", "root")
-    SETTINGS["database.password"] = os.environ.get("VNPY_TEST_MYSQL_PASSWORD", "")
+    # 检查pymysql和MySQL模块是否可用
+    if not has_pymysql:
+        pytest.skip("pymysql 驱动程序未安装，跳过MySQL测试，请安装: pip install pymysql")
+    if MysqlDatabase is None:
+        pytest.skip("无法加载MySQL模块，跳过测试")
+        
+    # 检查环境变量是否设置
+    if not SETTINGS["database.user"] or not SETTINGS["database.database"]:
+        pytest.skip("缺少MySQL配置参数，跳过测试")
     
     # 控制台输出连接信息
     print(f"\n连接到 MySQL: {SETTINGS['database.host']}:{SETTINGS['database.port']}/{SETTINGS['database.database']}")

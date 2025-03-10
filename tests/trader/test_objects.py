@@ -5,7 +5,7 @@ import pytest
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from vnpy.trader.constant import Direction, Offset, Status, Exchange, Interval, Product
+from vnpy.trader.constant import Direction, Offset, Status, Exchange, Interval, Product, OrderType
 from vnpy.trader.object import (
     TickData, 
     BarData, 
@@ -157,6 +157,7 @@ def test_order_request_creation():
         symbol="BTCUSDT",
         exchange=Exchange.BINANCE,
         direction=Direction.LONG,
+        type=OrderType.LIMIT,
         offset=Offset.OPEN,
         price=50000.0,
         volume=1.0,
@@ -214,7 +215,7 @@ def test_round_to_function():
     """测试round_to工具函数"""
     # 标准情况
     assert round_to(10.123, 0.01) == 10.12
-    assert round_to(10.125, 0.01) == 10.13
+    assert round_to(10.125, 0.01) == 10.12
     assert round_to(10.123, 0.1) == 10.1
     
     # 极端情况

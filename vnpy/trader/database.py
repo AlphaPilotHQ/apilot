@@ -1,16 +1,16 @@
 from abc import ABC, abstractmethod
 from datetime import datetime
 from types import ModuleType
-from typing import List
+from typing import List, Optional
 from dataclasses import dataclass
 from importlib import import_module
+import sys
+import os
 
 from .constant import Interval, Exchange
 from .object import BarData, TickData
 from .setting import SETTINGS
 from .utility import ZoneInfo
-
-# 已移除国际化，直接使用中文字符串
 
 
 DB_TZ = ZoneInfo(SETTINGS["database.timezone"])
