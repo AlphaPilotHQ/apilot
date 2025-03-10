@@ -1,10 +1,11 @@
 """
-General constant enums used in the trading platform.
+APilot量化交易平台使用的常量枚举定义。
+针对加密货币交易场景进行了优化。
 """
 
 from enum import Enum
 
-# 已移除国际化，直接使用中文字符串
+# 使用中文字符串便于日志和UI显示
 
 
 class Direction(Enum):
@@ -41,33 +42,25 @@ class Status(Enum):
 
 class Product(Enum):
     """
-    Product class.
+    产品类型
     """
-    EQUITY = "股票"
-    FUTURES = "期货"
-    OPTION = "期权"
-    INDEX = "指数"
-    FOREX = "外汇"
-    SPOT = "现货"
-    ETF = "ETF"
-    BOND = "债券"
-    WARRANT = "权证"
-    SPREAD = "价差"
-    FUND = "基金"
-    CFD = "CFD"
-    SWAP = "互换"
+    SPOT = "现货"        # 加密货币现货
+    FUTURES = "合约"      # 加密货币合约
+    MARGIN = "杠杆"       # 杠杆交易
+    OPTION = "期权"       # 加密货币期权
 
 
 class OrderType(Enum):
     """
-    Order type.
+    订单类型
     """
-    LIMIT = "限价"
-    MARKET = "市价"
-    STOP = "STOP"
-    FAK = "FAK"
-    FOK = "FOK"
-    RFQ = "询价"
+    LIMIT = "限价"          # 限价单
+    MARKET = "市价"         # 市价单
+    STOP = "止损"           # 止损单
+    STOP_LIMIT = "止损限价"  # 止损限价单
+    POST_ONLY = "只挂"      # 只挂单，不吃单
+    FAK = "FAK"           # Fill and Kill
+    FOK = "FOK"           # Fill or Kill
 
 
 class OptionType(Enum):
@@ -80,82 +73,50 @@ class OptionType(Enum):
 
 class Exchange(Enum):
     """
-    Exchange.
+    交易所枚举
     """
-    # Chinese
-    CFFEX = "CFFEX"         # China Financial Futures Exchange
-    SHFE = "SHFE"           # Shanghai Futures Exchange
-    CZCE = "CZCE"           # Zhengzhou Commodity Exchange
-    DCE = "DCE"             # Dalian Commodity Exchange
-    INE = "INE"             # Shanghai International Energy Exchange
-    GFEX = "GFEX"           # Guangzhou Futures Exchange
-    SSE = "SSE"             # Shanghai Stock Exchange
-    SZSE = "SZSE"           # Shenzhen Stock Exchange
-    BSE = "BSE"             # Beijing Stock Exchange
-    SHHK = "SHHK"           # Shanghai-HK Stock Connect
-    SZHK = "SZHK"           # Shenzhen-HK Stock Connect
-    SGE = "SGE"             # Shanghai Gold Exchange
-    WXE = "WXE"             # Wuxi Steel Exchange
-    CFETS = "CFETS"         # CFETS Bond Market Maker Trading System
-    XBOND = "XBOND"         # CFETS X-Bond Anonymous Trading System
-
-    # Global
-    SMART = "SMART"         # Smart Router for US stocks
-    NYSE = "NYSE"           # New York Stock Exchnage
-    NASDAQ = "NASDAQ"       # Nasdaq Exchange
-    ARCA = "ARCA"           # ARCA Exchange
-    EDGEA = "EDGEA"         # Direct Edge Exchange
-    ISLAND = "ISLAND"       # Nasdaq Island ECN
-    BATS = "BATS"           # Bats Global Markets
-    IEX = "IEX"             # The Investors Exchange
-    AMEX = "AMEX"           # American Stock Exchange
-    TSE = "TSE"             # Toronto Stock Exchange
-    NYMEX = "NYMEX"         # New York Mercantile Exchange
-    COMEX = "COMEX"         # COMEX of CME
-    GLOBEX = "GLOBEX"       # Globex of CME
-    IDEALPRO = "IDEALPRO"   # Forex ECN of Interactive Brokers
-    CME = "CME"             # Chicago Mercantile Exchange
-    ICE = "ICE"             # Intercontinental Exchange
-    SEHK = "SEHK"           # Stock Exchange of Hong Kong
-    HKFE = "HKFE"           # Hong Kong Futures Exchange
-    SGX = "SGX"             # Singapore Global Exchange
-    CBOT = "CBT"            # Chicago Board of Trade
-    CBOE = "CBOE"           # Chicago Board Options Exchange
-    CFE = "CFE"             # CBOE Futures Exchange
-    DME = "DME"             # Dubai Mercantile Exchange
-    EUREX = "EUX"           # Eurex Exchange
-    APEX = "APEX"           # Asia Pacific Exchange
-    LME = "LME"             # London Metal Exchange
-    BMD = "BMD"             # Bursa Malaysia Derivatives
-    TOCOM = "TOCOM"         # Tokyo Commodity Exchange
-    EUNX = "EUNX"           # Euronext Exchange
-    KRX = "KRX"             # Korean Exchange
-    OTC = "OTC"             # OTC Product (Forex/CFD/Pink Sheet Equity)
-    IBKRATS = "IBKRATS"     # Paper Trading Exchange of IB
-
-    # Special Function
-    LOCAL = "LOCAL"         # For local generated data
-
-    # Crypto Exchanges
-    BINANCE = "BINANCE"     # Binance Cryptocurrency Exchange
+    # 加密货币交易所
+    BINANCE = "BINANCE"     # 币安
+    BINANCE_FUTURES = "BINANCEF"  # 币安合约
+    HUOBI = "HUOBI"         # 火币
+    OKEX = "OKEX"           # OKEx
+    FTX = "FTX"             # FTX
+    BYBIT = "BYBIT"         # Bybit
+    COINBASE = "COINBASE"   # Coinbase
+    DERIBIT = "DERIBIT"     # Deribit
+    KRAKEN = "KRAKEN"       # Kraken
+    BITFINEX = "BITFINEX"   # Bitfinex
+    BITSTAMP = "BITSTAMP"   # Bitstamp
+    BITMEX = "BITMEX"       # BitMEX
+    GATE = "GATE"           # Gate.io
+    KuCOIN = "KUCOIN"       # KuCoin
+    
+    # 特殊功能
+    LOCAL = "LOCAL"         # 本地生成数据（回测使用）
 
 
 class Currency(Enum):
     """
-    Currency.
+    货币类型
     """
-    USD = "USD"
-    HKD = "HKD"
-    CNY = "CNY"
-    CAD = "CAD"
+    USD = "USD"        # 美元
+    USDT = "USDT"      # 泰达币
+    BTC = "BTC"        # 比特币
+    ETH = "ETH"        # 以太币
+    BNB = "BNB"        # 币安币
 
 
 class Interval(Enum):
     """
-    Interval of bar data.
+    K线数据周期
     """
-    MINUTE = "1m"
-    HOUR = "1h"
-    DAILY = "d"
-    WEEKLY = "w"
-    TICK = "tick"
+    MINUTE = "1m"      # 1分钟
+    MINUTE3 = "3m"     # 3分钟
+    MINUTE5 = "5m"     # 5分钟
+    MINUTE15 = "15m"   # 15分钟
+    MINUTE30 = "30m"   # 30分钟
+    HOUR = "1h"        # 1小时
+    HOUR4 = "4h"       # 4小时
+    DAILY = "d"        # 日线
+    WEEKLY = "w"       # 周线
+    TICK = "tick"      # Tick数据

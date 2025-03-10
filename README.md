@@ -19,8 +19,6 @@ APilot是基于VeighNa的精简版量化交易系统开发框架，专为公司�
 
         * Binance（[binance](https://github.com/vnpy/vnpy_binance)）：币安现货和合约
 
-        * RPC服务（[rpc](https://www.github.com/vnpy/vnpy_rpcservice)）：跨进程通讯接口，用于分布式架构
-
 3. 覆盖下述各类量化策略的交易应用（app）：
 
     * [cta_strategy](https://www.github.com/vnpy/vnpy_ctastrategy)：CTA策略引擎模块，在保持易用性的同时，允许用户针对CTA类策略运行过程中委托的报撤行为进行细粒度控制（降低交易滑点、实现高频策略）
@@ -109,59 +107,7 @@ APilot是基于VeighNa的精简版量化交易系统开发框架，专为公司�
 
     * 天勤TQSDK（[tqsdk](https://www.github.com/vnpy/vnpy_tqsdk)）：期货
 
-8. 跨进程通讯标准组件（rpc），用于实现分布式部署的复杂交易系统。
 
-9. Python高性能K线图表（chart），支持大数据量图表显示以及实时数据更新功能。
-
-10. [社区论坛](http://www.vnpy.com/forum)和[知乎专栏](http://zhuanlan.zhihu.com/vn-py)，内容包括VeighNa项目的开发教程和Python在量化交易领域的应用研究等内容。
-
-11. 官方交流群262656087（QQ），管理严格（定期清除长期潜水的成员），入群费将捐赠给VeighNa社区基金。
-
-注：以上关于功能特点的说明为根据说明文档发布时情况罗列，后续可能存在更新或调整。若功能描述同实际存在出入，欢迎通过Issue联系进行调整。
-
-## 环境准备
-
-* 推荐使用VeighNa团队为量化交易专门打造的Python发行版[VeighNa Studio-3.9.4](https://download.vnpy.com/veighna_studio-3.9.4.exe)，集成内置了VeighNa框架以及VeighNa Station量化管理平台，无需手动安装
-* 支持的系统版本：Windows 11以上 / Windows Server 2019以上 / Ubuntu 22.04 LTS以上
-* 支持的Python版本：Python 3.10以上（64位），**推荐使用Python 3.10**
-
-## 安装步骤
-
-在[这里](https://github.com/vnpy/vnpy/releases)下载Release发布版本，解压后运行以下命令安装：
-
-**Windows**
-
-```
-install.bat
-```
-
-**Ubuntu**
-
-```
-bash install.sh
-```
-
-**Macos**
-
-```
-bash install_osx.sh
-```
-
-**注意：setup.cfg中列举了VeighNa框架安装所需的依赖库，requirements.txt中给出了这些依赖库的推荐安装版本。**
-
-## 使用指南
-
-1. 在[SimNow](http://www.simnow.com.cn/)注册CTP仿真账号，并在[该页面](http://www.simnow.com.cn/product.action)获取经纪商代码以及交易行情服务器地址。
-
-2. 在[VeighNa社区论坛](https://www.vnpy.com/forum/)注册获得VeighNa Station账号密码（论坛账号密码即是）
-
-3. 启动VeighNa Station（安装VeighNa Studio后会在桌面自动创建快捷方式），输入上一步的账号密码登录
-
-4. 点击底部的**VeighNa Trader**按钮，开始你的交易！！！
-
-注意：
-
-* 在VeighNa Trader的运行过程中请勿关闭VeighNa Station（会自动退出）
 
 ## 脚本运行
 
@@ -202,36 +148,4 @@ if __name__ == "__main__":
 
     python run.py
 
-## 贡献代码
 
-VeighNa使用Github托管其源代码，如果希望贡献代码请使用github的PR（Pull Request）的流程:
-
-1. [创建 Issue](https://github.com/vnpy/vnpy/issues/new) - 对于较大的改动（如新功能，大型重构等）建议先开issue讨论一下，较小的improvement（如文档改进，bugfix等）直接发PR即可
-
-2. Fork [VeighNa](https://github.com/vnpy/vnpy) - 点击右上角**Fork**按钮
-
-3. Clone你自己的fork: ```git clone https://github.com/$userid/vnpy.git```
-	* 如果你的fork已经过时，需要手动sync：[同步方法](https://help.github.com/articles/syncing-a-fork/)
-
-4. 从**dev**创建你自己的feature branch: ```git checkout -b $my_feature_branch dev```
-
-5. 在$my_feature_branch上修改并将修改push到你的fork上
-
-6. 创建从你的fork的$my_feature_branch分支到主项目的**dev**分支的[Pull Request] -  [在此](https://github.com/vnpy/vnpy/compare?expand=1)点击**compare across forks**，选择需要的fork和branch创建PR
-
-7. 等待review, 需要继续改进，或者被Merge!
-
-在提交代码的时候，请遵守以下规则，以提高代码质量：
-
-  * 使用[flake8](https://pypi.org/project/flake8/)检查你的代码，确保没有error和warning。在项目根目录下运行```flake8```即可。
-
-## 其他内容
-
-* [获取帮助](https://github.com/vnpy/vnpy/blob/dev/.github/SUPPORT.md)
-* [社区行为准则](https://github.com/vnpy/vnpy/blob/dev/.github/CODE_OF_CONDUCT.md)
-* [Issue模板](https://github.com/vnpy/vnpy/blob/dev/.github/ISSUE_TEMPLATE.md)
-* [PR模板](https://github.com/vnpy/vnpy/blob/dev/.github/PULL_REQUEST_TEMPLATE.md)
-
-## 版权说明
-
-MIT

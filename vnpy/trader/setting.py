@@ -1,8 +1,9 @@
 """
-Global setting of the trading platform.
+Global settings for the APilot trading platform.
+Customized from VeighNa to focus on cryptocurrency trading.
 """
 
-from logging import CRITICAL
+from logging import INFO
 from typing import Dict, Any
 from tzlocal import get_localzone_name
 
@@ -10,41 +11,53 @@ from .utility import load_json
 
 
 SETTINGS: Dict[str, Any] = {
-    "font.family": "微软雅黑",
-    "font.size": 12,
-
+    # 日志设置
     "log.active": True,
-    "log.level": CRITICAL,
+    "log.level": INFO,      # 改为INFO以获取更多交易信息
     "log.console": True,
     "log.file": True,
-
-    "email.server": "smtp.qq.com",
-    "email.port": 465,
+    
+    # 通知设置
+    "email.active": False,  # 默认关闭邮件通知
+    "email.server": "smtp.gmail.com",
+    "email.port": 587,
     "email.username": "",
-    "email.password": "",
+    "email.password": "",  # 建议使用应用专用密码
     "email.sender": "",
     "email.receiver": "",
-
-    "datafeed.name": "",
-    "datafeed.username": "",
-    "datafeed.password": "",
-
+    
+    # Telegram通知设置
+    "telegram.active": False,
+    "telegram.token": "",
+    "telegram.chat_id": "",
+    
+    # 数据库设置
     "database.timezone": get_localzone_name(),
-    "database.name": "sqlite",
-    "database.database": "database.db",
-    "database.host": "",
-    "database.port": 0,
-    "database.user": "",
-    "database.password": ""
+    "database.name": "sqlite",  # 默认使用sqlite，简单轻量
+    "database.database": "apilot_data.db",
+    
+    # 币安API设置
+    "binance.key": "", 
+    "binance.secret": "",
+    "binance.proxy_host": "",  # 需要代理时设置
+    "binance.proxy_port": 0,
+    
+    # 回测设置
+    "backtest.risk_free": 0.0,
+    "backtest.slippage": 0.0,
+    "backtest.size": 1,
+    "backtest.pricetick": 0.0,
+    "backtest.capital": 1000000,
 }
 
 
-# Load global setting from json file.
-SETTING_FILENAME: str = "vt_setting.json"
+# 从JSON文件加载配置
+SETTING_FILENAME: str = "apilot_setting.json"
 SETTINGS.update(load_json(SETTING_FILENAME))
 
 
 def get_settings(prefix: str = "") -> Dict[str, Any]:
+    """获取指定前缀的所有设置项"""
     prefix_length: int = len(prefix)
     settings = {k[prefix_length:]: v for k, v in SETTINGS.items() if k.startswith(prefix)}
     return settings
