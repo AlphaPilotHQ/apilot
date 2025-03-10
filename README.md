@@ -1,101 +1,23 @@
-# VeighNa - By Traders, For Traders.
+# APilot - 基于VeighNa的内部量化交易框架
 
 <p align="center">
-  <img src ="https://vnpy.oss-cn-shanghai.aliyuncs.com/veighna-logo.png"/>
-</p>
-
-💬 Want to read this in **english** ? Go [**here**](README_ENG.md)
-
-<p align="center">
-    <img src ="https://img.shields.io/badge/version-3.9.4-blueviolet.svg"/>
-    <img src ="https://img.shields.io/badge/platform-windows|linux|macos-yellow.svg"/>
+    <img src ="https://img.shields.io/badge/version-1.0.0-blueviolet.svg"/>
+    <img src ="https://img.shields.io/badge/platform-macos|linux-yellow.svg"/>
     <img src ="https://img.shields.io/badge/python-3.10|3.11.|3.12-blue.svg" />
-    <img src ="https://img.shields.io/github/actions/workflow/status/vnpy/vnpy/pythonapp.yml?branch=master"/>
-    <img src ="https://img.shields.io/github/license/vnpy/vnpy.svg?color=orange"/>
 </p>
 
-VeighNa是一套基于Python的开源量化交易系统开发框架，在开源社区持续不断的贡献下一步步成长为多功能量化交易平台，自发布以来已经积累了众多来自金融机构或相关领域的用户，包括私募基金、证券公司、期货公司等。
-
-:rocket: :rocket: :rocket: **面向专业交易员的【VeighNa Elite量化终端】已经正式发布，针对专业交易员群体在海量策略并发、智能移仓换月、算法拆单执行、多账户交易支持等方面的需求提供了完善支持。了解更详细的信息请扫描下方二维码关注后，点击菜单栏的【社区交流 -> Elite会员服务】即可**：
-
-<p align="center">
-  <img src ="https://vnpy.oss-cn-shanghai.aliyuncs.com/vnpy_qr.jpg"/>
-</p>
-
-在使用VeighNa进行二次开发（策略、模块等）的过程中有任何疑问，请查看[**VeighNa项目文档**](https://www.vnpy.com/docs/cn/index.html)，如果无法解决请前往[**官方社区论坛**](https://www.vnpy.com/forum/)的【提问求助】板块寻求帮助，也欢迎在【经验分享】板块分享你的使用心得！
-
-**想要获取更多关于VeighNa的资讯信息？** 请扫描下方二维码添加小助手加入【VeighNa社区交流微信群】：
-
-<p align="center">
-  <img src ="https://vnpy.oss-cn-shanghai.aliyuncs.com/github_wx.png"/, width=250>
-</p>
+APilot是基于VeighNa的精简版量化交易系统开发框架，专为公司内部使用而设计。该版本移除了UI组件、图表功能和国际化支持，专注于提供高效稳定的交易功能。
 
 
 ## 功能特点
 
-1. 多功能量化交易平台（trader），整合了多种交易接口，并针对具体策略算法和功能开发提供了简洁易用的API，用于快速构建交易员所需的量化交易应用。
+1. 轻量级量化交易框架，移除了UI组件和图表模块，专注于提供高效稳定的交易功能。
 
-2. 覆盖国内外所拥有的下述交易品种的交易接口（gateway）：
+2. 支持以下交易接口（gateway）：
 
-    * 国内市场
+    * 加密货币
 
-        * CTP（[ctp](https://www.github.com/vnpy/vnpy_ctp)）：国内期货、期权
-
-        * CTP Mini（[mini](https://www.github.com/vnpy/vnpy_mini)）：国内期货、期权
-
-        * CTP证券（[sopt](https://www.github.com/vnpy/vnpy_sopt)）：ETF期权
-
-        * 飞马（[femas](https://www.github.com/vnpy/vnpy_femas)）：国内期货
-
-        * 恒生UFT（[uft](https://www.github.com/vnpy/vnpy_uft)）：国内期货、ETF期权
-
-        * 易盛（[esunny](https://www.github.com/vnpy/vnpy_esunny)）：国内期货、黄金TD
-
-        * 顶点飞创（[sec](https://www.github.com/vnpy/vnpy_sec)）：ETF期权
-
-        * 顶点HTS（[hts](https://www.github.com/vnpy/vnpy_hts)）：ETF期权
-
-        * 中泰XTP（[xtp](https://www.github.com/vnpy/vnpy_xtp)）：国内证券（A股）、ETF期权
-
-        * 华鑫奇点（[tora](https://www.github.com/vnpy/vnpy_tora)）：国内证券（A股）、ETF期权
-
-        * 国泰君安（[hft](https://www.github.com/vnpy/vnpy_hft)）：国内证券（A股、两融）
-
-        * 东证OST（[ost](https://www.github.com/vnpy/vnpy_ost)）：国内证券（A股）
-
-        * 东方财富EMT（[emt](https://www.github.com/vnpy/vnpy_emt)）：国内证券（A股）
-
-        * 飞鼠（[sgit](https://www.github.com/vnpy/vnpy_sgit)）：黄金TD、国内期货
-
-        * 金仕达黄金（[ksgold](https://www.github.com/vnpy/vnpy_ksgold)）：黄金TD
-
-        * 利星资管（[lstar](https://www.github.com/vnpy/vnpy_lstar)）：期货资管
-
-        * 融航（[rohon](https://www.github.com/vnpy/vnpy_rohon)）：期货资管
-
-        * 杰宜斯（[jees](https://www.github.com/vnpy/vnpy_jees)）：期货资管
-
-        * 中汇亿达（[comstar](https://www.github.com/vnpy/vnpy_comstar)）：银行间市场
-
-        * 掘金（[gm](https://www.github.com/vnpy/vnpy_gm)）：国内证券（仿真）
-
-        * 恒生云UF（[uf](https://www.github.com/vnpy/vnpy_uf)）：国内证券（仿真）
-
-        * TTS（[tts](https://www.github.com/vnpy/vnpy_tts)）：国内期货（仿真）
-
-    * 海外市场
-
-        * Interactive Brokers（[ib](https://www.github.com/vnpy/vnpy_ib)）：海外证券、期货、期权、贵金属等
-
-        * 易盛9.0外盘（[tap](https://www.github.com/vnpy/vnpy_tap)）：海外期货
-
-        * 直达期货（[da](https://www.github.com/vnpy/vnpy_da)）：海外期货
-
-    * 特殊应用
-
-        * RQData行情（[rqdata](https://www.github.com/vnpy/vnpy_rqdata)）：跨市场（股票、指数、ETF、期货）实时行情
-
-        * 迅投研行情（[xt](https://www.github.com/vnpy/vnpy_xt)）：跨市场（股票、指数、可转债、ETF、期货、期权）实时行情
+        * Binance（[binance](https://github.com/vnpy/vnpy_binance)）：币安现货和合约
 
         * RPC服务（[rpc](https://www.github.com/vnpy/vnpy_rpcservice)）：跨进程通讯接口，用于分布式架构
 
