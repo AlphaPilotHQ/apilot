@@ -9,3 +9,8 @@ pyzmq==25.1.2
 plotly==5.20.0
 importlib-metadata==7.0.2
 tqdm==4.66.2
+
+
+numpy==1.23.1
+ta-lib==0.4.24 # brew install ta-lib，要先c的
+ccxt==4.2.5

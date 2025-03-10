@@ -16,7 +16,8 @@ import talib
 
 from .object import BarData, TickData
 from .constant import Exchange, Interval
-from .locale import _
+
+# 移除国际化，使用之前添加的_函数
 
 if sys.version_info >= (3, 9):
     from zoneinfo import ZoneInfo, available_timezones              # noqa
