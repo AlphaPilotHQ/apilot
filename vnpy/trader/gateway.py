@@ -34,26 +34,14 @@ from .object import (
 
 class BaseGateway(ABC):
     """
-    Abstract gateway class for creating gateways connection
-    to different trading systems.
+    Abstract base class for gateways.
 
-    # How to implement a gateway:
-
-    ---
     ## Basics
-    A gateway should satisfies:
-    * this class should be thread-safe:
-        * all methods should be thread-safe
-        * no mutable shared properties between objects.
-    * all methods should be non-blocked
-    * satisfies all requirements written in docstring for every method and callbacks.
-    * automatically reconnect if connection lost.
+    A gateway should be thread-safe and non-blocked.
 
-    ---
     ## methods must implements:
     all @abstractmethod
 
-    ---
     ## callbacks must response manually:
     * on_tick
     * on_trade
@@ -61,29 +49,19 @@ class BaseGateway(ABC):
     * on_position
     * on_account
     * on_contract
-
-    All the XxxData passed to callback should be constant, which means that
-        the object should not be modified after passing to on_xxxx.
-    So if you use a cache to store reference of data, use copy.copy to create a new object
-    before passing that data into on_xxxx
-
-
-
     """
 
-    # Default name for the gateway.
     default_name: str = ""
 
-    # Fields required in setting dict for connect function.
+    # For connect function
     default_setting: Dict[str, Any] = {}
 
-    # Exchanges supported in the gateway.
     exchanges: List[Exchange] = []
 
     def __init__(self, event_engine: EventEngine, gateway_name: str) -> None:
         """"""
-        self.event_engine: EventEngine = event_engine
-        self.gateway_name: str = gateway_name
+        self.event_engine = event_engine
+        self.gateway_name = gateway_name
 
     def on_event(self, type: str, data: Any = None) -> None:
         """
@@ -284,7 +262,7 @@ class LocalOrderManager:
         self.gateway: BaseGateway = gateway
 
         # For generating local orderid
-        self.order_prefix: str = order_prefix
+        self.order_prefix = order_prefix
         self.order_count: int = 0
         self.orders: Dict[str, OrderData] = {}        # local_orderid: order
 

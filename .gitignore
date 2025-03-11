@@ -33,7 +33,7 @@ x64/
 .vntrader/
 
 # Data files
-*.csv
+SOL-USDT.csv
 *.h5
 *.pkl
 *.db
@@ -89,5 +89,9 @@ htmlcov/
 *.spec
 wheels/
 
+# Pytest
+.pytest_cache/
+pytest-reports/
+.coverage.*
 
 .png

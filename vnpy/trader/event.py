@@ -1,9 +1,6 @@
-"""
-Event type string used in the trading platform.
-"""
-
 from vnpy.event import EVENT_TIMER  # noqa
 
+# TODO:1. mod EVENT_TIMER 2. mod order
 EVENT_TICK = "eTick."
 EVENT_TRADE = "eTrade."
 EVENT_ORDER = "eOrder."

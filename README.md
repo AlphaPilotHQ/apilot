@@ -111,3 +111,65 @@ APilot是一个量化交易系统开发框架。我们的网站是:www.alphapilo
     * 同花顺iFinD（[ifind](https://www.github.com/vnpy/vnpy_ifind)）：股票、期货、基金、债券
 
     * 天勤TQSDK（[tqsdk](https://www.github.com/vnpy/vnpy_tqsdk)）：期货
+
+
+## 代码目录
+vnpy/
+├── .env
+├── .env.template
+├── .git/
+├── .github/
+├── .gitignore
+├── .vscode/
+│   └── settings.json
+├── CHANGELOG.md
+├── README.md
+├── SOL-USDT.csv
+├── examples/
+│   ├── cta_backtesting/
+│   │   ├── backtesting_demo.ipynb
+│   │   └── portfolio_backtesting.ipynb
+│   ├── portfolio_backtesting/
+│   │   └── backtesting_demo.ipynb
+│   ├── spread_backtesting/
+│   │   └── backtesting.ipynb
+│   └── veighna_trader/
+│       ├── demo_script.py
+│       └── run.py
+├── requirements.txt
+├── setup.cfg
+├── setup.py
+└── vnpy/
+    ├── .DS_Store
+    ├── __init__.py
+    ├── database/
+    │   ├── __init__.py
+    │   ├── mongodb/
+    │   │   ├── __init__.py
+    │   │   └── mongodb_database.py
+    │   ├── mysql/
+    │   │   └── mysql_database.py
+    │   └── postgresql/
+    │       └── postgresql_database.py
+    ├── event/
+    │   ├── __init__.py
+    │   └── engine.py
+    ├── gateway/
+    │   ├── binance_gateway.py
+    │   ├── bybit_gateway.py
+    │   ├── ib_gateway.py
+    │   └── okx_gateway.py
+    └── trader/
+        ├── __init__.py
+        ├── app.py
+        ├── constant.py
+        ├── converter.py
+        ├── database.py
+        ├── datafeed.py
+        ├── engine.py
+        ├── event.py
+        ├── gateway.py
+        ├── object.py
+        ├── optimize.py
+        ├── setting.py
+        └── utility.py
