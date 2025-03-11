@@ -126,7 +126,6 @@ def test_single_backtest():
         csv_path = "/Users/bobbyding/Documents/GitHub/vnpy/SOL-USDT.csv"
         if not os.path.exists(csv_path):
             print(f"警告: CSV文件不存在: {csv_path}")
-            print("请确保文件路径正确或文件已放置于正确位置")
         
         # 设置回测参数
         engine.set_parameters(
@@ -152,10 +151,6 @@ def test_single_backtest():
         
         if not engine.history_data:
             print("未加载到数据，终止回测")
-            print("可能的原因:")
-            print("1. CSV文件格式不匹配")
-            print("2. 所选时间范围内没有数据")
-            print("3. 数据路径配置不正确")
             return False
             
         engine.run_backtesting()

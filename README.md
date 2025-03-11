@@ -53,9 +53,11 @@ APilot是一个量化交易系统开发框架。我们的网站是:www.alphapilo
 
 6. 对接各类数据库的适配器接口（database）：
 
-    * SQL类
+    * CSV类
 
-        * SQLite（[sqlite](https://www.github.com/vnpy/vnpy_sqlite)）：轻量级单文件数据库，无需安装和配置数据服务程序，VeighNa的默认选项，适合入门新手用户
+        * CSV（[csv](https://www.github.com/vnpy/vnpy_csv)）：CSV文件数据库，直接从CSV文件读取数据
+
+    * SQL类
 
         * MySQL（[mysql](https://www.github.com/vnpy/vnpy_mysql)）：主流的开源关系型数据库，文档资料极为丰富，且可替换其他NewSQL兼容实现（如TiDB）
 
@@ -63,19 +65,10 @@ APilot是一个量化交易系统开发框架。我们的网站是:www.alphapilo
 
     * NoSQL类
 
-        * DolphinDB（[dolphindb](https://www.github.com/vnpy/vnpy_dolphindb)）：一款高性能分布式时序数据库，适用于对速度要求极高的低延时或实时性任务
-
-        * Arctic（[arctic](https://www.github.com/vnpy/vnpy_arctic)）：高性能金融时序数据库，采用了分块化储存、LZ4压缩等性能优化方案，以实现时序数据的高效读写
-
-        * TDengine（[taos](https://www.github.com/vnpy/vnpy_taos)）：分布式、高性能、支持SQL的时序数据库，带有内建的缓存、流式计算、数据订阅等系统功能，能大幅减少研发和运维的复杂度
-
         * TimescaleDB（[timescaledb](https://www.github.com/vnpy/vnpy_timescaledb)）：基于PostgreSQL开发的一款时序数据库，以插件化扩展的形式安装，支持自动按空间和时间对数据进行分区
 
         * MongoDB（[mongodb](https://www.github.com/vnpy/vnpy_mongodb)）：基于分布式文件储存（bson格式）的文档式数据库，内置的热数据内存缓存提供更快读写速度
 
-        * InfluxDB（[influxdb](https://www.github.com/vnpy/vnpy_influxdb)）：针对TimeSeries Data专门设计的时序数据库，列式数据储存提供极高的读写效率和外围分析应用
-
-        * LevelDB（[leveldb](https://www.github.com/vnpy/vnpy_leveldb)）：由Google推出的高性能Key/Value数据库，基于LSM算法实现进程内存储引擎，支持数十亿级别的海量数据
 
 7. 对接下述各类数据服务的适配器接口（datafeed）：
 
