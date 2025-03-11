@@ -22,7 +22,7 @@ SETTINGS["datafeed.name"] = "default"
 SETTINGS["datafeed.username"] = ""
 SETTINGS["datafeed.password"] = ""
 
-from vnpy.gateway.binance import BinanceGateway
+from vnpy.gateway.binance_gateway import BinanceGateway
 from vnpy_ctastrategy import CtaStrategyApp
 from vnpy_ctastrategy.base import EVENT_CTA_LOG
 
