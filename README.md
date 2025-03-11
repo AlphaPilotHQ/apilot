@@ -17,7 +17,13 @@ APilot是基于VeighNa的精简版量化交易系统开发框架，专为公司�
 
     * 加密货币
 
-        * Binance（[binance](https://github.com/vnpy/vnpy_binance)）：币安现货和合约
+        * Binance（[binance_gateway](vnpy/gateway/binance_gateway.py)）：币安现货和合约
+        * OKX（[okx_gateway](vnpy/gateway/okx_gateway.py)）：OKX现货和合约
+        * Bybit（[bybit_gateway](vnpy/gateway/bybit_gateway.py)）：Bybit现货和合约
+    
+    * 证券/期货
+
+        * Interactive Brokers（[ib_gateway](vnpy/gateway/ib_gateway.py)）：盈透证券全球证券、期货、期权
 
 3. 覆盖下述各类量化策略的交易应用（app）：
 
@@ -106,46 +112,3 @@ APilot是基于VeighNa的精简版量化交易系统开发框架，专为公司�
     * 同花顺iFinD（[ifind](https://www.github.com/vnpy/vnpy_ifind)）：股票、期货、基金、债券
 
     * 天勤TQSDK（[tqsdk](https://www.github.com/vnpy/vnpy_tqsdk)）：期货
-
-
-
-## 脚本运行
-
-除了基于VeighNa Station的图形化启动方式外，也可以在任意目录下创建run.py，写入以下示例代码：
-
-```Python
-from vnpy.event import EventEngine
-from vnpy.trader.engine import MainEngine
-from vnpy.trader.ui import MainWindow, create_qapp
-
-from vnpy_ctp import CtpGateway
-from vnpy_ctastrategy import CtaStrategyApp
-from vnpy_ctabacktester import CtaBacktesterApp
-
-
-def main():
-    """Start VeighNa Trader"""
-    qapp = create_qapp()
-
-    event_engine = EventEngine()
-    main_engine = MainEngine(event_engine)
-    
-    main_engine.add_gateway(CtpGateway)
-    main_engine.add_app(CtaStrategyApp)
-    main_engine.add_app(CtaBacktesterApp)
-
-    main_window = MainWindow(main_engine, event_engine)
-    main_window.showMaximized()
-
-    qapp.exec()
-
-
-if __name__ == "__main__":
-    main()
-```
-
-在该目录下打开CMD（按住Shift->点击鼠标右键->在此处打开命令窗口/PowerShell）后运行下列命令启动VeighNa Trader：
-
-    python run.py
-
-
