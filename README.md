@@ -1,17 +1,16 @@
-# APilot - 基于VeighNa的内部量化交易框架
+# APilot - AI-Driven Quant, Open to All
 
 <p align="center">
-    <img src ="https://img.shields.io/badge/version-1.0.0-blueviolet.svg"/>
-    <img src ="https://img.shields.io/badge/platform-macos|linux-yellow.svg"/>
+    <img src ="https://img.shields.io/badge/version-0.0.1-blueviolet.svg"/>
     <img src ="https://img.shields.io/badge/python-3.10|3.11.|3.12-blue.svg" />
 </p>
 
-APilot是基于VeighNa的精简版量化交易系统开发框架，专为公司内部使用而设计。该版本移除了UI组件、图表功能和国际化支持，专注于提供高效稳定的交易功能。
+APilot是一个量化交易系统开发框架。我们的网站是:www.alphapilot.tech.
 
 
 ## 功能特点
 
-1. 轻量级量化交易框架，移除了UI组件和图表模块，专注于提供高效稳定的交易功能。
+1. 轻量级量化交易框架，专注于提供高效稳定的交易功能。
 
 2. 支持以下交易接口（gateway）：
 
