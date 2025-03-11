@@ -107,140 +107,73 @@ class TestStrategy(CtaTemplate):
             self.write_log(f"全仓卖出: {abs(self.pos):.2f} 手，价格: {bar.close_price:.2f}, 金额: {abs(self.pos) * bar.close_price:.2f}")
 
 
-def load_bar_data_from_csv(csv_path, symbol, exchange, interval, start, end):
-    """
-    Load bar data from csv file.
-    """
-    # Check if file exists
-    if not os.path.exists(csv_path):
-        print(f"CSV file not found: {csv_path}")
-        return []
-    
-    # Read csv file
-    df = pd.read_csv(csv_path)
-    
-    # Print column names for debugging
-    print(f"CSV columns: {df.columns.tolist()}")
-    
-    # Check and convert datetime column - try different possible column names
-    datetime_col = None
-    for col_name in ["datetime", "date", "time", "timestamp", "Date", "Time", "Datetime", "TimeStamp", "candle_begin_time"]:
-        if col_name in df.columns:
-            datetime_col = col_name
-            break
-    
-    if datetime_col is None:
-        print("Error: No datetime column found in CSV file")
-        print("Available columns:", df.columns.tolist())
-        return []
-    
-    # Convert datetime column
-    df["datetime"] = pd.to_datetime(df[datetime_col])
-    
-    # Filter by date range
-    df = df[(df["datetime"] >= start) & (df["datetime"] <= end)]
-    
-    # Map column names to expected names if necessary
-    price_cols = {
-        "open": ["open", "Open", "OPEN"],
-        "high": ["high", "High", "HIGH"],
-        "low": ["low", "Low", "LOW"],
-        "close": ["close", "Close", "CLOSE"],
-        "volume": ["volume", "Volume", "VOLUME", "vol", "Vol"]
-    }
-    
-    col_mapping = {}
-    for target, possibilities in price_cols.items():
-        for possibility in possibilities:
-            if possibility in df.columns:
-                col_mapping[target] = possibility
-                break
-        
-        if target not in col_mapping:
-            print(f"Warning: Column '{target}' not found in CSV")
-            return []
-    
-    # Create bar data objects
-    bars = []
-    for _, row in df.iterrows():
-        bar = BarData(
-            symbol=symbol,
-            exchange=exchange,
-            interval=interval,
-            datetime=row["datetime"],
-            open_price=row[col_mapping["open"]],
-            high_price=row[col_mapping["high"]],
-            low_price=row[col_mapping["low"]],
-            close_price=row[col_mapping["close"]],
-            volume=row[col_mapping["volume"]],
-            gateway_name="CSV"
-        )
-        bars.append(bar)
-    
-    print(f"Loaded {len(bars)} bars from CSV")
-    return bars
-
-
 def test_single_backtest():
-    """Test running a single backtest with local data"""
-    print("Testing single backtest with local data...")
+    """使用CSV数据进行回测"""
+    print("开始回测，使用CSV数据源...")
     
+    # 使用标准回测引擎（现在会自动使用CSV数据库适配器）
     engine = BacktestingEngine()
     
     try:
-        # Set parameters
+        # 设置参数
         symbol = "SOL-USDT"
         exchange = Exchange.BINANCE
         interval = Interval.MINUTE
-        start = datetime(2023, 1, 1)  # 修改为2023年1月1日
-        end = datetime(2023, 1, 31)  # 修改为2023年12月31日
+        start = datetime(2023, 1, 1)
+        end = datetime(2023, 1, 31)
         
+        # 确保CSV文件存在
+        csv_path = "/Users/bobbyding/Documents/GitHub/vnpy/SOL-USDT.csv"
+        if not os.path.exists(csv_path):
+            print(f"警告: CSV文件不存在: {csv_path}")
+            print("请确保文件路径正确或文件已放置于正确位置")
+        
+        # 设置回测参数
         engine.set_parameters(
             vt_symbol=f"{symbol}.{exchange.value}",
             interval=interval,
             start=start,
             end=end,
-            rate=0.0001,      # 降低手续费率
-            slippage=0.0001,  # 大幅降低滑点
-            size=1,           # 合约乘数保持为1
-            pricetick=0.01,   # 价格精度
-            capital=1000000   # 增加初始资金
+            rate=0.0001,
+            slippage=0.0001,
+            size=1,
+            pricetick=0.01,
+            capital=1000000
         )
         
-        # Load data from CSV
-        csv_path = "/Users/bobbyding/Documents/GitHub/vnpy/SOL-USDT.csv"
-        bars = load_bar_data_from_csv(csv_path, symbol, exchange, interval, start, end)
-        
-        if not bars:
-            print("No data loaded, aborting test")
-            return False
-        
-        # Add bars to engine's history_data
-        engine.history_data = bars
-        
-        # Add strategy
+        # 添加策略
         engine.add_strategy(TestStrategy, {
             "fast_window": 5,
             "slow_window": 20
         })
         
-        # Run backtest
+        # 加载数据并运行回测
+        engine.load_data()  # 现在会自动从CSV文件读取数据
+        
+        if not engine.history_data:
+            print("未加载到数据，终止回测")
+            print("可能的原因:")
+            print("1. CSV文件格式不匹配")
+            print("2. 所选时间范围内没有数据")
+            print("3. 数据路径配置不正确")
+            return False
+            
         engine.run_backtesting()
         
-        # Calculate result
+        # 计算结果
         engine.calculate_result()
-        stats = engine.calculate_statistics()  # 使用calculate_statistics方法的返回值
+        stats = engine.calculate_statistics()
         
-        # Get results
-        df = engine.daily_df  # 使用 daily_df 属性
+        # 获取结果
+        df = engine.daily_df
         
-        print("Single backtest completed!")
-        print("Statistics:")
+        print("回测完成！")
+        print("统计结果:")
         if stats:
             for key, value in stats.items():
                 print(f"{key}: {value}")
         else:
-            print("No statistics available - likely no trades were made")
+            print("没有统计数据 - 可能没有产生交易")
         
         # 输出详细的交易记录
         print("\n=== 交易记录 ===")
@@ -252,18 +185,18 @@ def test_single_backtest():
             
         return True
     except Exception as e:
-        print(f"Single backtest failed with error: {e}")
+        print(f"回测失败，错误: {e}")
         import traceback
         traceback.print_exc()
         return False
 
 
 if __name__ == "__main__":
-    print("Starting backtesting tests...\n")
+    print("开始回测测试...\n")
     
     single_test_result = test_single_backtest()
     
     if single_test_result:
-        print("\nTest passed successfully!")
+        print("\n回测成功完成！")
     else:
-        print("\nTest failed. Please check the error messages above.")
+        print("\n回测失败。请检查上述错误信息。")

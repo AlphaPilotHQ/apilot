@@ -7,12 +7,16 @@ from importlib import import_module
 import sys
 import os
 
-from .constant import Interval, Exchange
+from .constant import Exchange, Interval
 from .object import BarData, TickData
 from .setting import SETTINGS
 from .utility import ZoneInfo
 
 
+# Get local timezone
+LOCAL_TZ = ZoneInfo("Asia/Shanghai")
+
+# DB_TZ is the timezone setting in database
 DB_TZ = ZoneInfo(SETTINGS["database.timezone"])
 
 
@@ -139,14 +143,24 @@ database: BaseDatabase = None
 
 
 def get_database() -> BaseDatabase:
-    """"""
+    """
+    Return database object if inited.
+    """
     # Return database object if already inited
     global database
     if database:
         return database
 
-    # Read database related global setting
+    # Read database name from setting
     database_name: str = SETTINGS["database.name"]
+    
+    # Use built-in CSV database if specified in settings
+    if database_name == "csv":
+        from vnpy.database.csv.csv_database import CsvDatabase
+        database = CsvDatabase()
+        return database
+
+    # Use external database if name is not "csv"
     module_name: str = f"vnpy_{database_name}"
 
     # Try to import database module
