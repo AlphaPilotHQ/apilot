@@ -39,7 +39,6 @@ from vnpy.trader.constant import (
 )
 from vnpy.trader.utility import load_json, save_json, extract_vt_symbol, round_to
 from vnpy.trader.database import BaseDatabase, get_database, DB_TZ
-from vnpy.trader.datafeed import BaseDatafeed, get_datafeed
 
 from .base import (
     APP_NAME,
@@ -94,14 +93,12 @@ class CtaEngine(BaseEngine):
         self.vt_tradeids: set = set()                                   # for filtering duplicate trade
 
         self.database: BaseDatabase = get_database()
-        self.datafeed: BaseDatafeed = get_datafeed()
 
     def init_engine(self) -> None:
         """"""
-        self.init_datafeed()
-        self.load_strategy_class()
         self.load_strategy_setting()
         self.load_strategy_data()
+        self.load_strategy_class()
         self.register_event()
         self.write_log("CTA策略引擎初始化成功")
 
@@ -114,30 +111,6 @@ class CtaEngine(BaseEngine):
         self.event_engine.register(EVENT_TICK, self.process_tick_event)
         self.event_engine.register(EVENT_ORDER, self.process_order_event)
         self.event_engine.register(EVENT_TRADE, self.process_trade_event)
-
-    def init_datafeed(self) -> None:
-        """
-        Init datafeed client.
-        """
-        result: bool = self.datafeed.init(self.write_log)
-        if result:
-            self.write_log("数据服务初始化成功")
-
-    def query_bar_from_datafeed(
-        self, symbol: str, exchange: Exchange, interval: Interval, start: datetime, end: datetime
-    ) -> List[BarData]:
-        """
-        Query bar data from datafeed.
-        """
-        req: HistoryRequest = HistoryRequest(
-            symbol=symbol,
-            exchange=exchange,
-            interval=interval,
-            start=start,
-            end=end
-        )
-        data: List[BarData] = self.datafeed.query_bar_history(req, self.write_log)
-        return data
 
     def process_tick_event(self, event: Event) -> None:
         """"""
@@ -551,33 +524,10 @@ class CtaEngine(BaseEngine):
         start: datetime = end - timedelta(days)
         bars: List[BarData] = []
 
-        # Pass gateway and datafeed if use_database set to True
-        if not use_database:
-            # Query bars from gateway if available
-            contract: Optional[ContractData] = self.main_engine.get_contract(vt_symbol)
-
-            if contract and contract.history_data:
-                req: HistoryRequest = HistoryRequest(
-                    symbol=symbol,
-                    exchange=exchange,
-                    interval=interval,
-                    start=start,
-                    end=end
-                )
-                bars: List[BarData] = self.main_engine.query_history(req, contract.gateway_name)
-
-            # Try to query bars from datafeed, if not found, load from database.
-            else:
-                bars: List[BarData] = self.query_bar_from_datafeed(symbol, exchange, interval, start, end)
-
-        if not bars:
-            bars: List[BarData] = self.database.load_bar_data(
-                symbol=symbol,
-                exchange=exchange,
-                interval=interval,
-                start=start,
-                end=end,
-            )
+        # Try to query bars from database, if not found, load from database.
+        bars: List[BarData] = self.database.load_bar_data(
+            symbol, exchange, interval, start, end
+        )
 
         return bars
 
@@ -593,10 +543,7 @@ class CtaEngine(BaseEngine):
         start: datetime = end - timedelta(days)
 
         ticks: List[TickData] = self.database.load_tick_data(
-            symbol=symbol,
-            exchange=exchange,
-            start=start,
-            end=end,
+            symbol, exchange, start, end
         )
 
         return ticks

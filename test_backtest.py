@@ -107,91 +107,55 @@ class TestStrategy(CtaTemplate):
             self.write_log(f"全仓卖出: {abs(self.pos):.2f} 手，价格: {bar.close_price:.2f}, 金额: {abs(self.pos) * bar.close_price:.2f}")
 
 
-def test_single_backtest():
-    """使用CSV数据进行回测"""
-    print("开始回测，使用CSV数据源...")
-    
-    # 使用标准回测引擎（现在会自动使用CSV数据库适配器）
-    engine = BacktestingEngine()
-    
-    try:
-        # 设置参数
-        symbol = "SOL-USDT"
-        exchange = Exchange.BINANCE
-        interval = Interval.MINUTE
-        start = datetime(2023, 1, 1)
-        end = datetime(2023, 1, 31)
-        
-        # 确保CSV文件存在
-        csv_path = "/Users/bobbyding/Documents/GitHub/vnpy/SOL-USDT.csv"
-        if not os.path.exists(csv_path):
-            print(f"警告: CSV文件不存在: {csv_path}")
-        
-        # 设置回测参数
-        engine.set_parameters(
-            vt_symbol=f"{symbol}.{exchange.value}",
-            interval=interval,
-            start=start,
-            end=end,
-            rate=0.0001,
-            slippage=0.0001,
-            size=1,
-            pricetick=0.01,
-            capital=1000000
-        )
-        
-        # 添加策略
-        engine.add_strategy(TestStrategy, {
-            "fast_window": 5,
-            "slow_window": 20
-        })
-        
-        # 加载数据并运行回测
-        engine.load_data()  # 现在会自动从CSV文件读取数据
-        
-        if not engine.history_data:
-            print("未加载到数据，终止回测")
-            return False
-            
-        engine.run_backtesting()
-        
-        # 计算结果
-        engine.calculate_result()
-        stats = engine.calculate_statistics()
-        
-        # 获取结果
-        df = engine.daily_df
-        
-        print("回测完成！")
-        print("统计结果:")
-        if stats:
-            for key, value in stats.items():
-                print(f"{key}: {value}")
-        else:
-            print("没有统计数据 - 可能没有产生交易")
-        
-        # 输出详细的交易记录
-        print("\n=== 交易记录 ===")
-        if engine.trades:
-            for i, (vt_tradeid, trade) in enumerate(engine.trades.items()):
-                print(f"交易 #{i+1}: {'买入' if trade.direction == Direction.LONG else '卖出'} {trade.volume} 手, 价格: {trade.price}, 时间: {trade.datetime}")
-        else:
-            print("没有交易记录")
-            
-        return True
-    except Exception as e:
-        print(f"回测失败，错误: {e}")
-        import traceback
-        traceback.print_exc()
-        return False
 
+    
+# 创建回测引擎
+engine = BacktestingEngine()
 
-if __name__ == "__main__":
-    print("开始回测测试...\n")
-    
-    single_test_result = test_single_backtest()
-    
-    if single_test_result:
-        print("\n回测成功完成！")
-    else:
-        print("\n回测失败。请检查上述错误信息。")
+# 设置回测参数
+engine.set_parameters(
+    vt_symbol="SOL-USDT.BINANCE",
+    interval=Interval.MINUTE,
+    start=datetime(2023, 1, 1),
+    end=datetime(2023, 1, 31),
+    rate=0.0001,
+    slippage=0.0001,
+    size=1,
+    pricetick=0.01,
+    capital=1000000
+)
+
+# 添加策略
+engine.add_strategy(TestStrategy, {
+    "fast_window": 5,
+    "slow_window": 20
+})
+
+# 加载数据并运行回测
+engine.load_data()  # 现在会自动从CSV文件读取数据
+
+# 运行回测
+engine.run_backtesting()
+
+# 计算结果
+engine.calculate_result()
+stats = engine.calculate_statistics()
+
+# 获取结果
+df = engine.daily_df
+
+print("回测完成！")
+print("统计结果:")
+if stats:
+    for key, value in stats.items():
+        print(f"{key}: {value}")
+else:
+    print("没有统计数据 - 可能没有产生交易")
+
+# 输出详细的交易记录
+print("\n=== 交易记录 ===")
+if engine.trades:
+    for i, (vt_tradeid, trade) in enumerate(engine.trades.items()):
+        print(f"交易 #{i+1}: {'买入' if trade.direction == Direction.LONG else '卖出'} {trade.volume} 手, 价格: {trade.price}, 时间: {trade.datetime}")
+else:
+    print("没有交易记录")
