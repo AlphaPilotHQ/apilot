@@ -86,7 +86,6 @@ class BinanceGateway(BaseGateway):
         "Session Number": 3,
         "Proxy Host": "",
         "Proxy Port": 0,
-        "Testnet": False,
     }
     exchanges = [Exchange.BINANCE]
 
@@ -109,7 +108,6 @@ class BinanceGateway(BaseGateway):
         session_number = setting["Session Number"]
         proxy_host = setting["Proxy Host"]
         proxy_port = setting["Proxy Port"]
-        testnet = setting["Testnet"]
 
         self.rest_api.connect(
             api_key,
@@ -117,7 +115,6 @@ class BinanceGateway(BaseGateway):
             session_number,
             proxy_host,
             proxy_port,
-            testnet
         )
         self.connect_time = int(datetime.now().timestamp())
 
@@ -165,7 +162,6 @@ class BinanceRestApi:
         self.secret_key = ""
         self.proxy_host = ""
         self.proxy_port = 0
-        self.testnet = False
 
         self.exchange = None
         self.order_count = 0
@@ -184,12 +180,10 @@ class BinanceRestApi:
         session_number: int,
         proxy_host: str,
         proxy_port: int,
-        testnet: bool
     ) -> None:
         """Connect to Binance"""
         self.api_key = api_key
         self.secret_key = secret_key
-        self.testnet = testnet
         self.proxy_host = proxy_host
         self.proxy_port = proxy_port
 
@@ -222,17 +216,9 @@ class BinanceRestApi:
                 "options": options
             }
 
-        # Use testnet if specified
-        urls = {}
-        if testnet:
-            urls["api"] = "https://testnet.binance.vision/api"
-            
         # Create the exchange instance
-        if urls:
-            self.exchange_kwargs["urls"] = urls
-            
         try:
-            self.gateway.write_log(f"创建Binance交易所实例, 测试网: {testnet}")
+            self.gateway.write_log(f"创建Binance交易所实例")
             self.exchange = exchange_class(self.exchange_kwargs)
         except Exception as e:
             self.gateway.write_log(f"创建Binance交易所实例失败: {e}")

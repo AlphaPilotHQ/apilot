@@ -7,10 +7,26 @@
 
 APilot是一个量化交易系统开发框架。我们的网站是:www.alphapilot.tech.
 
+## TODO
+- algotrading should use websocket client
+
+
+## 介绍
+
+1. 基本功能
+- 本地数据导入
+- 策略回测
+- 策略实盘
+
+2. Plus功能
+- 支持数据库读取策略
+- 内置多种策略（cta，spread）
+- 支持算法下单
+- 支持风控管理
 
 ## 功能特点
 
-1. 轻量级量化交易框架，专注于提供高效稳定的交易功能。
+1. 开箱即用。轻量级量化交易框架，专注于提供高效稳定的交易功能。
 
 2. 支持以下交易接口（gateway）：
 
@@ -24,24 +40,21 @@ APilot是一个量化交易系统开发框架。我们的网站是:www.alphapilo
 
         * Interactive Brokers（[ib_gateway](vnpy/gateway/ib_gateway.py)）：盈透证券全球证券、期货、期权
 
-3. 覆盖下述各类量化策略的交易应用（app）：
+3. 覆盖下述各类量化策略（strategy）：
 
     * [cta_strategy]
+
+    * [spread_trading](https://www.github.com/vnpy/vnpy_spreadtrading)：价差交易模块，支持自定义价差，实时计算价差行情和持仓，支持价差算法交易以及自动价差策略两种模式
+
 
 
     * [portfolio_strategy](https://www.github.com/vnpy/vnpy_portfoliostrategy)：组合策略模块，面向同时交易多合约的量化策略（Alpha、期权套利等），提供历史数据回测和实盘自动交易功能
 
-    * [algo_trading](https://www.github.com/vnpy/vnpy_algotrading)：算法交易模块，提供多种常用的智能交易算法：TWAP、Sniper、Iceberg、BestLimit等
-
     * [portfolio_manager](https://www.github.com/vnpy/vnpy_portfoliomanager)：交易组合管理模块，以独立的策略交易组合（子账户）为基础，提供委托成交记录管理、交易仓位自动跟踪以及每日盈亏实时统计功能
 
-    * [data_manager](https://www.github.com/vnpy/vnpy_datamanager)：历史数据管理模块，通过树形目录查看数据库中已有的数据概况，选择任意时间段数据查看字段细节，支持CSV文件的数据导入和导出
-
-    * [data_recorder](https://www.github.com/vnpy/vnpy_datarecorder)：行情记录模块，基于图形界面进行配置，根据需求实时录制Tick或者K线行情到数据库中，用于策略回测或者实盘初始化
 
     * [risk_manager](https://www.github.com/vnpy/vnpy_riskmanager)：风险管理模块，提供包括交易流控、下单数量、活动委托、撤单总数等规则的统计和限制，有效实现前端风控功能
 
- 
 
 4. Python交易API接口封装（api），提供上述交易接口的底层对接实现。
 

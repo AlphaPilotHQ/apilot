@@ -5,17 +5,25 @@ General utility functions.
 import json
 import logging
 import sys
+import random
 from datetime import datetime, time
 from pathlib import Path
-from typing import Callable, Dict, Tuple, Union, Optional
+from typing import Callable, Dict, Tuple, Union, Optional, Any, TypeVar
 from decimal import Decimal
 from math import floor, ceil
+from functools import wraps
+from time import sleep
 
 import numpy as np
 import talib
-
 from .object import BarData, TickData
 from .constant import Exchange, Interval
+
+# 定义泛型返回类型
+T = TypeVar('T')
+
+# 从retry模块导入exponential_backoff函数
+from vnpy.utility.retry import exponential_backoff
 
 # 移除国际化，使用之前添加的_函数
 
@@ -1073,3 +1081,6 @@ def get_file_logger(filename: str) -> logging.Logger:
     handler.setFormatter(log_formatter)
     logger.addHandler(handler)  # each handler will be added only once.
     return logger
+
+
+
