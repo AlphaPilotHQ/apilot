@@ -10,6 +10,7 @@ from .base import APP_NAME, StopOrder
 from .engine import CtaEngine
 from .template import CtaTemplate, CtaSignal, TargetPosTemplate
 
+from .backtesting import BacktestingEngine
 
 
 class CtaStrategyApp(BaseApp):
