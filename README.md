@@ -42,8 +42,9 @@ APilot是一款专注于加密货币市场的高性能量化交易框架，由Al
 
 ## Strategy
 
-- **[CTA策略](vnpy/cta_strategy)**：经典的趋势跟踪和均值回归策略
-- **[价差交易](vnpy/spread_strategy)**：支持自定义价差，实时计算价差行情和持仓，支持价差算法交易以及自动价差策略
+- **[CTA策略]**：经典的趋势跟踪和均值回归策略
+- **[价差交易]**：支持自定义价差，实时计算价差行情和持仓，支持价差算法交易以及自动价差策略
+- **[投资组合策略]**：支持多资产投资组合回测和实盘交易
 
 ## 技术组件
 
@@ -112,10 +113,13 @@ done:
 - v0.0.1
 
 doing:
-- create examples 
+- create examples
+    ~~- cta~~
+    ~~- portfolio~~
+    - spread
 - upload to pypi
+- test optimizer
 - test algotrading & websocket
-
 
 todo:
 - test riskmanager
