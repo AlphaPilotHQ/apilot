@@ -606,9 +606,9 @@ class BacktestingEngine:
             )
 
             if self.mode == BacktestingMode.BAR:
-                trade.value = self.bar.value
+                trade.value = self.bar.close_price * trade.volume
             else:
-                trade.value = trade_price
+                trade.value = trade_price * trade.volume
 
             self.spread.net_pos += pos_change
             self.strategy.on_spread_pos()

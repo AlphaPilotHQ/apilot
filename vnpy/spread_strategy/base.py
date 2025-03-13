@@ -11,7 +11,7 @@ from vnpy.trader.object import (
 from vnpy.trader.constant import Direction, Offset, Exchange, Interval, Status
 from vnpy.trader.utility import floor_to, ceil_to, round_to, extract_vt_symbol, ZoneInfo
 from vnpy.trader.database import BaseDatabase, get_database
-from vnpy.trader.datafeed import BaseDatafeed, get_datafeed
+# from vnpy.trader.datafeed import BaseDatafeed, get_datafeed
 
 
 EVENT_SPREAD_DATA = "eSpreadData"
