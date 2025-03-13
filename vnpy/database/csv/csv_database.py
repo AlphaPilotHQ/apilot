@@ -173,22 +173,22 @@ class CsvDatabase(BaseDatabase):
         end: datetime
     ) -> List[BarData]:
         """从CSV文件加载K线数据"""
-        # 生成文件路径
+        # 生成标准文件名
         filename = f"{symbol}_{exchange.value}_{interval.value}.csv"
-        filepath = os.path.join(self.bar_path, filename)
         
-        # 文件不存在则尝试查找匹配的外部CSV文件
-        if not os.path.exists(filepath):
-            # 检查项目根目录是否有CSV文件
-            project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-            external_csv = glob.glob(f"{project_root}/{symbol}*.csv")
-            
-            if external_csv:
-                # 使用第一个找到的CSV文件
-                filepath = external_csv[0]
-                print(f"找到外部CSV文件: {filepath}")
-            else:
-                print(f"未找到数据文件: {filepath}")
+        # 先检查在项目根目录是否存在同名文件
+        project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+        root_filepath = os.path.join(project_root, filename)
+        
+        # 如果根目录有对应文件，直接使用
+        if os.path.exists(root_filepath):
+            filepath = root_filepath
+            print(f"使用根目录文件: {filepath}")
+        else:
+            # 回退到标准路径
+            filepath = os.path.join(self.bar_path, filename)
+            if not os.path.exists(filepath):
+                print(f"错误: 未找到数据文件: {filename}，在根目录或数据目录均不存在")
                 return []
         
         # 尝试从缓存加载数据

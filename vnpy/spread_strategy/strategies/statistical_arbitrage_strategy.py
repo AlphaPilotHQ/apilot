@@ -1,14 +1,15 @@
 from vnpy.trader.utility import BarGenerator, ArrayManager
-from vnpy_spreadtrading import (
-    SpreadStrategyTemplate,
-    SpreadAlgoTemplate,
+from vnpy.spread_strategy.base import (
     SpreadData,
-    OrderData,
     TradeData,
     TickData,
     BarData
 )
-
+from vnpy.spread_strategy.template import (
+    SpreadAlgoTemplate,
+    SpreadStrategyTemplate
+)
+from vnpy.trader.object import OrderData
 
 class StatisticalArbitrageStrategy(SpreadStrategyTemplate):
     """"""

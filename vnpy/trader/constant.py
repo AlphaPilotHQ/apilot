@@ -80,7 +80,6 @@ class Exchange(Enum):
     BINANCE_FUTURES = "BINANCEF"  # 币安合约
     HUOBI = "HUOBI"         # 火币
     OKEX = "OKEX"           # OKEx
-    FTX = "FTX"             # FTX
     BYBIT = "BYBIT"         # Bybit
     COINBASE = "COINBASE"   # Coinbase
     DERIBIT = "DERIBIT"     # Deribit
@@ -91,7 +90,6 @@ class Exchange(Enum):
     GATE = "GATE"           # Gate.io
     KuCOIN = "KUCOIN"       # KuCoin
     
-    # 特殊功能
     LOCAL = "LOCAL"         # 本地生成数据（回测使用）
 
 
