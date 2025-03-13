@@ -1,13 +1,10 @@
-from vnpy_ctastrategy import (
-    CtaTemplate,
-    StopOrder,
-    TickData,
-    BarData,
-    TradeData,
-    OrderData,
-    BarGenerator,
-    ArrayManager,
-)
+"""
+ATR RSI Strategy
+"""
+from vnpy.cta_strategy.template import CtaTemplate
+from vnpy.cta_strategy.base import StopOrder
+from vnpy.trader.object import TickData, BarData, TradeData, OrderData
+from vnpy.trader.utility import BarGenerator, ArrayManager
 
 
 class AtrRsiStrategy(CtaTemplate):
