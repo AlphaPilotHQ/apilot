@@ -94,4 +94,5 @@ wheels/
 pytest-reports/
 .coverage.*
 
-.png
+*.png
+*.csv
