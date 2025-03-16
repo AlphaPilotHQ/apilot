@@ -16,4 +16,4 @@ if ROOT_DIR not in sys.path:
 from datetime import datetime
 from vnpy.trader.optimize import OptimizationSetting
 from vnpy.cta_strategy import BacktestingEngine
-from vnpy.cta_strategy.strategies.atr_rsi_strategy import AtrRsiStrategy
+# from vnpy.cta_strategy.strategies.atr_rsi_strategy import AtrRsiStrategy

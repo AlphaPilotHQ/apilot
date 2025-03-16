@@ -12,7 +12,7 @@ from .base import StopOrder, EngineType
 class CtaTemplate(ABC):
     """"""
 
-    author: str = ""
+    # author: str = ""
     parameters: list = []
     variables: list = []
 
@@ -85,7 +85,7 @@ class CtaTemplate(ABC):
             "strategy_name": self.strategy_name,
             "vt_symbol": self.vt_symbol,
             "class_name": self.__class__.__name__,
-            "author": self.author,
+            # "author": self.author,
             "parameters": self.get_parameters(),
             "variables": self.get_variables(),
         }
@@ -326,9 +326,9 @@ class CtaTemplate(ABC):
     def put_event(self) -> None:
         """
         Put an strategy data event for ui update.
+        在回测环境中不需要GUI更新 - 已简化为空操作方法
         """
-        if self.inited:
-            self.cta_engine.put_strategy_event(self)
+        pass  # 为了专注于回测功能，此方法已简化
 
     def send_email(self, msg) -> None:
         """

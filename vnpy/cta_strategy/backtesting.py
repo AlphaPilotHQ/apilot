@@ -116,7 +116,6 @@ class BacktestingEngine:
         interval: Interval,
         start: datetime,
         rate: float,
-        slippage: float,
         size: float,
         pricetick: float,
         capital: int = 0,
@@ -124,14 +123,15 @@ class BacktestingEngine:
         mode: BacktestingMode = BacktestingMode.BAR,
         risk_free: float = 0,
         annual_days: int = 240,
-        half_life: int = 120
+        half_life: int = 120,
+        slippage: float = 0,  
     ) -> None:
         """"""
         self.mode = mode
         self.vt_symbol = vt_symbol
         self.interval = Interval(interval)
         self.rate = rate
-        self.slippage = slippage
+        self.slippage = 0  
         self.size = size
         self.pricetick = pricetick
         self.start = start
@@ -272,7 +272,7 @@ class BacktestingEngine:
                 start_pos,
                 self.size,
                 self.rate,
-                self.slippage
+                0  # 忽略slippage计算
             )
 
             pre_close = daily_result.close_price
@@ -917,7 +917,6 @@ class BacktestingEngine:
         start: datetime,
         end: datetime,
         rate: float,
-        slippage: float,
         size: int,
         pricetick: float,
         capital: int,
@@ -942,7 +941,6 @@ class BacktestingEngine:
             start=start,
             end=end,
             rate=rate,
-            slippage=slippage,
             size=size,
             pricetick=pricetick,
             capital=capital,
@@ -994,7 +992,7 @@ class DailyResult:
         start_pos: float,
         size: int,
         rate: float,
-        slippage: float
+        slippage: float = 0  # 保持兼容，但忽略此参数
     ) -> None:
         """"""
         # If no pre_close provided on the first day,
@@ -1019,14 +1017,14 @@ class DailyResult:
 
             turnover: float = trade.volume * size * trade.price
             self.trading_pnl += pos_change * (self.close_price - trade.price) * size
-            self.slippage += trade.volume * size * slippage
+            self.slippage = 0
 
             self.turnover += turnover
             self.commission += turnover * rate
 
-        # Net pnl takes account of commission and slippage cost
+        # Net pnl takes account of commission only (slippage已移除)
         self.total_pnl = self.trading_pnl + self.holding_pnl
-        self.net_pnl = self.total_pnl - self.commission - self.slippage
+        self.net_pnl = self.total_pnl - self.commission
 
 
 @lru_cache(maxsize=999)
