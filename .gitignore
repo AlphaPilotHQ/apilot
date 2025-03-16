@@ -96,3 +96,5 @@ pytest-reports/
 
 *.png
 *.csv
+# Windsurf IDE
+.windsurfrules
