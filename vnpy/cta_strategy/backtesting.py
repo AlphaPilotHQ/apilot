@@ -178,12 +178,8 @@ class BacktestingEngine:
 
         start: datetime = self.start
         end: datetime = self.start + progress_delta
-        progress = 0
 
         while start < self.end:
-            progress_bar: str = "#" * int(progress * 10 + 1)
-            self.output("加载进度：{} [{:.0%}]".format(progress_bar, progress))
-
             end: datetime = min(end, self.end)  # Make sure end time stays within set range
 
             if self.mode == BacktestingMode.BAR:
@@ -203,9 +199,6 @@ class BacktestingEngine:
                 )
 
             self.history_data.extend(data)
-
-            progress += progress_days / total_days
-            progress = min(progress, 1)
 
             start = end + interval_delta
             end += progress_delta
@@ -239,10 +232,6 @@ class BacktestingEngine:
                     self.output("触发异常，回测终止")
                     self.output(traceback.format_exc())
                     return
-
-            progress = min(ix / 10, 1)
-            progress_bar: str = "=" * (ix + 1)
-            self.output("回放进度：{} [{:.0%}]".format(progress_bar, progress))
 
         self.strategy.on_stop()
         self.output("历史数据回放结束")
@@ -279,9 +268,10 @@ class BacktestingEngine:
             start_pos = daily_result.end_pos
 
         # Generate dataframe 
+        first_result = next(iter(self.daily_results.values()))
         results = {
-            key: [getattr(daily_result, key) for daily_result in self.daily_results.values()]
-            for key in self.daily_results.values().__iter__().__next__().__dict__
+            key: [getattr(dr, key) for dr in self.daily_results.values()]
+            for key in first_result.__dict__
         }
 
         self.daily_df = DataFrame.from_dict(results).set_index("date")
@@ -348,9 +338,9 @@ class BacktestingEngine:
             start_date = df.index[0]
             end_date = df.index[-1]
 
-            total_days: int = len(df)
-            profit_days: int = len(df[df["net_pnl"] > 0])
-            loss_days: int = len(df[df["net_pnl"] < 0])
+            total_days = len(df)
+            profit_days = (df["net_pnl"] > 0).sum()
+            loss_days = (df["net_pnl"] < 0).sum()
 
             end_balance = df["balance"].iloc[-1]
             max_drawdown = df["drawdown"].min()
@@ -359,36 +349,33 @@ class BacktestingEngine:
 
             if isinstance(max_drawdown_end, date):
                 max_drawdown_start = df["balance"][:max_drawdown_end].idxmax()
-                max_drawdown_duration: int = (max_drawdown_end - max_drawdown_start).days
+                max_drawdown_duration = (max_drawdown_end - max_drawdown_start).days
             else:
-                max_drawdown_duration: int = 0
+                max_drawdown_duration = 0
 
-            total_net_pnl: float = df["net_pnl"].sum()
-            total_commission: float = df["commission"].sum()
-            total_slippage: float = df["slippage"].sum()
-            total_turnover: float = df["turnover"].sum()
-            total_trade_count: int = df["trade_count"].sum()
+            total_net_pnl = df["net_pnl"].sum()
+            total_commission = df["commission"].sum()
+            total_slippage = df["slippage"].sum()
+            total_turnover = df["turnover"].sum()
+            total_trade_count = df["trade_count"].sum()
 
-            total_return: float = (end_balance / self.capital - 1) * 100
-            annual_return: float = total_return / total_days * self.annual_days
-            return_std: float = df["return"].std() * 100
+            total_return = (end_balance / self.capital - 1) * 100
+            annual_return = total_return / total_days * self.annual_days
+            return_std = df["return"].std() * 100
 
             if return_std:
-                daily_risk_free: float = self.risk_free / np.sqrt(self.annual_days)
-                sharpe_ratio: float = (df["return"].mean() * 100 - daily_risk_free) / return_std * np.sqrt(self.annual_days)
+                daily_risk_free = self.risk_free / np.sqrt(self.annual_days)
+                sharpe_ratio = (df["return"].mean() * 100 - daily_risk_free) / return_std * np.sqrt(self.annual_days)
 
-                ewm_window: ExponentialMovingWindow = df["return"].ewm(halflife=self.half_life)
-                ewm_mean: Series = ewm_window.mean() * 100
-                ewm_std: Series = ewm_window.std() * 100
-                ewm_sharpe: float = ((ewm_mean - daily_risk_free) / ewm_std)[-1] * np.sqrt(self.annual_days)
+                ewm_window = df["return"].ewm(halflife=self.half_life)
+                ewm_mean = ewm_window.mean() * 100
+                ewm_std = ewm_window.std() * 100
+                ewm_sharpe = ((ewm_mean - daily_risk_free) / ewm_std)[-1] * np.sqrt(self.annual_days)
             else:
-                sharpe_ratio: float = 0
-                ewm_sharpe: float = 0
+                sharpe_ratio = 0
+                ewm_sharpe = 0
 
-            if max_ddpercent:
-                return_drawdown_ratio: float = -total_return / max_ddpercent
-            else:
-                return_drawdown_ratio = 0
+            return_drawdown_ratio = -total_return / max_ddpercent if max_ddpercent else 0
 
         # Output
         if output:
@@ -420,7 +407,7 @@ class BacktestingEngine:
             self.output("EWM Sharpe：\t{:.2f}".format(ewm_sharpe))
             self.output("收益回撤比：\t{:.2f}".format(return_drawdown_ratio))
 
-        statistics: dict = {
+        statistics = {
             "start_date": start_date,
             "end_date": end_date,
             "total_days": total_days,
@@ -444,11 +431,8 @@ class BacktestingEngine:
             "return_drawdown_ratio": return_drawdown_ratio,
         }
 
-        # Filter potential error infinite value
-        for key, value in statistics.items():
-            if value in (np.inf, -np.inf):
-                value = 0
-            statistics[key] = np.nan_to_num(value)
+        # 简化无限值处理
+        statistics = {k: np.nan_to_num(v, nan=0.0, posinf=0.0, neginf=0.0) for k, v in statistics.items()}
 
         self.output("策略统计指标计算完成")
         return statistics

@@ -183,7 +183,6 @@ class CsvDatabase(BaseDatabase):
         # 如果根目录有对应文件，直接使用
         if os.path.exists(root_filepath):
             filepath = root_filepath
-            print(f"使用根目录文件: {filepath}")
         else:
             # 回退到标准路径
             filepath = os.path.join(self.bar_path, filename)

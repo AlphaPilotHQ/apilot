@@ -90,13 +90,19 @@ def run_ga_optimization(
 
     def generate_parameter() -> list:
         """ 生成一个随机个体（即随机选取一组参数） """
-        return choice(settings)
+        setting = choice(settings)
+        # 从字典提取值并转换为列表
+        values = list(setting.values())
+        return values
 
     def mutate_individual(individual: list, indpb: float) -> tuple:
         """ 变异操作：随机选择部分参数进行调整 """
         for i in range(len(individual)):
             if random() < indpb:
-                individual[i] = choice(settings)[i]  # 直接选择一个新的参数值
+                # 获取一个随机设置并提取对应位置的值
+                random_values = list(choice(settings).values())
+                if i < len(random_values):
+                    individual[i] = random_values[i]
         return individual,
 
     # 设置多进程环境，使用 multiprocessing 并行计算
@@ -112,7 +118,7 @@ def run_ga_optimization(
         toolbox.register("mutate", mutate_individual, indpb=mutpb)  # 变异
         toolbox.register("select", tools.selTournament, tournsize=3)  # 锦标赛选择
         toolbox.register("map", pool.map)  # 并行计算
-        toolbox.register("evaluate", ga_evaluate, cache, evaluate_func, key_func)  # 适应度计算
+        toolbox.register("evaluate", ga_evaluate, cache, evaluate_func, key_func, optimization_setting)  # 适应度计算
 
         # 进化参数
         mu = int(population_size * 0.8)  # 每代保留的优秀个体数
@@ -138,19 +144,36 @@ def ga_evaluate(
     cache: dict,
     evaluate_func: EVALUATE_FUNC,
     key_func: KEY_FUNC,
+    optimization_setting: OptimizationSetting,
     parameters: list
 ) -> float:
     """ 计算适应度（fitness）
     - cache: 共享缓存，避免重复计算
     - evaluate_func: 计算适应度的函数
     - key_func: 适应度评估方式
+    - optimization_setting: 优化参数设置
     - parameters: 个体参数
     """
     param_tuple = tuple(parameters)  # 将参数转换为 tuple 作为 key
     if param_tuple in cache:
         result = cache[param_tuple]  # 如果已计算过，则直接从缓存中获取
     else:
-        setting = dict(parameters)  # 转换回字典
+        # 使用生成的参数创建设置字典
+        param_names = list(optimization_setting.params.keys())
+        setting = {}
+        
+        # 确保参数数量一致
+        if len(param_names) == len(parameters):
+            for i, name in enumerate(param_names):
+                setting[name] = parameters[i]
+        else:
+            # 参数数量不匹配时的处理
+            print(f"警告: 参数数量不匹配! 预期 {len(param_names)}, 实际 {len(parameters)}")
+            print(f"参数名: {param_names}")
+            print(f"参数值: {parameters}")
+            # 使用默认参数字典
+            setting = {k: 20 if "period" in k else 0.01 for k in param_names}
+        
         result = evaluate_func(setting)  # 计算适应度
         cache[param_tuple] = result  # 存入缓存
 
