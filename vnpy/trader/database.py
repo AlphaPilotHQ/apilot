@@ -94,21 +94,54 @@ class BaseDatabase(ABC):
 
         pass
 
-
+# 全局数据库实例
 database: BaseDatabase = None
 
+# 数据库插件注册表
+_DATABASE_REGISTRY: Dict[str, Type[BaseDatabase]] = {}
+
+def register_database(name: str, database_class: type) -> None:
+    """注册自定义数据库实现"""
+    _DATABASE_REGISTRY[name] = database_class
+    print(f"已注册数据库实现: {name}")
+
+def use_database(name: str, **kwargs) -> BaseDatabase:
+    """使用指定的数据库实现"""
+    if name == "csv":
+        from .csv_database import CsvDatabase
+        return CsvDatabase()
+    elif name in _DATABASE_REGISTRY:
+        database_class = _DATABASE_REGISTRY[name]
+        return database_class(**kwargs)
+    else:
+        raise ValueError(f"未找到数据库实现: {name}")
 
 def get_database() -> BaseDatabase:
     """
-    返回数据库对象。
-    默认使用CSV数据库，其他数据库实现需要用户自行开发。
+    获取数据库对象，如果未初始化则进行初始化。
     """
-    # 如果数据库已初始化，直接返回
     global database
+    
     if database:
         return database
-
-    # 默认使用CSV数据库
-    from vnpy.database.csv.csv_database import CsvDatabase
-    database = CsvDatabase()
-    return database
+    
+    # 从设置中读取数据库类型
+    database_name = SETTINGS.get("database.name", "csv")
+    
+    # 提取对应数据库类型的参数
+    database_params = {}
+    prefix = f"database.{database_name}."
+    for key, value in SETTINGS.items():
+        if key.startswith(prefix):
+            param_name = key[len(prefix):]
+            database_params[param_name] = value
+    
+    try:
+        database = use_database(database_name, **database_params)
+        print(f"成功初始化数据库: {database_name}")
+        return database
+    except Exception as e:
+        print(f"加载数据库 {database_name} 失败: {e}, 使用CSV数据库作为默认选项")
+        from .csv_database import CsvDatabase
+        database = CsvDatabase()
+        return database
