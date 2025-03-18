@@ -147,8 +147,10 @@ def run_simple_backtest(std_period=20, mom_threshold=0.05, trailing_std_scale=4.
         trailing_std_scale (float): 追踪止损系数
         show_chart (bool): 是否显示图表
     """
+    # 1 初始化回测引擎
     engine = BacktestingEngine()
     
+    # 2 设置回测参数
     engine.set_parameters(
         vt_symbol="SOL-USDT.LOCAL",
         interval=Interval.MINUTE,
@@ -161,6 +163,7 @@ def run_simple_backtest(std_period=20, mom_threshold=0.05, trailing_std_scale=4.
         capital=100000,
     )
     
+    # 3 添加策略
     engine.add_strategy(
         StdMomentumStrategy, 
         {
@@ -170,16 +173,18 @@ def run_simple_backtest(std_period=20, mom_threshold=0.05, trailing_std_scale=4.
         }
     )
     
+    # 4 运行策略
     engine.load_data()
     engine.run_backtesting()
     
+    # 5 计算结果和统计指标
     df = engine.calculate_result()
+    stats = engine.calculate_statistics()
+
+    # 6 可视化显示
+    engine.show_chart()
     
-    if show_chart:
-        engine.calculate_statistics()
-        engine.show_chart()
-    
-    return df, engine
+    return df, engine, stats
 
 
 
