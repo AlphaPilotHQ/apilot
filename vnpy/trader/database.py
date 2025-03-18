@@ -151,25 +151,30 @@ def get_database() -> BaseDatabase:
     if database:
         return database
 
-    # Read database name from setting
+    # Read database related global setting
     database_name: str = SETTINGS["database.name"]
-    
-    # Use built-in CSV database if specified in settings
+
+    # Use CSV database by default
     if database_name == "csv":
         from vnpy.database.csv.csv_database import CsvDatabase
         database = CsvDatabase()
         return database
-
-    # Use external database if name is not "csv"
-    module_name: str = f"vnpy_{database_name}"
-
-    # # Try to import database module
-    # try:
-    #     module: ModuleType = import_module(module_name)
-    # except ModuleNotFoundError:
-    #     print(f"找不到数据库驱动{module_name}，使用默认的SQLite数据库")
-    #     module: ModuleType = import_module("vnpy_sqlite")
-
-    # Create database object from module
-    database = module.Database()
-    return database
+    # Use MongoDB if selected
+    elif database_name == "mongodb":
+        from vnpy.database.mongodb.mongodb_database import MongodbDatabase
+        database = MongodbDatabase()
+        return database
+    # Add other database implementations here
+    else:
+        # 尝试导入其他数据库模块
+        try:
+            module_name: str = f"vnpy_{database_name}"
+            from importlib import import_module
+            module = import_module(module_name)
+            database = module.Database()
+            return database
+        except ModuleNotFoundError:
+            print(f"找不到数据库驱动{module_name}，使用默认的CSV数据库")
+            from vnpy.database.csv.csv_database import CsvDatabase
+            database = CsvDatabase()
+            return database

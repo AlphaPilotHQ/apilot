@@ -81,6 +81,51 @@ class TickData(BaseData):
         """"""
         self.vt_symbol: str = f"{self.symbol}.{self.exchange.value}"
 
+    @staticmethod
+    def from_dict(data: dict) -> "TickData":
+        """
+        Create tick data object from dictionary.
+        """
+        tick = TickData(
+            symbol=data["symbol"],
+            exchange=data["exchange"],
+            datetime=data["datetime"],
+            name=data.get("name", ""),
+            volume=data.get("volume", 0),
+            turnover=data.get("turnover", 0),
+            open_interest=data.get("open_interest", 0),
+            last_price=data.get("last_price", 0),
+            last_volume=data.get("last_volume", 0),
+            limit_up=data.get("limit_up", 0),
+            limit_down=data.get("limit_down", 0),
+            open_price=data.get("open_price", 0),
+            high_price=data.get("high_price", 0),
+            low_price=data.get("low_price", 0),
+            pre_close=data.get("pre_close", 0),
+            bid_price_1=data.get("bid_price_1", 0),
+            bid_price_2=data.get("bid_price_2", 0),
+            bid_price_3=data.get("bid_price_3", 0),
+            bid_price_4=data.get("bid_price_4", 0),
+            bid_price_5=data.get("bid_price_5", 0),
+            ask_price_1=data.get("ask_price_1", 0),
+            ask_price_2=data.get("ask_price_2", 0),
+            ask_price_3=data.get("ask_price_3", 0),
+            ask_price_4=data.get("ask_price_4", 0),
+            ask_price_5=data.get("ask_price_5", 0),
+            bid_volume_1=data.get("bid_volume_1", 0),
+            bid_volume_2=data.get("bid_volume_2", 0),
+            bid_volume_3=data.get("bid_volume_3", 0),
+            bid_volume_4=data.get("bid_volume_4", 0),
+            bid_volume_5=data.get("bid_volume_5", 0),
+            ask_volume_1=data.get("ask_volume_1", 0),
+            ask_volume_2=data.get("ask_volume_2", 0),
+            ask_volume_3=data.get("ask_volume_3", 0),
+            ask_volume_4=data.get("ask_volume_4", 0),
+            ask_volume_5=data.get("ask_volume_5", 0),
+            gateway_name=data.get("gateway_name", "")
+        )
+        return tick
+
 
 @dataclass
 class BarData(BaseData):
@@ -104,6 +149,27 @@ class BarData(BaseData):
     def __post_init__(self) -> None:
         """"""
         self.vt_symbol: str = f"{self.symbol}.{self.exchange.value}"
+
+    @staticmethod
+    def from_dict(data: dict) -> "BarData":
+        """
+        Create bar data object from dictionary.
+        """
+        bar = BarData(
+            symbol=data["symbol"],
+            exchange=data["exchange"],
+            datetime=data["datetime"],
+            interval=data.get("interval", None),
+            volume=data.get("volume", 0),
+            turnover=data.get("turnover", 0),
+            open_interest=data.get("open_interest", 0),
+            open_price=data.get("open_price", 0),
+            high_price=data.get("high_price", 0),
+            low_price=data.get("low_price", 0),
+            close_price=data.get("close_price", 0),
+            gateway_name=data.get("gateway_name", "")
+        )
+        return bar
 
 
 @dataclass

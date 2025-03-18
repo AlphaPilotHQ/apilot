@@ -86,6 +86,10 @@ class BacktestingEngine:
 
         self.daily_results: Dict[date, DailyResult] = {}
         self.daily_df: DataFrame = None
+        
+        # 添加数据源配置
+        self.database_config = None
+        self.collection = None
 
     def clear_data(self) -> None:
         """
@@ -157,53 +161,98 @@ class BacktestingEngine:
             self, strategy_class.__name__, self.vt_symbol, setting
         )
 
-    def load_data(self) -> None:
-        """"""
-        self.output("开始加载历史数据")
+    def add_data(self, database_type="csv", **kwargs):
+        """
+        直接添加数据源，更符合Backtrader风格
+        
+        参数：
+            database_type (str)：数据库类型，如"csv", "mongodb", "mysql"等
+            **kwargs：数据库连接参数
+        """
+        # 保存数据源配置，稍后在load_data中使用
+        self.database_config = {
+            "type": database_type,
+            "params": kwargs
+        }
+        
+        return self  # 支持链式调用
 
+    def load_data(self) -> None:
+        """Load historical data for backtesting."""
+        self.output("开始加载历史数据")
+        
+        # Set end date if not provided and validate date range
         if not self.end:
             self.end = datetime.now()
-
+            
         if self.start >= self.end:
             self.output("起始日期必须小于结束日期")
             return
-
-        self.history_data.clear()       # Clear previously loaded history data
-
-        # Load 30 days of data each time and allow for progress update
-        total_days: int = (self.end - self.start).days
-        progress_days: int = max(int(total_days / 10), 1)
-        progress_delta: timedelta = timedelta(days=progress_days)
-        interval_delta: timedelta = INTERVAL_DELTA_MAP[self.interval]
-
-        start: datetime = self.start
-        end: datetime = self.start + progress_delta
-
-        while start < self.end:
-            end: datetime = min(end, self.end)  # Make sure end time stays within set range
-
+        
+        # 使用配置的数据源
+        if self.database_config:
+            # 配置数据库
+            database_type = self.database_config["type"]
+            database_params = self.database_config["params"]
+            
+            # 设置全局数据库配置
+            from vnpy.trader.setting import SETTINGS
+            SETTINGS["database.name"] = database_type
+            
+            # 设置其他数据库参数
+            for key, value in database_params.items():
+                if key == "authentication_source":
+                    # MongoDB特殊参数处理
+                    SETTINGS["database.mongodb.authentication_source"] = value
+                elif key == "collection":
+                    # MongoDB集合名称，需要特殊处理
+                    self.collection = value
+                elif key == "host":
+                    SETTINGS["database.mongodb.host"] = value
+                elif key == "port":
+                    SETTINGS["database.mongodb.port"] = value
+                elif key == "username":
+                    SETTINGS["database.mongodb.username"] = value
+                elif key == "password":
+                    SETTINGS["database.mongodb.password"] = value
+                elif key == "database":
+                    SETTINGS["database.mongodb.database"] = value
+                elif key.startswith("database."):
+                    SETTINGS[key] = value
+                else:
+                    SETTINGS[f"database.{key}"] = value
+                    
+            self.output(f"使用数据源: {database_type}")
+        
+        # Clear previous data
+        self.history_data.clear()
+        
+        # Calculate progress chunks
+        total_days = (self.end - self.start).days
+        progress_days = max(int(total_days / 10), 1)
+        progress_delta = timedelta(days=progress_days)
+        interval_delta = INTERVAL_DELTA_MAP[self.interval]
+        
+        # Load data in chunks
+        current_start = self.start
+        
+        while current_start < self.end:
+            current_end = min(current_start + progress_delta, self.end)
+            
+            # 根据模式加载适当的数据类型
             if self.mode == BacktestingMode.BAR:
-                data: List[BarData] = load_bar_data(
-                    self.symbol,
-                    self.exchange,
-                    self.interval,
-                    start,
-                    end
+                batch_data = load_bar_data(
+                    self.symbol, self.exchange, self.interval, current_start, current_end, self.collection
                 )
             else:
-                data: List[TickData] = load_tick_data(
-                    self.symbol,
-                    self.exchange,
-                    start,
-                    end
+                batch_data = load_tick_data(
+                    self.symbol, self.exchange, current_start, current_end, self.collection
                 )
-
-            self.history_data.extend(data)
-
-            start = end + interval_delta
-            end += progress_delta
-
-        self.output("历史数据加载完成，数据量：{}".format(len(self.history_data)))
+            
+            self.history_data.extend(batch_data)
+            current_start = current_end + interval_delta
+        
+        self.output(f"历史数据加载完成，数据量：{len(self.history_data)}")
 
     def run_backtesting(self) -> None:
         """"""
@@ -678,7 +727,6 @@ class BacktestingEngine:
         callback: Callable,
         use_database: bool
     ) -> List[BarData]:
-        """"""
         self.callback = callback
 
         init_end = self.start - INTERVAL_DELTA_MAP[interval]
@@ -691,13 +739,13 @@ class BacktestingEngine:
             exchange,
             interval,
             init_start,
-            init_end
+            init_end,
+            self.collection
         )
 
         return bars
 
     def load_tick(self, vt_symbol: str, days: int, callback: Callable) -> List[TickData]:
-        """"""
         self.callback = callback
 
         init_end = self.start - timedelta(seconds=1)
@@ -709,7 +757,8 @@ class BacktestingEngine:
             symbol,
             exchange,
             init_start,
-            init_end
+            init_end,
+            self.collection
         )
 
         return ticks
@@ -725,7 +774,6 @@ class BacktestingEngine:
         lock: bool,
         net: bool
     ) -> list:
-        """"""
         price: float = round_to(price, self.pricetick)
         if stop:
             vt_orderid: str = self.send_stop_order(direction, offset, price, volume)
@@ -740,7 +788,6 @@ class BacktestingEngine:
         price: float,
         volume: float
     ) -> str:
-        """"""
         self.stop_order_count += 1
 
         stop_order: StopOrder = StopOrder(
@@ -766,7 +813,6 @@ class BacktestingEngine:
         price: float,
         volume: float
     ) -> str:
-        """"""
         self.limit_order_count += 1
 
         order: OrderData = OrderData(
@@ -1011,32 +1057,28 @@ class DailyResult:
         self.net_pnl = self.total_pnl - self.commission
 
 
-@lru_cache(maxsize=999)
+@lru_cache(maxsize=1024)
 def load_bar_data(
     symbol: str,
     exchange: Exchange,
     interval: Interval,
     start: datetime,
-    end: datetime
+    end: datetime,
+    collection: str = None
 ) -> List[BarData]:
-    """"""
-    database: BaseDatabase = get_database()
+    database = get_database()
 
-    return database.load_bar_data(
-        symbol, exchange, interval, start, end
-    )
+    return database.load_bar_data(symbol, exchange, interval, start, end, collection)
 
 
-@lru_cache(maxsize=999)
+@lru_cache(maxsize=1024)
 def load_tick_data(
     symbol: str,
     exchange: Exchange,
     start: datetime,
-    end: datetime
+    end: datetime,
+    collection: str = None
 ) -> List[TickData]:
-    """"""
-    database: BaseDatabase = get_database()
+    database = get_database()
 
-    return database.load_tick_data(
-        symbol, exchange, start, end
-    )
+    return database.load_tick_data(symbol, exchange, start, end, collection)
