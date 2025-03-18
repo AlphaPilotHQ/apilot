@@ -1,7 +1,3 @@
-"""
-Defines constants and objects used in CtaStrategy App.
-"""
-
 from dataclasses import dataclass, field
 from enum import Enum
 from datetime import datetime, timedelta

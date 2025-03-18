@@ -14,7 +14,6 @@ from .backtesting import BacktestingEngine
 
 
 class CtaStrategyApp(BaseApp):
-    """"""
 
     app_name: str = APP_NAME
     app_module: str = __module__
@@ -23,3 +22,12 @@ class CtaStrategyApp(BaseApp):
     engine_class: Type[CtaEngine] = CtaEngine
     widget_name: str = "CtaManager"
     icon_name: str = str(app_path.joinpath("ui", "cta.ico"))
+
+"""
+__init__.py    模块入口
+base.py        基础定义层
+template.py    接口定义层
+engine.py      业务逻辑层
+backtesting.py 应用场景层
+"""
+
