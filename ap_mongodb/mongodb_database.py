@@ -1,4 +1,3 @@
-""""""
 from datetime import datetime
 from typing import List
 import traceback
@@ -12,25 +11,31 @@ from pymongo.results import DeleteResult
 from vnpy.trader.constant import Exchange, Interval
 from vnpy.trader.object import BarData, TickData
 from vnpy.trader.database import BaseDatabase, BarOverview, TickOverview, DB_TZ
-from vnpy.trader.setting import SETTINGS
-
 
 class MongodbDatabase(BaseDatabase):
-    """MongoDB数据库接口"""
+    """MongoDB数据库实现"""
 
-    def __init__(self) -> None:
+    def __init__(
+        self, 
+        host: str = "localhost",
+        port: int = 27017,
+        username: str = "",
+        password: str = "",
+        database: str = "vnpy",
+        authentication_source: str = "admin"
+    ) -> None:
         """"""
-        # 读取配置
-        self.database: str = SETTINGS.get("database.mongodb.database", "vnpy")
-        self.host: str = SETTINGS.get("database.mongodb.host", "localhost")
-        self.port: int = SETTINGS.get("database.mongodb.port", 27017)
-        self.username: str = SETTINGS.get("database.mongodb.username", "")
-        self.password: str = SETTINGS.get("database.mongodb.password", "")
-        self.authentication_source: str = SETTINGS.get("database.mongodb.authentication_source", "admin")
+        # 保存配置参数
+        self.host = host
+        self.port = port
+        self.username = username
+        self.password = password
+        self.database_name = database
+        self.authentication_source = authentication_source
 
-        # 创建客户端
+        # 创建连接
         if self.username and self.password:
-            self.client: MongoClient = MongoClient(
+            self.client = MongoClient(
                 host=self.host,
                 port=self.port,
                 username=self.username,
@@ -38,19 +43,19 @@ class MongodbDatabase(BaseDatabase):
                 authSource=self.authentication_source
             )
         else:
-            self.client: MongoClient = MongoClient(
+            self.client = MongoClient(
                 host=self.host,
                 port=self.port
             )
-
+            
         # 初始化数据库
-        self.db = self.client[self.database]
+        self.db = self.client[self.database_name]
         
         # 初始化集合
         self.bar_collection = self.db["bar_data"]
         self.tick_collection = self.db["tick_data"]
 
-        # 初始化K线数据表
+        # 创建索引
         self.bar_collection.create_index(
             [
                 ("exchange", ASCENDING),
@@ -61,7 +66,6 @@ class MongodbDatabase(BaseDatabase):
             unique=True
         )
 
-        # 初始化Tick数据表
         self.tick_collection.create_index(
             [
                 ("exchange", ASCENDING),
@@ -71,7 +75,7 @@ class MongodbDatabase(BaseDatabase):
             unique=True
         )
 
-        # 初始化K线概览表
+        # K线概览集合
         self.bar_overview_collection = self.db["bar_overview"]
         self.bar_overview_collection.create_index(
             [
@@ -82,7 +86,7 @@ class MongodbDatabase(BaseDatabase):
             unique=True
         )
 
-        # 初始化Tick概览表
+        # Tick概览集合
         self.tick_overview_collection = self.db["tick_overview"]
         self.tick_overview_collection.create_index(
             [
@@ -91,7 +95,7 @@ class MongodbDatabase(BaseDatabase):
             ],
             unique=True
         )
-
+    
     def save_bar_data(self, bars: List[BarData], stream: bool = False) -> bool:
         """保存K线数据"""
         requests: List[ReplaceOne] = []
@@ -245,8 +249,8 @@ class MongodbDatabase(BaseDatabase):
         collection: str = None
     ) -> List[BarData]:
         """读取K线数据"""
-        start = start.astimezone(DB_TZ)
-        end = end.astimezone(DB_TZ)
+        start = start
+        end = end
         
         # 转换为毫秒级时间戳
         start_timestamp = int(start.timestamp() * 1000)
@@ -270,7 +274,6 @@ class MongodbDatabase(BaseDatabase):
             
             # 如果有提供symbol，添加到查询条件
             if symbol:
-                # 移除可能的交易所后缀，如 "BTC-USDT.BINANCE" -> "BTCUSDT"
                 pure_symbol = symbol.split(".")[0].replace("-", "")
                 filter_dict["symbol"] = pure_symbol
                 
@@ -307,7 +310,7 @@ class MongodbDatabase(BaseDatabase):
             for d in cursor:
                 try:
                     # 从时间戳创建datetime对象
-                    bar_datetime = datetime.fromtimestamp(d["kline_st"] / 1000, DB_TZ)
+                    bar_datetime = datetime.fromtimestamp(d["kline_st"] / 1000)
                     
                     # 打印调试信息
                     print(f"处理数据: exchange类型={type(exchange)}, interval类型={type(interval)}")
@@ -397,8 +400,8 @@ class MongodbDatabase(BaseDatabase):
         collection: str = None
     ) -> List[TickData]:
         """读取TICK数据"""
-        start = start.astimezone(DB_TZ)
-        end = end.astimezone(DB_TZ)
+        start = start
+        end = end
         
         # 转换为毫秒级时间戳
         start_timestamp = int(start.timestamp() * 1000)
@@ -444,7 +447,7 @@ class MongodbDatabase(BaseDatabase):
             for d in cursor:
                 try:
                     # 使用K线开始时间作为Tick时间
-                    tick_datetime = datetime.fromtimestamp(d["kline_st"] / 1000, DB_TZ)
+                    tick_datetime = datetime.fromtimestamp(d["kline_st"] / 1000)
                     
                     # 创建Tick数据字典
                     tick_dict = {

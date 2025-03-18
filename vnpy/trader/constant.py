@@ -78,7 +78,6 @@ class Exchange(Enum):
     # 加密货币交易所
     BINANCE = "BINANCE"     # 币安
     BINANCE_FUTURES = "BINANCEF"  # 币安合约
-    HUOBI = "HUOBI"         # 火币
     OKEX = "OKEX"           # OKEx
     BYBIT = "BYBIT"         # Bybit
     COINBASE = "COINBASE"   # Coinbase
@@ -86,9 +85,6 @@ class Exchange(Enum):
     KRAKEN = "KRAKEN"       # Kraken
     BITFINEX = "BITFINEX"   # Bitfinex
     BITSTAMP = "BITSTAMP"   # Bitstamp
-    BITMEX = "BITMEX"       # BitMEX
-    GATE = "GATE"           # Gate.io
-    KuCOIN = "KUCOIN"       # KuCoin
     
     LOCAL = "LOCAL"         # 本地生成数据（回测使用）
 

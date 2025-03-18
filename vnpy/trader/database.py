@@ -17,13 +17,12 @@ class BarOverview:
     """
     Overview of bar data stored in database.
     """
-
     symbol: str = ""
     exchange: Exchange = None
     interval: Interval = None
     count: int = 0
-    start: int = None  # 毫秒级时间戳
-    end: int = None    # 毫秒级时间戳
+    start: int = None  
+    end: int = None    
 
 
 @dataclass
@@ -31,18 +30,14 @@ class TickOverview:
     """
     Overview of tick data stored in database.
     """
-
     symbol: str = ""
     exchange: Exchange = None
     count: int = 0
-    start: int = None  # 毫秒级时间戳
-    end: int = None    # 毫秒级时间戳
+    start: int = None  
+    end: int = None    
 
 
 class BaseDatabase(ABC):
-    """
-    Abstract database class for connecting to different database.
-    """
 
     @abstractmethod
     def save_bar_data(self, bars: List[BarData], stream: bool = False) -> bool:
@@ -92,16 +87,11 @@ class BaseDatabase(ABC):
 
     @abstractmethod
     def get_bar_overview(self) -> List[BarOverview]:
-        """
-        Return bar data avaible in database.
-        """
         pass
 
     @abstractmethod
     def get_tick_overview(self) -> List[TickOverview]:
-        """
-        Return tick data avaible in database.
-        """
+
         pass
 
 
