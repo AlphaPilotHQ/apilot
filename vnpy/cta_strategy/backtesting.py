@@ -1,7 +1,3 @@
-"""
-Backtesting engine for CTA strategies.
-"""
-
 from datetime import datetime, date, timedelta
 from collections import defaultdict
 from enum import Enum
@@ -38,13 +34,11 @@ from .template import CtaTemplate
 
 
 class BacktestingEngine:
-    """"""
 
     engine_type: EngineType = EngineType.BACKTESTING
     gateway_name: str = "BACKTESTING"
 
     def __init__(self) -> None:
-        """"""
         self.vt_symbol: str = ""
         self.symbol: str = ""
         self.exchange: Exchange = None
@@ -55,7 +49,6 @@ class BacktestingEngine:
         self.size: float = 1
         self.pricetick: float = 0
         self.capital: int = 1_000_000
-        self.risk_free: float = 0
         self.annual_days: int = 240
         self.half_life: int = 120
         self.mode: BacktestingMode = BacktestingMode.BAR
@@ -89,12 +82,8 @@ class BacktestingEngine:
         
         # 添加数据源配置
         self.database_config = None
-        self.collection = None
 
     def clear_data(self) -> None:
-        """
-        Clear all data of last backtesting.
-        """
         self.strategy = None
         self.tick = None
         self.bar = None
@@ -125,7 +114,6 @@ class BacktestingEngine:
         capital: int = 0,
         end: datetime = None,
         mode: BacktestingMode = BacktestingMode.BAR,
-        risk_free: float = 0,
         annual_days: int = 240,
         half_life: int = 120,
         slippage: float = 0,  
@@ -150,25 +138,17 @@ class BacktestingEngine:
         self.end = end.replace(hour=23, minute=59, second=59)
 
         self.mode = mode
-        self.risk_free = risk_free
         self.annual_days = annual_days
         self.half_life = half_life
 
     def add_strategy(self, strategy_class: Type[CtaTemplate], setting: dict) -> None:
-        """"""
+        
         self.strategy_class = strategy_class
         self.strategy = strategy_class(
             self, strategy_class.__name__, self.vt_symbol, setting
         )
 
     def add_data(self, database_type="csv", **kwargs):
-        """
-        直接添加数据源，更符合Backtrader风格
-        
-        参数：
-            database_type (str)：数据库类型，如"csv", "mongodb", "mysql"等
-            **kwargs：数据库连接参数
-        """
         # 保存数据源配置，稍后在load_data中使用
         self.database_config = {
             "type": database_type,
@@ -204,9 +184,6 @@ class BacktestingEngine:
                 if key == "authentication_source":
                     # MongoDB特殊参数处理
                     SETTINGS["database.mongodb.authentication_source"] = value
-                elif key == "collection":
-                    # MongoDB集合名称，需要特殊处理
-                    self.collection = value
                 elif key == "host":
                     SETTINGS["database.mongodb.host"] = value
                 elif key == "port":
@@ -242,11 +219,11 @@ class BacktestingEngine:
             # 根据模式加载适当的数据类型
             if self.mode == BacktestingMode.BAR:
                 batch_data = load_bar_data(
-                    self.symbol, self.exchange, self.interval, current_start, current_end, self.collection
+                    self.symbol, self.exchange, self.interval, current_start, current_end
                 )
             else:
                 batch_data = load_tick_data(
-                    self.symbol, self.exchange, current_start, current_end, self.collection
+                    self.symbol, self.exchange, current_start, current_end
                 )
             
             self.history_data.extend(batch_data)
@@ -343,12 +320,9 @@ class BacktestingEngine:
         profit_days: int = 0
         loss_days: int = 0
         end_balance: float = 0
-        max_drawdown: float = 0
         max_ddpercent: float = 0
-        max_drawdown_duration: int = 0
         total_net_pnl: float = 0
         total_commission: float = 0
-        total_slippage: float = 0
         total_turnover: float = 0
         total_trade_count: int = 0
         total_return: float = 0
@@ -373,8 +347,7 @@ class BacktestingEngine:
             df["return"] = np.log(x).fillna(0)
 
             df["highlevel"] = df["balance"].rolling(min_periods=1, window=len(df), center=False).max()
-            df["drawdown"] = df["balance"] - df["highlevel"]
-            df["ddpercent"] = df["drawdown"] / df["highlevel"] * 100
+            df["ddpercent"] = (df["balance"] - df["highlevel"]) / df["highlevel"] * 100
 
             # All balance value needs to be positive
             positive_balance = (df["balance"] > 0).all()
@@ -392,19 +365,11 @@ class BacktestingEngine:
             loss_days = (df["net_pnl"] < 0).sum()
 
             end_balance = df["balance"].iloc[-1]
-            max_drawdown = df["drawdown"].min()
-            max_ddpercent = df["ddpercent"].min()
-            max_drawdown_end = df["drawdown"].idxmin()
 
-            if isinstance(max_drawdown_end, date):
-                max_drawdown_start = df["balance"][:max_drawdown_end].idxmax()
-                max_drawdown_duration = (max_drawdown_end - max_drawdown_start).days
-            else:
-                max_drawdown_duration = 0
+            max_ddpercent = df["ddpercent"].min()
 
             total_net_pnl = df["net_pnl"].sum()
             total_commission = df["commission"].sum()
-            total_slippage = df["slippage"].sum()
             total_turnover = df["turnover"].sum()
             total_trade_count = df["trade_count"].sum()
 
@@ -413,13 +378,12 @@ class BacktestingEngine:
             return_std = df["return"].std() * 100
 
             if return_std:
-                daily_risk_free = self.risk_free / np.sqrt(self.annual_days)
-                sharpe_ratio = (df["return"].mean() * 100 - daily_risk_free) / return_std * np.sqrt(self.annual_days)
+                sharpe_ratio = (df["return"].mean() * 100) / return_std * np.sqrt(self.annual_days)
 
                 ewm_window = df["return"].ewm(halflife=self.half_life)
                 ewm_mean = ewm_window.mean() * 100
                 ewm_std = ewm_window.std() * 100
-                ewm_sharpe = ((ewm_mean - daily_risk_free) / ewm_std)[-1] * np.sqrt(self.annual_days)
+                ewm_sharpe = (ewm_mean / ewm_std)[-1] * np.sqrt(self.annual_days)
             else:
                 sharpe_ratio = 0
                 ewm_sharpe = 0
@@ -441,13 +405,10 @@ class BacktestingEngine:
 
             self.output("总收益率：\t{:.2f}%".format(total_return))
             self.output("年化收益：\t{:.2f}%".format(annual_return))
-            self.output("最大回撤: \t{:.2f}".format(max_drawdown))
             self.output("百分比最大回撤: {:.2f}%".format(max_ddpercent))
-            self.output("最大回撤天数: \t{}".format(max_drawdown_duration))
 
             self.output("总盈亏：\t{:.2f}".format(total_net_pnl))
             self.output("总手续费：\t{:.2f}".format(total_commission))
-            self.output("总滑点：\t{:.2f}".format(total_slippage))
             self.output("总成交金额：\t{:.2f}".format(total_turnover))
             self.output("总成交笔数：\t{}".format(total_trade_count))
 
@@ -464,12 +425,9 @@ class BacktestingEngine:
             "loss_days": loss_days,
             "capital": self.capital,
             "end_balance": end_balance,
-            "max_drawdown": max_drawdown,
             "max_ddpercent": max_ddpercent,
-            "max_drawdown_duration": max_drawdown_duration,
             "total_net_pnl": total_net_pnl,
             "total_commission": total_commission,
-            "total_slippage": total_slippage,
             "total_turnover": total_turnover,
             "total_trade_count": total_trade_count,
             "total_return": total_return,
@@ -509,7 +467,7 @@ class BacktestingEngine:
         )
         drawdown_scatter = go.Scatter(
             x=df.index,
-            y=df["drawdown"],
+            y=df["ddpercent"],
             fillcolor="red",
             fill='tozeroy',
             mode="lines",
@@ -537,7 +495,6 @@ class BacktestingEngine:
             self.daily_results[d] = DailyResult(d, price)
 
     def new_bar(self, bar: BarData) -> None:
-        """"""
         self.bar = bar
         self.datetime = bar.datetime
 
@@ -739,8 +696,7 @@ class BacktestingEngine:
             exchange,
             interval,
             init_start,
-            init_end,
-            self.collection
+            init_end
         )
 
         return bars
@@ -757,8 +713,7 @@ class BacktestingEngine:
             symbol,
             exchange,
             init_start,
-            init_end,
-            self.collection
+            init_end
         )
 
         return ticks
@@ -989,10 +944,8 @@ class BacktestingEngine:
 
 
 class DailyResult:
-    """"""
 
     def __init__(self, date: date, close_price: float) -> None:
-        """"""
         self.date: date = date
         self.close_price: float = close_price
         self.pre_close: float = 0
@@ -1013,7 +966,6 @@ class DailyResult:
         self.net_pnl: float = 0
 
     def add_trade(self, trade: TradeData) -> None:
-        """"""
         self.trades.append(trade)
 
     def calculate_pnl(
@@ -1024,7 +976,6 @@ class DailyResult:
         rate: float,
         slippage: float = 0  # 保持兼容，但忽略此参数
     ) -> None:
-        """"""
         # If no pre_close provided on the first day,
         # use value 1 to avoid zero division error
         if pre_close:
@@ -1063,12 +1014,11 @@ def load_bar_data(
     exchange: Exchange,
     interval: Interval,
     start: datetime,
-    end: datetime,
-    collection: str = None
+    end: datetime
 ) -> List[BarData]:
     database = get_database()
 
-    return database.load_bar_data(symbol, exchange, interval, start, end, collection)
+    return database.load_bar_data(symbol, exchange, interval, start, end)
 
 
 @lru_cache(maxsize=1024)
@@ -1076,9 +1026,8 @@ def load_tick_data(
     symbol: str,
     exchange: Exchange,
     start: datetime,
-    end: datetime,
-    collection: str = None
+    end: datetime
 ) -> List[TickData]:
     database = get_database()
 
-    return database.load_tick_data(symbol, exchange, start, end, collection)
+    return database.load_tick_data(symbol, exchange, start, end)

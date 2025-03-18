@@ -108,7 +108,7 @@ def register_database(name: str, database_class: type) -> None:
 def use_database(name: str, **kwargs) -> BaseDatabase:
     """使用指定的数据库实现"""
     if name == "csv":
-        from .csv_database import CsvDatabase
+        from vnpy.csv_database import CsvDatabase
         return CsvDatabase()
     elif name in _DATABASE_REGISTRY:
         database_class = _DATABASE_REGISTRY[name]
@@ -142,6 +142,6 @@ def get_database() -> BaseDatabase:
         return database
     except Exception as e:
         print(f"加载数据库 {database_name} 失败: {e}, 使用CSV数据库作为默认选项")
-        from .csv_database import CsvDatabase
+        from vnpy.csv_database import CsvDatabase
         database = CsvDatabase()
         return database
