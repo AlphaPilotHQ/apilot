@@ -103,14 +103,10 @@ _DATABASE_REGISTRY: Dict[str, Type[BaseDatabase]] = {}
 def register_database(name: str, database_class: type) -> None:
     """注册自定义数据库实现"""
     _DATABASE_REGISTRY[name] = database_class
-    print(f"已注册数据库实现: {name}")
 
 def use_database(name: str, **kwargs) -> BaseDatabase:
     """使用指定的数据库实现"""
-    if name == "csv":
-        from vnpy.csv_database import CsvDatabase
-        return CsvDatabase()
-    elif name in _DATABASE_REGISTRY:
+    if name in _DATABASE_REGISTRY:
         database_class = _DATABASE_REGISTRY[name]
         return database_class(**kwargs)
     else:
@@ -126,7 +122,7 @@ def get_database() -> BaseDatabase:
         return database
     
     # 从设置中读取数据库类型
-    database_name = SETTINGS.get("database.name", "csv")
+    database_name = SETTINGS.get("database.name", "")
     
     # 提取对应数据库类型的参数
     database_params = {}
@@ -138,10 +134,13 @@ def get_database() -> BaseDatabase:
     
     try:
         database = use_database(database_name, **database_params)
-        print(f"成功初始化数据库: {database_name}")
         return database
     except Exception as e:
-        print(f"加载数据库 {database_name} 失败: {e}, 使用CSV数据库作为默认选项")
-        from vnpy.csv_database import CsvDatabase
-        database = CsvDatabase()
-        return database
+        # 默认使用已注册的数据库，或者抛出异常
+        if _DATABASE_REGISTRY:
+            first_db_name = next(iter(_DATABASE_REGISTRY))
+            database_class = _DATABASE_REGISTRY[first_db_name]
+            database = database_class()
+            return database
+        else:
+            raise ValueError("没有可用的数据库实现")
