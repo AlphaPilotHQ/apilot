@@ -1,14 +1,12 @@
-from vnpy_ctastrategy import (
-    CtaTemplate,
-    StopOrder,
-    Direction,
-    TickData,
-    BarData,
-    TradeData,
-    OrderData,
-    BarGenerator,
-    ArrayManager,
-)
+from init_env import *
+from datetime import datetime
+
+from vnpy.trader.constant import Direction, Interval
+from vnpy.trader.object import BarData, TickData, OrderData, TradeData
+from vnpy.cta_strategy.base import StopOrder
+from vnpy.cta_strategy.template import CtaTemplate
+from vnpy.cta_strategy.backtesting import BacktestingEngine
+from vnpy.trader.utility import BarGenerator, ArrayManager
 
 
 class TurtleSignalStrategy(CtaTemplate):
@@ -45,20 +43,23 @@ class TurtleSignalStrategy(CtaTemplate):
         """
         Callback when strategy is inited.
         """
-        self.write_log("策略初始化")
-        self.load_bar(20)
+        # 使用引擎的日志方法记录初始化信息
+        self.cta_engine.write_log("策略初始化")
+        
+        # 对于回测，数据已通过CSV加载，无需调用load_bar
+        # self.load_bar(20)
 
     def on_start(self):
         """
         Callback when strategy is started.
         """
-        self.write_log("策略启动")
+        self.cta_engine.write_log("策略启动")
 
     def on_stop(self):
         """
         Callback when strategy is stopped.
         """
-        self.write_log("策略停止")
+        self.cta_engine.write_log("策略停止")
 
     def on_tick(self, tick: TickData):
         """
@@ -105,8 +106,9 @@ class TurtleSignalStrategy(CtaTemplate):
 
             cover_price = min(self.short_stop, self.exit_up)
             self.cover(cover_price, abs(self.pos), True)
-
-        self.put_event()
+        
+        # 移除对put_event的调用，该方法在回测环境下不可用
+        # self.put_event()
 
     def on_trade(self, trade: TradeData):
         """
@@ -162,3 +164,80 @@ class TurtleSignalStrategy(CtaTemplate):
 
         if t > -4:
             self.short(price - self.atr_value * 1.5, self.fixed_size, True)
+
+
+def run_backtesting(show_chart=True):
+    """
+    运行海龟信号策略回测
+    """
+    # 初始化回测引擎
+    engine = BacktestingEngine()
+    
+    # 设置回测参数
+    engine.set_parameters(
+        vt_symbol="SOL-USDT.LOCAL",  # 修改为与CSV文件名匹配的交易对
+        interval=Interval.MINUTE,
+        start=datetime(2023, 1, 1),
+        end=datetime(2023, 12, 31),
+        rate=0.0001,
+        slippage=0,
+        size=1,
+        pricetick=0.01,
+        capital=100000,
+    )
+    
+    # 添加策略
+    engine.add_strategy(
+        TurtleSignalStrategy, 
+        {
+            "entry_window": 20,
+            "exit_window": 10,
+            "atr_window": 20,
+            "fixed_size": 1
+        }
+    )
+    
+    # 添加数据 - 确保文件路径正确
+    engine.add_data(
+        database_type="csv",
+        data_path="/Users/bobbyding/Documents/GitHub/apilot/SOL-USDT_LOCAL_1m.csv",
+        datetime="candle_begin_time",  # 修改为与CSV文件列名匹配
+        open="open",
+        high="high",
+        low="low",
+        close="close",
+        volume="volume"
+    )
+    
+    # 运行回测
+    engine.run_backtesting()
+    
+    # 计算结果和统计指标
+    df = engine.calculate_result()
+    stats = engine.calculate_statistics()
+    
+    # 打印统计结果
+    print(f"起始资金: {100000:.2f}")
+    print(f"结束资金: {stats.get('end_balance', 0):.2f}")
+    print(f"总收益率: {stats.get('total_return', 0)*100:.2f}%")  
+    print(f"年化收益: {stats.get('annual_return', 0)*100:.2f}%")  
+    
+    # 添加错误处理，避免某些指标不存在
+    max_drawdown = stats.get('max_drawdown', 0)
+    if isinstance(max_drawdown, (int, float)):
+        print(f"最大回撤: {max_drawdown*100:.2f}%")  
+    else:
+        print(f"最大回撤: 0.00%")
+        
+    print(f"夏普比率: {stats.get('sharpe_ratio', 0):.2f}")
+    
+    # 显示图表
+    if show_chart:
+        engine.show_chart()
+    
+    return df, stats, engine
+
+
+if __name__ == "__main__":
+    # 运行回测
+    df, stats, engine = run_backtesting(show_chart=True)
