@@ -107,23 +107,6 @@ engine.run_backtesting()
 engine.calculate_result()
 ```
 
-## Roadmap
-
-done:
-- v0.0.1
-
-doing:
-- create examples
-    ~~- cta~~
-    ~~- portfolio~~
-    - spread
-- upload to pypi
-- test optimizer
-- test algotrading & websocket
-
-todo:
-- test riskmanager
-
 
 ## 许可证
 

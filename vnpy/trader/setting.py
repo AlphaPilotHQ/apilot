@@ -1,8 +1,3 @@
-"""
-Global settings for the APilot trading platform.
-Customized from VeighNa to focus on cryptocurrency trading.
-"""
-
 from logging import INFO
 from typing import Dict, Any
 from tzlocal import get_localzone_name
@@ -13,7 +8,7 @@ from .utility import load_json
 SETTINGS: Dict[str, Any] = {
     # 日志设置
     "log.active": True,
-    "log.level": INFO,      # 改为INFO以获取更多交易信息
+    "log.level": INFO,      
     "log.console": True,
     "log.file": True,
     

@@ -45,8 +45,6 @@ from .setting import SETTINGS
 from .utility import get_folder_path, TRADER_DIR
 from .converter import OffsetConverter
 
-# 移除国际化，使用之前添加的_函数
-
 
 class MainEngine:
     """
@@ -113,13 +111,39 @@ class MainEngine:
         self.add_engine(OmsEngine)
         self.add_engine(EmailEngine)
 
-    def write_log(self, msg: str, source: str = "") -> None:
+    def _write_log(self, msg: str, source: str = "", gateway_name: str = "", level: int = logging.INFO) -> None:
         """
-        Put log event with specific message.
+        内部方法：创建并发送日志事件
         """
-        log: LogData = LogData(msg=msg, gateway_name=source)
-        event: Event = Event(EVENT_LOG, log)
+        log = LogData(gateway_name=gateway_name, msg=msg, source=source, level=level)
+        event = Event(EVENT_LOG, log)
         self.event_engine.put(event)
+        
+    def write_log(self, msg: str, source: str = "", level: int = logging.INFO) -> None:
+        """记录日志消息（已弃用，请使用log_debug/log_info等方法）"""
+        import warnings
+        warnings.warn("write_log方法已弃用，请使用log_debug/log_info等专用方法", DeprecationWarning, stacklevel=2)
+        self._write_log(msg, source, level=level)
+        
+    def log_debug(self, msg: str, source: str = "") -> None:
+        """记录调试级别日志"""
+        self._write_log(msg, source, level=logging.DEBUG)
+    
+    def log_info(self, msg: str, source: str = "") -> None:
+        """记录信息级别日志"""
+        self._write_log(msg, source, level=logging.INFO)
+    
+    def log_warning(self, msg: str, source: str = "") -> None:
+        """记录警告级别日志"""
+        self._write_log(msg, source, level=logging.WARNING)
+    
+    def log_error(self, msg: str, source: str = "") -> None:
+        """记录错误级别日志"""
+        self._write_log(msg, source, level=logging.ERROR)
+        
+    def log_critical(self, msg: str, source: str = "") -> None:
+        """记录严重错误级别日志"""
+        self._write_log(msg, source, level=logging.CRITICAL)
 
     def get_gateway(self, gateway_name: str) -> BaseGateway:
         """
@@ -127,7 +151,7 @@ class MainEngine:
         """
         gateway: BaseGateway = self.gateways.get(gateway_name, None)
         if not gateway:
-            self.write_log(f"找不到底层接口：{gateway_name}")
+            self.log_error(f"找不到底层接口：{gateway_name}")
         return gateway
 
     def get_engine(self, engine_name: str) -> "BaseEngine":
@@ -136,7 +160,7 @@ class MainEngine:
         """
         engine: BaseEngine = self.engines.get(engine_name, None)
         if not engine:
-            self.write_log(f"找不到引擎：{engine_name}")
+            self.log_error(f"找不到引擎：{engine_name}")
         return engine
 
     def get_default_setting(self, gateway_name: str) -> Optional[Dict[str, Any]]:
@@ -254,7 +278,6 @@ class BaseEngine(ABC):
         event_engine: EventEngine,
         engine_name: str,
     ) -> None:
-        """"""
         self.main_engine: MainEngine = main_engine
         self.event_engine: EventEngine = event_engine
         self.engine_name: str = engine_name
@@ -265,78 +288,69 @@ class BaseEngine(ABC):
 
 
 class LogEngine(BaseEngine):
-    """
-    Processes log event and output with logging module.
-    """
-
+    """日志引擎 - 处理系统日志事件"""
     def __init__(self, main_engine: MainEngine, event_engine: EventEngine) -> None:
-        """"""
         super(LogEngine, self).__init__(main_engine, event_engine, "log")
-
+        
         if not SETTINGS["log.active"]:
             return
-
-        self.level: int = SETTINGS["log.level"]
-
-        self.logger: Logger = logging.getLogger("veighna")
-        self.logger.setLevel(self.level)
-
-        self.formatter: logging.Formatter = logging.Formatter(
-            "%(asctime)s  %(levelname)s: %(message)s"
-        )
-
-        self.add_null_handler()
-
-        if SETTINGS["log.console"]:
-            self.add_console_handler()
-
-        if SETTINGS["log.file"]:
-            self.add_file_handler()
-
-        self.register_event()
-
-    def add_null_handler(self) -> None:
-        """
-        Add null handler for logger.
-        """
-        null_handler: logging.NullHandler = logging.NullHandler()
-        self.logger.addHandler(null_handler)
-
-    def add_console_handler(self) -> None:
-        """
-        Add console output of log.
-        """
-        console_handler: logging.StreamHandler = logging.StreamHandler()
-        console_handler.setLevel(self.level)
-        console_handler.setFormatter(self.formatter)
-        self.logger.addHandler(console_handler)
-
-    def add_file_handler(self) -> None:
-        """
-        Add file output of log.
-        """
-        today_date: str = datetime.now().strftime("%Y%m%d")
-        filename: str = f"vt_{today_date}.log"
-        log_path: Path = get_folder_path("log")
-        file_path: Path = log_path.joinpath(filename)
-
-        file_handler: logging.FileHandler = logging.FileHandler(
-            file_path, mode="a", encoding="utf8"
-        )
-        file_handler.setLevel(self.level)
-        file_handler.setFormatter(self.formatter)
-        self.logger.addHandler(file_handler)
-
-    def register_event(self) -> None:
-        """"""
+            
+        # 创建和配置主logger
+        self.logger = self._setup_logger()
+        
+        # 注册事件处理
         self.event_engine.register(EVENT_LOG, self.process_log_event)
+        
+    def _setup_logger(self) -> logging.Logger:
+        """设置logger，整合处理器创建逻辑"""
+        logger = logging.getLogger("apilot")
+        logger.setLevel(SETTINGS["log.level"])
+        
+        # 清除现有处理器避免重复
+        logger.handlers.clear()
+        
+        # 添加NullHandler防止警告
+        logger.addHandler(logging.NullHandler())
+        
+        # 创建格式化器
+        formatter = logging.Formatter("%(asctime)s  %(levelname)s: %(message)s")
+        
+        # 添加控制台处理器
+        if SETTINGS["log.console"]:
+            console_handler = logging.StreamHandler()
+            console_handler.setFormatter(formatter)
+            logger.addHandler(console_handler)
+            
+        # 添加文件处理器
+        if SETTINGS["log.file"]:
+            today_date = datetime.now().strftime("%Y%m%d")
+            filename = f"apilot_{today_date}.log"
+            log_path = get_folder_path("log")
+            file_path = log_path.joinpath(filename)
+            
+            file_handler = logging.FileHandler(
+                file_path, mode="a", encoding="utf8"
+            )
+            file_handler.setFormatter(formatter)
+            logger.addHandler(file_handler)
+            
+        return logger
 
     def process_log_event(self, event: Event) -> None:
-        """
-        Process log event.
-        """
-        log: LogData = event.data
-        self.logger.log(log.level, log.msg)
+        """处理日志事件"""
+        if not hasattr(self, "logger"):
+            return
+            
+        log = event.data
+        
+        # 构建格式化消息，包含来源
+        if hasattr(log, "source") and log.source:
+            formatted_msg = f"[{log.source}] {log.msg}"
+        else:
+            formatted_msg = log.msg
+            
+        # 记录日志
+        self.logger.log(log.level, formatted_msg)
 
 
 class OmsEngine(BaseEngine):

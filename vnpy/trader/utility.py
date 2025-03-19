@@ -22,86 +22,63 @@ from .constant import Exchange, Interval
 # 定义泛型返回类型
 T = TypeVar('T')
 
-# 从retry模块导入exponential_backoff函数
-from vnpy.utility.retry import exponential_backoff
 
-# 移除国际化，使用之前添加的_函数
-
-if sys.version_info >= (3, 9):
-    from zoneinfo import ZoneInfo, available_timezones              # noqa
-else:
-    from backports.zoneinfo import ZoneInfo, available_timezones    # noqa
-
-
+# 日志格式定义
 log_formatter: logging.Formatter = logging.Formatter("[%(asctime)s] %(message)s")
 
 
 def extract_vt_symbol(vt_symbol: str) -> Tuple[str, Exchange]:
-    """
-    :return: (symbol, exchange)
-    """
+    """从交易所符号中提取标的和交易所"""
     symbol, exchange_str = vt_symbol.rsplit(".", 1)
     return symbol, Exchange(exchange_str)
 
 
 def generate_vt_symbol(symbol: str, exchange: Exchange) -> str:
-    """
-    return vt_symbol
-    """
+    """生成交易所符号"""
     return f"{symbol}.{exchange.value}"
 
 
 def _get_trader_dir(temp_name: str) -> Tuple[Path, Path]:
-    """
-    Get path where trader is running in.
+    """获取交易程序运行路径
+    
+    首先检查当前工作目录是否存在指定的临时目录，
+    如果存在则使用当前目录作为交易路径，
+    否则使用系统主目录。
     """
     cwd: Path = Path.cwd()
     temp_path: Path = cwd.joinpath(temp_name)
 
-    # If .vntrader folder exists in current working directory,
-    # then use it as trader running path.
+    # 如果临时目录存在于当前工作目录中，则使用当前目录作为交易路径
     if temp_path.exists():
         return cwd, temp_path
 
-    # Otherwise use home path of system.
+    # 否则使用系统主目录
     home_path: Path = Path.home()
     temp_path: Path = home_path.joinpath(temp_name)
 
-    # Create .vntrader folder under home path if not exist.
+    # 如果主目录下不存在临时目录，则创建
     if not temp_path.exists():
         temp_path.mkdir()
 
     return home_path, temp_path
 
 
-TRADER_DIR, TEMP_DIR = _get_trader_dir(".vntrader")
+# 使用.apilot作为临时目录名，替代原先的.vntrader
+TRADER_DIR, TEMP_DIR = _get_trader_dir(".apilot")
 sys.path.append(str(TRADER_DIR))
 
 
 def get_file_path(filename: str) -> Path:
-    """
-    Get path for temp file with filename.
-    """
+    """获取临时文件完整路径"""
     return TEMP_DIR.joinpath(filename)
 
 
 def get_folder_path(folder_name: str) -> Path:
-    """
-    Get path for temp folder with folder name.
-    """
+    """获取文件夹路径，如不存在则创建"""
     folder_path: Path = TEMP_DIR.joinpath(folder_name)
     if not folder_path.exists():
         folder_path.mkdir()
     return folder_path
-
-
-def get_icon_path(filepath: str, ico_name: str) -> str:
-    """
-    Get path for icon file with ico name.
-    """
-    ui_path: Path = Path(filepath).parent
-    icon_path: Path = ui_path.joinpath("ico", ico_name)
-    return str(icon_path)
 
 
 def load_json(filename: str) -> dict:
@@ -1061,26 +1038,39 @@ def virtual(func: Callable) -> Callable:
     return func
 
 
-file_handlers: Dict[str, logging.FileHandler] = {}
+import threading
 
-
-def _get_file_logger_handler(filename: str) -> logging.FileHandler:
-    handler: logging.FileHandler = file_handlers.get(filename, None)
-    if handler is None:
-        handler = logging.FileHandler(filename)
-        file_handlers[filename] = handler  # Am i need a lock?
-    return handler
-
+# 全局变量
+_logger_lock = threading.Lock()  # 添加线程锁
+_file_loggers = {}               # 缓存日志器对象（不只是处理器）
 
 def get_file_logger(filename: str) -> logging.Logger:
     """
-    return a logger that writes records into a file.
+    获取写入指定文件的日志记录器（线程安全单例模式）
     """
-    logger: logging.Logger = logging.getLogger(filename)
-    handler: logging.FileHandler = _get_file_logger_handler(filename)  # get singleton handler.
-    handler.setFormatter(log_formatter)
-    logger.addHandler(handler)  # each handler will be added only once.
-    return logger
-
-
-
+    # 使用线程锁保护共享资源访问
+    with _logger_lock:
+        # 检查是否已有该文件的logger
+        if filename in _file_loggers:
+            return _file_loggers[filename]
+        
+        # 创建新logger
+        logger = logging.getLogger(filename)
+        
+        # 检查是否已经有处理器添加到这个logger
+        has_file_handler = False
+        for handler in logger.handlers:
+            if isinstance(handler, logging.FileHandler) and \
+               getattr(handler, 'baseFilename', None) == filename:
+                has_file_handler = True
+                break
+        
+        # 只有在没有相应处理器时才添加新的
+        if not has_file_handler:
+            handler = logging.FileHandler(filename)
+            handler.setFormatter(log_formatter)
+            logger.addHandler(handler)
+        
+        # 缓存并返回logger对象
+        _file_loggers[filename] = logger
+        return logger

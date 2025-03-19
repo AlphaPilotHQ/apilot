@@ -281,16 +281,13 @@ class AccountData(BaseData):
 
 @dataclass
 class LogData(BaseData):
-    """
-    Log data is used for recording log messages on GUI or in log files.
-    """
-
+    """日志数据结构"""
     msg: str
     level: int = INFO
-
+    source: str = ""  # 添加来源字段，便于追踪
+    
     def __post_init__(self) -> None:
-        """"""
-        self.time: datetime = datetime.now()
+        self.time = datetime.now()
 
 
 @dataclass

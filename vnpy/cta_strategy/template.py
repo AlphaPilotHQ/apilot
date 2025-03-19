@@ -160,10 +160,10 @@ class CtaTemplate(ABC):
                 )
                 return vt_orderids
             else:
-                self.write_log("策略未启动交易，订单未发送")
+                self.cta_engine.main_engine.log_warning("策略未启动交易，订单未发送", source="CTA_STRATEGY")
                 return []
         except Exception as e:
-            self.write_log(f"发送订单异常: {str(e)}")
+            self.cta_engine.main_engine.log_error(f"发送订单异常: {str(e)}", source="CTA_STRATEGY")
             return []
 
     def cancel_order(self, vt_orderid: str) -> None:
@@ -175,7 +175,23 @@ class CtaTemplate(ABC):
             self.cta_engine.cancel_all(self)
 
     def write_log(self, msg: str) -> None:
-        self.cta_engine.write_log(msg, self)
+        """
+        记录日志消息（已弃用，请使用主引擎的日志方法）
+        """
+        import warnings
+        warnings.warn(
+            "策略的write_log方法已弃用，请使用cta_engine.main_engine.log_xxx方法代替", 
+            DeprecationWarning, 
+            stacklevel=2
+        )
+        
+        # 检查引擎类型，区分实盘和回测环境
+        if hasattr(self.cta_engine, "main_engine"):
+            # 实盘环境
+            self.cta_engine.main_engine.log_info(msg, source="CTA_STRATEGY")
+        else:
+            # 回测环境
+            self.cta_engine.write_log(msg, self)
 
     def get_engine_type(self) -> EngineType:
         """

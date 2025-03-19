@@ -1,7 +1,3 @@
-"""
-Event-driven framework of VeighNa framework.
-"""
-
 from collections import defaultdict
 from queue import Empty, Queue
 from threading import Thread
@@ -19,7 +15,6 @@ class Event:
     """
 
     def __init__(self, type: str, data: Any = None) -> None:
-        """"""
         self.type: str = type
         self.data: Any = data
 
