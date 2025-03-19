@@ -173,16 +173,28 @@ def run_simple_backtest(std_period=20, mom_threshold=0.05, trailing_std_scale=4.
         }
     )
     
-    # 4 运行策略
-    engine.load_data()
+    # 4 添加数据
+    engine.add_data(
+        database_type="csv",
+        data_path="/Users/bobbyding/Documents/GitHub/apilot/SOL-USDT_LOCAL_1m.csv",
+        datetime="candle_begin_time",
+        open="open",
+        high="high",
+        low="low",
+        close="close",
+        volume="volume"
+    )
+
+    # 5 运行策略
     engine.run_backtesting()
     
-    # 5 计算结果和统计指标
+    # 6 计算结果和统计指标
     df = engine.calculate_result()
     stats = engine.calculate_statistics()
 
-    # 6 可视化显示
-    engine.show_chart()
+    # 7 可视化显示
+    if show_chart:
+        engine.show_chart()
     
     return df, engine, stats
 

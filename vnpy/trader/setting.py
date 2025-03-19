@@ -25,22 +25,11 @@ SETTINGS: Dict[str, Any] = {
     "email.password": "",  # 建议使用应用专用密码
     "email.sender": "",
     "email.receiver": "",
-    
-    # Telegram通知设置
-    "telegram.active": False,
-    "telegram.token": "",
-    "telegram.chat_id": "",
-    
-    # 数据库设置
-    "database.timezone": get_localzone_name(),
-    "database.name": "csv",  # 默认使用CSV数据库，直接从CSV文件读取数据
-    "database.data_path": "csv_database",  # CSV数据文件存储路径
-    
-    # 币安API设置
-    "binance.key": "", 
-    "binance.secret": "",
-    "binance.proxy_host": "",  # 需要代理时设置
-    "binance.proxy_port": 0,
+
+    # # 数据库设置
+    # "database.timezone": get_localzone_name(),
+    # "database.name": "csv",  # 默认使用CSV数据库，直接从CSV文件读取数据
+    # "database.data_path": "csv_database",  # CSV数据文件存储路径
     
     # 回测设置
     "backtest.risk_free": 0.0,

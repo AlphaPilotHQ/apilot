@@ -4,6 +4,7 @@ from enum import Enum
 from typing import Any, Callable, List, Dict, Type, Tuple, Union, Optional
 from functools import lru_cache
 import traceback
+import os
 
 import numpy as np
 from pandas import DataFrame, Series
@@ -82,6 +83,7 @@ class BacktestingEngine:
         
         # 添加数据源配置
         self.database_config = None
+        self.specific_data_file = None
 
     def clear_data(self) -> None:
         self.strategy = None
@@ -148,17 +150,19 @@ class BacktestingEngine:
             self, strategy_class.__name__, self.vt_symbol, setting
         )
 
-    def add_data(self, database_type="csv", **kwargs):
-        # 保存数据源配置，稍后在load_data中使用
-        self.database_config = {
-            "type": database_type,
-            "params": kwargs
-        }
+    def add_data(
+        self,
+        database_type: Optional[str] = None,
+        **kwargs
+    ) -> None:
+        """"""
+        self.database_type = database_type
+        self.database_config = kwargs
         
         return self  # 支持链式调用
 
     def load_data(self) -> None:
-        """Load historical data for backtesting."""
+        """"""
         self.output("开始加载历史数据")
         
         # Set end date if not provided and validate date range
@@ -168,42 +172,121 @@ class BacktestingEngine:
         if self.start >= self.end:
             self.output("起始日期必须小于结束日期")
             return
-        
+            
         # 使用配置的数据源
         if self.database_config:
-            # 配置数据库
-            database_type = self.database_config["type"]
-            database_params = self.database_config["params"]
+            # 获取数据文件路径参数
+            data_path = self.database_config.get("data_path", None)
+            
+            self.output(f"检测data_path参数: {data_path}")
+            
+            # 如果指定了有效的数据文件路径
+            if data_path and os.path.isfile(data_path):
+                self.output(f"找到指定数据文件: {data_path}")
+                self.specific_data_file = data_path
             
             # 设置全局数据库配置
             from vnpy.trader.setting import SETTINGS
-            SETTINGS["database.name"] = database_type
             
-            # 设置其他数据库参数
-            for key, value in database_params.items():
-                if key == "authentication_source":
-                    # MongoDB特殊参数处理
-                    SETTINGS["database.mongodb.authentication_source"] = value
-                elif key == "host":
-                    SETTINGS["database.mongodb.host"] = value
-                elif key == "port":
-                    SETTINGS["database.mongodb.port"] = value
-                elif key == "username":
-                    SETTINGS["database.mongodb.username"] = value
-                elif key == "password":
-                    SETTINGS["database.mongodb.password"] = value
-                elif key == "database":
-                    SETTINGS["database.mongodb.database"] = value
-                elif key.startswith("database."):
-                    SETTINGS[key] = value
-                else:
-                    SETTINGS[f"database.{key}"] = value
-                    
-            self.output(f"使用数据源: {database_type}")
+            # 配置CSV数据库
+            database_type = self.database_type
+            
+            # 初始化数据库
+            if database_type:
+                self.output(f"使用数据源: {database_type}")
         
+        # 否则，使用标准的数据库加载方式
         # Clear previous data
         self.history_data.clear()
         
+        # 如果指定了具体的数据文件，则直接从文件加载数据
+        if hasattr(self, 'specific_data_file') and self.specific_data_file:
+            try:
+                self.output(f"从指定文件加载数据: {self.specific_data_file}")
+                # 读取CSV文件
+                import pandas as pd
+                df = pd.read_csv(self.specific_data_file)
+                
+                # 处理时间列
+                datetime_col = self.database_config.get("datetime", None)
+                if not datetime_col or datetime_col not in df.columns:
+                    # 如果没有指定或指定的列不存在，尝试自动检测
+                    for col in ["datetime", "candle_begin_time", "date", "time", "Date", "Time"]:
+                        if col in df.columns:
+                            datetime_col = col
+                            break
+                
+                if not datetime_col:
+                    self.output("错误：CSV文件中未找到时间列")
+                    return
+                
+                # 确保datetime列为datetime类型
+                df[datetime_col] = pd.to_datetime(df[datetime_col])
+                
+                # 过滤日期范围
+                if self.start and self.end:
+                    df = df[(df[datetime_col] >= self.start) & (df[datetime_col] <= self.end)]
+                
+                # 获取OHLCV列名
+                open_col = self.database_config.get("open", "open")
+                high_col = self.database_config.get("high", "high") 
+                low_col = self.database_config.get("low", "low")
+                close_col = self.database_config.get("close", "close")
+                volume_col = self.database_config.get("volume", "volume")
+                
+                # 检查列是否存在
+                required_cols = {
+                    "open": open_col,
+                    "high": high_col,
+                    "low": low_col,
+                    "close": close_col,
+                    "volume": volume_col
+                }
+                
+                # 检查是否所有必需列都找到了
+                missing_cols = []
+                for name, col in required_cols.items():
+                    if col not in df.columns:
+                        missing_cols.append(f"{name}({col})")
+                
+                if missing_cols:
+                    self.output(f"错误：CSV文件缺少必需列: {', '.join(missing_cols)}")
+                    return
+                
+                # 创建BarData对象
+                batch_data = []
+                for _, row in df.iterrows():
+                    dt = row[datetime_col]
+                    
+                    # 创建K线数据对象
+                    bar = BarData(
+                        symbol=self.symbol,
+                        exchange=self.exchange,
+                        datetime=dt,
+                        interval=self.interval,
+                        volume=row[volume_col],
+                        open_price=row[open_col],
+                        high_price=row[high_col],
+                        low_price=row[low_col],
+                        close_price=row[close_col],
+                        gateway_name=self.gateway_name
+                    )
+                    
+                    batch_data.append(bar)
+                
+                # 排序
+                batch_data.sort(key=lambda x: x.datetime)
+                
+                self.history_data.extend(batch_data)
+                self.output(f"成功从文件加载了 {len(batch_data)} 条数据")
+                return
+                
+            except Exception as e:
+                self.output(f"从文件加载数据时出错: {str(e)}")
+                import traceback
+                self.output(traceback.format_exc())
+        
+        # 否则，使用标准的数据库加载方式
         # Calculate progress chunks
         total_days = (self.end - self.start).days
         progress_days = max(int(total_days / 10), 1)
@@ -233,6 +316,10 @@ class BacktestingEngine:
 
     def run_backtesting(self) -> None:
         """"""
+        # 首先加载数据
+        if not self.history_data:
+            self.load_data()
+            
         if self.mode == BacktestingMode.BAR:
             func = self.new_bar
         else:

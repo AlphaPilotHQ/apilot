@@ -187,7 +187,6 @@ class CsvDatabase(BaseDatabase):
             # 回退到标准路径
             filepath = os.path.join(self.bar_path, filename)
             if not os.path.exists(filepath):
-                print(f"错误: 未找到数据文件: {filename}，在根目录或数据目录均不存在")
                 return []
         
         # 尝试从缓存加载数据
