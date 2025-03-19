@@ -73,39 +73,6 @@ cd apilot
 pip install -e .
 ```
 
-## 使用示例
-
-```python
-# 策略回测示例
-from vnpy.trader.app.cta_strategy.backtesting import BacktestingEngine
-from vnpy.trader.object import BarData
-from datetime import datetime
-
-# 创建回测引擎
-engine = BacktestingEngine()
-
-# 设置回测参数
-engine.set_parameters(
-    vt_symbol="BTC-USDT.BINANCE",
-    interval="1h",
-    start=datetime(2023, 1, 1),
-    end=datetime(2023, 12, 31),
-    rate=0.0003,
-    slippage=0,
-    size=1,
-    pricetick=0.01,
-    capital=100000,
-)
-
-# 加载策略
-engine.add_strategy(MyStrategy, {})
-
-# 运行回测
-engine.run_backtesting()
-
-# 计算结果
-engine.calculate_result()
-```
 
 
 ## 许可证
