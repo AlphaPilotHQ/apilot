@@ -10,158 +10,199 @@ from apilot.trader.utility import BarGenerator, ArrayManager
 
 
 class TurtleSignalStrategy(CtaTemplate):
-    """"""
-    author = "用Python的交易员"
+    """
+    海龟交易信号策略
+    
+    基于唐奇安通道(Donchian Channel)的趋势跟踪系统，是经典海龟交易法则的实现。
+    该策略使用长短两个周期的通道，结合ATR进行仓位管理和止损设置。
+    """
 
-    entry_window = 20
-    exit_window = 10
-    atr_window = 20
-    fixed_size = 1
+    # 策略参数
+    entry_window = 20      # 入场通道周期，20天
+    exit_window = 10       # 出场通道周期，10天
+    atr_window = 20        # ATR计算周期，20天
+    fixed_size = 1         # 每次交易的基础单位
 
-    entry_up = 0
-    entry_down = 0
-    exit_up = 0
-    exit_down = 0
-    atr_value = 0
+    # 策略变量
+    entry_up = 0           # 入场通道上轨（最高价）
+    entry_down = 0         # 入场通道下轨（最低价）
+    exit_up = 0            # 出场通道上轨
+    exit_down = 0          # 出场通道下轨
+    atr_value = 0          # ATR值，用于仓位管理和设置止损
 
-    long_entry = 0
-    short_entry = 0
-    long_stop = 0
-    short_stop = 0
+    long_entry = 0         # 多头入场价
+    short_entry = 0        # 空头入场价
+    long_stop = 0          # 多头止损价
+    short_stop = 0         # 空头止损价
 
+    # 参数和变量列表，用于UI显示和参数优化
     parameters = ["entry_window", "exit_window", "atr_window", "fixed_size"]
     variables = ["entry_up", "entry_down", "exit_up", "exit_down", "atr_value"]
 
     def __init__(self, cta_engine, strategy_name, vt_symbol, setting):
-        """"""
+        """初始化策略"""
         super().__init__(cta_engine, strategy_name, vt_symbol, setting)
 
+        # 创建K线生成器和数据管理器
         self.bg = BarGenerator(self.on_bar)
         self.am = ArrayManager()
 
     def on_init(self):
         """
-        Callback when strategy is inited.
+        策略初始化回调函数
         """
         # 使用引擎的日志方法记录初始化信息
-        self.cta_engine.write_log("策略初始化")
-        
-        # 对于回测，数据已通过CSV加载，无需调用load_bar
-        # self.load_bar(20)
+        self.cta_engine.write_log("海龟信号策略初始化")
 
     def on_start(self):
         """
-        Callback when strategy is started.
+        策略启动回调函数
         """
-        self.cta_engine.write_log("策略启动")
+        self.cta_engine.write_log("海龟信号策略启动")
 
     def on_stop(self):
         """
-        Callback when strategy is stopped.
+        策略停止回调函数
         """
-        self.cta_engine.write_log("策略停止")
+        self.cta_engine.write_log("海龟信号策略停止")
 
     def on_tick(self, tick: TickData):
         """
-        Callback of new tick data update.
+        Tick数据更新回调函数
         """
+        # 将TICK数据更新至K线生成器
         self.bg.update_tick(tick)
 
     def on_bar(self, bar: BarData):
         """
-        Callback of new bar data update.
+        K线数据更新回调函数 - 策略的核心交易逻辑
         """
+        # 撤销之前发出的所有订单
         self.cancel_all()
 
+        # 更新K线数据到数组管理器
         self.am.update_bar(bar)
         if not self.am.inited:
             return
 
-        # Only calculates new entry channel when no position holding
+        # 只有在没有持仓时才计算新的入场通道
         if not self.pos:
+            # 计算唐奇安通道上下轨（N日最高价和最低价）
             self.entry_up, self.entry_down = self.am.donchian(
                 self.entry_window
             )
 
+        # 始终计算短周期出场通道
         self.exit_up, self.exit_down = self.am.donchian(self.exit_window)
 
-        if not self.pos:
+        # 交易逻辑：根据持仓情况分别处理
+        if not self.pos:  # 无持仓状态
+            # 计算ATR值用于风险管理
             self.atr_value = self.am.atr(self.atr_window)
 
+            # 重置入场价和止损价
             self.long_entry = 0
             self.short_entry = 0
             self.long_stop = 0
             self.short_stop = 0
 
-            self.send_buy_orders(self.entry_up)
-            self.send_short_orders(self.entry_down)
-        elif self.pos > 0:
+            # 发送多头和空头突破订单
+            self.send_buy_orders(self.entry_up)      # 上轨突破做多
+            self.send_short_orders(self.entry_down)  # 下轨突破做空
+            
+        elif self.pos > 0:  # 持有多头仓位
+            # 继续加仓逻辑，突破新高继续做多
             self.send_buy_orders(self.entry_up)
 
+            # 多头止损逻辑：取ATR止损价和10日最低价的较大值
             sell_price = max(self.long_stop, self.exit_down)
-            self.sell(sell_price, abs(self.pos), True)
+            self.sell(sell_price, abs(self.pos), True)  # 平多仓位
 
-        elif self.pos < 0:
+        elif self.pos < 0:  # 持有空头仓位
+            # 继续加仓逻辑，突破新低继续做空
             self.send_short_orders(self.entry_down)
 
+            # 空头止损逻辑：取ATR止损价和10日最高价的较小值
             cover_price = min(self.short_stop, self.exit_up)
-            self.cover(cover_price, abs(self.pos), True)
+            self.cover(cover_price, abs(self.pos), True)  # 平空仓位
         
         # 移除对put_event的调用，该方法在回测环境下不可用
         # self.put_event()
 
     def on_trade(self, trade: TradeData):
         """
-        Callback of new trade data update.
+        成交回调函数：记录成交价并设置止损价
         """
-        if trade.direction == Direction.LONG:
+        if trade.direction == Direction.LONG:  # 多头成交
+            # 记录多头入场价
             self.long_entry = trade.price
+            # 设置多头止损价为入场价减去2倍ATR
             self.long_stop = self.long_entry - 2 * self.atr_value
-        else:
+        else:  # 空头成交
+            # 记录空头入场价
             self.short_entry = trade.price
+            # 设置空头止损价为入场价加上2倍ATR
             self.short_stop = self.short_entry + 2 * self.atr_value
 
     def on_order(self, order: OrderData):
         """
-        Callback of new order data update.
+        委托回调函数
         """
         pass
 
     def on_stop_order(self, stop_order: StopOrder):
         """
-        Callback of stop order update.
+        停止单回调函数
         """
         pass
 
     def send_buy_orders(self, price):
-        """"""
+        """
+        发送多头委托，包括首次入场和金字塔式加仓
+        
+        海龟系统的特点之一是金字塔式逐步加仓，最多加仓至4个单位
+        """
+        # 计算当前持仓的单位数
         t = self.pos / self.fixed_size
 
+        # 第一个单位：在通道突破点入场
         if t < 1:
             self.buy(price, self.fixed_size, True)
 
+        # 第二个单位：在第一个单位价格基础上加0.5个ATR
         if t < 2:
             self.buy(price + self.atr_value * 0.5, self.fixed_size, True)
 
+        # 第三个单位：在第一个单位价格基础上加1个ATR
         if t < 3:
             self.buy(price + self.atr_value, self.fixed_size, True)
 
+        # 第四个单位：在第一个单位价格基础上加1.5个ATR
         if t < 4:
             self.buy(price + self.atr_value * 1.5, self.fixed_size, True)
 
     def send_short_orders(self, price):
-        """"""
+        """
+        发送空头委托，包括首次入场和金字塔式加仓
+        
+        与多头逻辑相反，价格逐步下降
+        """
+        # 计算当前持仓的单位数
         t = self.pos / self.fixed_size
 
+        # 第一个单位：在通道突破点入场
         if t > -1:
             self.short(price, self.fixed_size, True)
 
+        # 第二个单位：在第一个单位价格基础上减0.5个ATR
         if t > -2:
             self.short(price - self.atr_value * 0.5, self.fixed_size, True)
 
+        # 第三个单位：在第一个单位价格基础上减1个ATR
         if t > -3:
             self.short(price - self.atr_value, self.fixed_size, True)
 
+        # 第四个单位：在第一个单位价格基础上减1.5个ATR
         if t > -4:
             self.short(price - self.atr_value * 1.5, self.fixed_size, True)
 

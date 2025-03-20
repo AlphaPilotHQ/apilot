@@ -1,3 +1,10 @@
+"""
+改造成这样子：
+监控全部的标的，出现信号买入1%，可以继续加仓，最多到4%。
+可以一直选币，并给出
+但是这里仓位管理比较复杂，没有想好怎么做
+"""
+
 from init_env import *
 from datetime import datetime
 from typing import Dict, List, Tuple, Optional
