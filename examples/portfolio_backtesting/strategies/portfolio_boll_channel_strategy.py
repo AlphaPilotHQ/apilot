@@ -1,10 +1,10 @@
 from datetime import datetime
 
-from vnpy.trader.utility import ArrayManager, Interval
-from vnpy.trader.object import TickData, BarData
+from apilot.trader.utility import ArrayManager, Interval
+from apilot.trader.object import TickData, BarData
 
-from vnpy_portfoliostrategy import StrategyTemplate, StrategyEngine
-from vnpy_portfoliostrategy.utility import PortfolioBarGenerator
+from apilot_portfoliostrategy import StrategyTemplate, StrategyEngine
+from apilot_portfoliostrategy.utility import PortfolioBarGenerator
 
 
 class PortfolioBollChannelStrategy(StrategyTemplate):

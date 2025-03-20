@@ -1,15 +1,15 @@
-from vnpy.trader.utility import BarGenerator, ArrayManager
-from vnpy.spread_strategy.base import (
+from apilot.trader.utility import BarGenerator, ArrayManager
+from apilot.spread_strategy.base import (
     SpreadData,
     TradeData,
     TickData,
     BarData
 )
-from vnpy.spread_strategy.template import (
+from apilot.spread_strategy.template import (
     SpreadAlgoTemplate,
     SpreadStrategyTemplate
 )
-from vnpy.trader.object import OrderData
+from apilot.trader.object import OrderData
 
 class StatisticalArbitrageStrategy(SpreadStrategyTemplate):
     """"""

@@ -11,13 +11,13 @@ ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
 if ROOT_DIR not in sys.path:
     sys.path.insert(0, ROOT_DIR)
 
-# from vnpy.trader.optimize import OptimizationSetting
-from vnpy.trader.object import BarData, TradeData
-from vnpy.trader.constant import Exchange, Interval
-from vnpy.spread_strategy.base import SpreadData, LegData
-from vnpy.spread_strategy.template import SpreadAlgoTemplate, SpreadStrategyTemplate
-from vnpy.spread_strategy.strategies.statistical_arbitrage_strategy import StatisticalArbitrageStrategy
-from vnpy.spread_strategy.backtesting import BacktestingEngine, BacktestingMode, DailyResult, OptimizationSetting
+# from apilot.trader.optimize import OptimizationSetting
+from apilot.trader.object import BarData, TradeData
+from apilot.trader.constant import Exchange, Interval
+from apilot.spread_strategy.base import SpreadData, LegData
+from apilot.spread_strategy.template import SpreadAlgoTemplate, SpreadStrategyTemplate
+from apilot.spread_strategy.strategies.statistical_arbitrage_strategy import StatisticalArbitrageStrategy
+from apilot.spread_strategy.backtesting import BacktestingEngine, BacktestingMode, DailyResult, OptimizationSetting
 
 
 # 直接从CSV文件加载K线数据
@@ -243,8 +243,8 @@ def run_backtest(sol_busd_file, sol_usdt_file, start_time, end_time, boll_window
 
 if __name__ == "__main__":
     # 文件路径
-    sol_busd_file = "/Users/bobbyding/Documents/GitHub/vnpy/SOL-BUSD_LOCAL_1m.csv"
-    sol_usdt_file = "/Users/bobbyding/Documents/GitHub/vnpy/SOL-USDT_LOCAL_1m.csv"
+    sol_busd_file = "/Users/bobbyding/Documents/GitHub/apilot/SOL-BUSD_LOCAL_1m.csv"
+    sol_usdt_file = "/Users/bobbyding/Documents/GitHub/apilot/SOL-USDT_LOCAL_1m.csv"
     
     # 分析价差并获取时间范围
     print("分析SOL-BUSD和SOL-USDT价差...")

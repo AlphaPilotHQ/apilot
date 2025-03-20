@@ -7,11 +7,11 @@ from datetime import datetime
 import pandas as pd
 from typing import Any, List
 
-from vnpy.trader.constant import Interval, Direction, Exchange
-from vnpy.trader.object import BarData, TickData
-from vnpy.trader.utility import BarGenerator
-from vnpy.cta_strategy.template import CtaTemplate
-from vnpy.cta_strategy.backtesting import BacktestingEngine
+from apilot.trader.constant import Interval, Direction, Exchange
+from apilot.trader.object import BarData, TickData
+from apilot.trader.utility import BarGenerator
+from apilot.cta_strategy.template import CtaTemplate
+from apilot.cta_strategy.backtesting import BacktestingEngine
 
 
 class TestStrategy(CtaTemplate):

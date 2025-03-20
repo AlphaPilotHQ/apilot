@@ -1,12 +1,12 @@
 from datetime import datetime
 
-from vnpy.trader.utility import ArrayManager
-from vnpy.trader.object import TickData, BarData
-from vnpy.trader.constant import Direction
+from apilot.trader.utility import ArrayManager
+from apilot.trader.object import TickData, BarData
+from apilot.trader.constant import Direction
 
-from vnpy.portfolio_strategy.template import StrategyTemplate
-from vnpy.portfolio_strategy.engine import StrategyEngine
-from vnpy.portfolio_strategy.utility import PortfolioBarGenerator
+from apilot.portfolio_strategy.template import StrategyTemplate
+from apilot.portfolio_strategy.engine import StrategyEngine
+from apilot.portfolio_strategy.utility import PortfolioBarGenerator
 
 
 class TrendFollowingStrategy(StrategyTemplate):

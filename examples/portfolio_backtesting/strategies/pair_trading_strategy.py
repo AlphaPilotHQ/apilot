@@ -2,11 +2,11 @@ from datetime import datetime
 
 import numpy as np
 
-from vnpy.trader.utility import BarGenerator
-from vnpy.trader.object import TickData, BarData
-from vnpy.trader.constant import Direction
+from apilot.trader.utility import BarGenerator
+from apilot.trader.object import TickData, BarData
+from apilot.trader.constant import Direction
 
-from vnpy_portfoliostrategy import StrategyTemplate, StrategyEngine
+from apilot_portfoliostrategy import StrategyTemplate, StrategyEngine
 
 
 class PairTradingStrategy(StrategyTemplate):

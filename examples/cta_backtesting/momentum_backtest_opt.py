@@ -1,13 +1,13 @@
 from init_env import *
 from datetime import datetime
 from typing import Dict, List, Tuple, Optional
-from vnpy.trader.constant import Direction, Interval
-from vnpy.trader.object import BarData, TickData, OrderData, TradeData
-from vnpy.cta_strategy.base import StopOrder
-from vnpy.cta_strategy.template import CtaTemplate
-from vnpy.cta_strategy.backtesting import BacktestingEngine
-from vnpy.trader.utility import BarGenerator, ArrayManager
-from vnpy.trader.optimize import OptimizationSetting, run_ga_optimization
+from apilot.trader.constant import Direction, Interval
+from apilot.trader.object import BarData, TickData, OrderData, TradeData
+from apilot.cta_strategy.base import StopOrder
+from apilot.cta_strategy.template import CtaTemplate
+from apilot.cta_strategy.backtesting import BacktestingEngine
+from apilot.trader.utility import BarGenerator, ArrayManager
+from apilot.trader.optimize import OptimizationSetting, run_ga_optimization
 import numpy as np
 import pandas as pd
 

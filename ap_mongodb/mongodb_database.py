@@ -8,9 +8,9 @@ from pymongo.cursor import Cursor
 from pymongo.collection import Collection
 from pymongo.results import DeleteResult
 
-from vnpy.trader.constant import Exchange, Interval
-from vnpy.trader.object import BarData, TickData
-from vnpy.trader.database import BaseDatabase, BarOverview, TickOverview, DB_TZ
+from apilot.trader.constant import Exchange, Interval
+from apilot.trader.object import BarData, TickData
+from apilot.trader.database import BaseDatabase, BarOverview, TickOverview
 
 class MongodbDatabase(BaseDatabase):
     """MongoDB数据库实现"""
@@ -21,7 +21,7 @@ class MongodbDatabase(BaseDatabase):
         port: int = 27017,
         username: str = "",
         password: str = "",
-        database: str = "vnpy",
+        database: str = "apilot",
         authentication_source: str = "admin"
     ) -> None:
         """"""

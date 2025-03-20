@@ -6,12 +6,12 @@ from init_env import *
 from datetime import datetime
 
 # 导入所需模块和图形库
-from vnpy.trader.constant import Interval, Exchange
+from apilot.trader.constant import Interval, Exchange
 
 # 导入portfolio_strategy模块 - 使用已移植的模块
-from vnpy.portfolio_strategy.backtesting import BacktestingEngine 
-from vnpy.portfolio_strategy.strategies.trend_following_strategy import TrendFollowingStrategy
-from vnpy.trader.optimize import OptimizationSetting
+from apilot.portfolio_strategy.backtesting import BacktestingEngine 
+from apilot.portfolio_strategy.strategies.trend_following_strategy import TrendFollowingStrategy
+from apilot.trader.optimize import OptimizationSetting
 
 
 def run_crypto_portfolio_backtest():

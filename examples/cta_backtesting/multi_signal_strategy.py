@@ -1,4 +1,4 @@
-from vnpy_ctastrategy import (
+from apilot_ctastrategy import (
     StopOrder,
     TickData,
     BarData,

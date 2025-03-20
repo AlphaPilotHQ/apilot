@@ -1,10 +1,10 @@
 from datetime import datetime
 
-from vnpy.trader.utility import BarGenerator, extract_vt_symbol
-from vnpy.trader.object import TickData, BarData
-from vnpy.trader.constant import Direction
+from apilot.trader.utility import BarGenerator, extract_vt_symbol
+from apilot.trader.object import TickData, BarData
+from apilot.trader.constant import Direction
 
-from vnpy_portfoliostrategy import StrategyTemplate, StrategyEngine
+from apilot_portfoliostrategy import StrategyTemplate, StrategyEngine
 
 
 class PcpArbitrageStrategy(StrategyTemplate):

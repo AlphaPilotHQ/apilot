@@ -12,12 +12,12 @@ from dotenv import load_dotenv
 env_path = Path(__file__).parent / '.env'
 load_dotenv(dotenv_path=env_path)
 
-from vnpy.event import EventEngine
-from vnpy.trader.engine import MainEngine
-from vnpy.trader.constant import Direction, Offset, OrderType, Exchange
-from vnpy.trader.object import OrderRequest
-from vnpy.trader.setting import SETTINGS
-from vnpy.gateway.binance_gateway import BinanceGateway
+from apilot.event import EventEngine
+from apilot.trader.engine import MainEngine
+from apilot.trader.constant import Direction, Offset, OrderType, Exchange
+from apilot.trader.object import OrderRequest
+from apilot.trader.setting import SETTINGS
+from apilot.gateway.binance_gateway import BinanceGateway
 
 # 加载API密钥
 api_key = os.environ.get("BINANCE_API_KEY", "")
