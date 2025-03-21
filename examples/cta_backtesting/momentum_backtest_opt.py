@@ -183,7 +183,7 @@ def run_simple_backtest(std_period=20, mom_threshold=0.05, trailing_std_scale=4.
     # 4 添加数据
     engine.add_data(
         database_type="csv",
-        data_path="/Users/bobbyding/Documents/GitHub/apilot/SOL-USDT_LOCAL_1m.csv",
+        data_path="/Users/bobbyding/Documents/GitHub/apilot/data/SOL-USDT_LOCAL_1m.csv",
         datetime="candle_begin_time",
         open="open",
         high="high",

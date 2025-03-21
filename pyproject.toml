@@ -51,3 +51,6 @@ Homepage = "https://github.com/AlphaPilotHQ/apilot"
 Documentation = "https://github.com/AlphaPilotHQ/apilot/wiki"
 Repository = "https://github.com/AlphaPilotHQ/apilot"
 Issues = "https://github.com/AlphaPilotHQ/apilot/issues"
+
+[tool.setuptools]
+packages = ["apilot"]

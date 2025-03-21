@@ -84,7 +84,7 @@ class BacktestingEngine:
         # 添加数据源配置
         self.database_config = None
         self.specific_data_file = None
-
+        
     def clear_data(self) -> None:
         self.strategy = None
         self.tick = None
@@ -138,8 +138,13 @@ class BacktestingEngine:
         if not end:
             end = datetime.now()
         self.end = end.replace(hour=23, minute=59, second=59)
+        
+        # 验证时间范围
+        if self.start >= self.end:
+            error_msg = f"错误：起始日期({self.start})必须小于结束日期({self.end})"
+            self.output(error_msg)
+            raise ValueError(error_msg)
 
-        self.mode = mode
         self.annual_days = annual_days
         self.half_life = half_life
 
@@ -163,43 +168,47 @@ class BacktestingEngine:
 
     def load_data(self) -> None:
         """"""
-        self.output("开始加载历史数据")
         
-        # Set end date if not provided and validate date range
-        if not self.end:
-            self.end = datetime.now()
-            
-        if self.start >= self.end:
-            self.output("起始日期必须小于结束日期")
-            return
-            
         # 使用配置的数据源
         if self.database_config:
             # 获取数据文件路径参数
             data_path = self.database_config.get("data_path", None)
             
-            self.output(f"检测data_path参数: {data_path}")
-            
-            # 如果指定了有效的数据文件路径
-            if data_path and os.path.isfile(data_path):
-                self.output(f"找到指定数据文件: {data_path}")
-                self.specific_data_file = data_path
+            # 处理文件路径逻辑
+            if data_path:
+                # 检查文件是否存在（无论何种数据源）
+                if not os.path.isfile(data_path):
+                    # CSV数据源必须有对应的文件
+                    if self.database_type == "csv":
+                        error_msg = f"错误：找不到指定的CSV数据文件: {data_path}"
+                        self.output(error_msg)
+                        raise FileNotFoundError(error_msg)
+                    # 其他数据源仅警告
+                    else:
+                        self.output(f"警告：找不到指定的数据文件: {data_path}，将使用数据库加载")
+                else:
+                    # 文件存在，记录并设置
+                    self.output(f"找到指定数据文件: {data_path}")
+                    self.specific_data_file = data_path
             
             # 设置全局数据库配置
             from apilot.trader.setting import SETTINGS
             
-            # 配置CSV数据库
-            database_type = self.database_type
-            
             # 初始化数据库
-            if database_type:
-                self.output(f"使用数据源: {database_type}")
-        
-        # 否则，使用标准的数据库加载方式
+            if self.database_type:
+                self.output(f"使用数据源: {self.database_type}")
+                
+                # 对于MongoDB等需要特殊配置的数据库类型
+                if self.database_type != "csv":
+                    # 从database_config获取配置参数并设置到SETTINGS中
+                    # 这里我们不直接访问SETTINGS来避免全局影响
+                    # 而是传递所有参数给load_bar_data和load_tick_data函数
+                    self.database_settings = self.database_config
+                
         # Clear previous data
         self.history_data.clear()
         
-        # 如果指定了具体的数据文件，则直接从文件加载数据
+        # 从文件加载数据（如果指定了specific_data_file）
         if hasattr(self, 'specific_data_file') and self.specific_data_file:
             try:
                 self.output(f"从指定文件加载数据: {self.specific_data_file}")
@@ -226,6 +235,12 @@ class BacktestingEngine:
                 # 过滤日期范围
                 if self.start and self.end:
                     df = df[(df[datetime_col] >= self.start) & (df[datetime_col] <= self.end)]
+                    
+                    # 检查过滤后是否还有数据
+                    if df.empty:
+                        error_msg = f"错误：指定日期范围内没有数据: {self.start} 至 {self.end}"
+                        self.output(error_msg)
+                        raise ValueError(error_msg)
                 
                 # 获取OHLCV列名
                 open_col = self.database_config.get("open", "open")
@@ -250,8 +265,9 @@ class BacktestingEngine:
                         missing_cols.append(f"{name}({col})")
                 
                 if missing_cols:
-                    self.output(f"错误：CSV文件缺少必需列: {', '.join(missing_cols)}")
-                    return
+                    error_msg = f"错误：CSV文件缺少必需列: {', '.join(missing_cols)}"
+                    self.output(error_msg)
+                    raise ValueError(error_msg)
                 
                 # 创建BarData对象
                 batch_data = []
@@ -302,11 +318,13 @@ class BacktestingEngine:
             # 根据模式加载适当的数据类型
             if self.mode == BacktestingMode.BAR:
                 batch_data = load_bar_data(
-                    self.symbol, self.exchange, self.interval, current_start, current_end
+                    self.symbol, self.exchange, self.interval, current_start, current_end, 
+                    database_settings=getattr(self, "database_settings", None)
                 )
             else:
                 batch_data = load_tick_data(
-                    self.symbol, self.exchange, current_start, current_end
+                    self.symbol, self.exchange, current_start, current_end,
+                    database_settings=getattr(self, "database_settings", None)
                 )
             
             self.history_data.extend(batch_data)
@@ -318,6 +336,7 @@ class BacktestingEngine:
         """"""
         # 首先加载数据
         if not self.history_data:
+            # 不捕获异常，如果load_data抛出异常则程序将直接退出
             self.load_data()
             
         if self.mode == BacktestingMode.BAR:
@@ -783,7 +802,8 @@ class BacktestingEngine:
             exchange,
             interval,
             init_start,
-            init_end
+            init_end,
+            database_settings=getattr(self, "database_settings", None)
         )
 
         return bars
@@ -800,7 +820,8 @@ class BacktestingEngine:
             symbol,
             exchange,
             init_start,
-            init_end
+            init_end,
+            database_settings=getattr(self, "database_settings", None)
         )
 
         return ticks
@@ -1101,11 +1122,38 @@ def load_bar_data(
     exchange: Exchange,
     interval: Interval,
     start: datetime,
-    end: datetime
+    end: datetime,
+    database_settings: dict = None
 ) -> List[BarData]:
-    database = get_database()
-
-    return database.load_bar_data(symbol, exchange, interval, start, end)
+    """加载K线数据"""
+    # 获取数据库实例，如果提供了特殊设置，则使用这些设置
+    if database_settings:
+        # 用于支持MongoDB等特殊数据库的实现
+        # 注意：实际的MongoDB数据库处理应该在具体的数据库实现类中处理
+        from apilot.trader.setting import SETTINGS
+        old_settings = {}
+        
+        # 暂存原始设置
+        for key, value in database_settings.items():
+            if hasattr(SETTINGS, key):
+                old_settings[key] = getattr(SETTINGS, key)
+                setattr(SETTINGS, key, value)
+        
+        # 获取数据库连接
+        database = get_database()
+        
+        # 加载数据
+        bars = database.load_bar_data(symbol, exchange, interval, start, end)
+        
+        # 恢复原始设置
+        for key, value in old_settings.items():
+            setattr(SETTINGS, key, value)
+            
+        return bars
+    else:
+        # 使用默认数据库连接
+        database = get_database()
+        return database.load_bar_data(symbol, exchange, interval, start, end)
 
 
 @lru_cache(maxsize=1024)
@@ -1113,8 +1161,35 @@ def load_tick_data(
     symbol: str,
     exchange: Exchange,
     start: datetime,
-    end: datetime
+    end: datetime,
+    database_settings: dict = None
 ) -> List[TickData]:
-    database = get_database()
-
-    return database.load_tick_data(symbol, exchange, start, end)
+    """加载Tick数据"""
+    # 获取数据库实例，如果提供了特殊设置，则使用这些设置
+    if database_settings:
+        # 用于支持MongoDB等特殊数据库的实现
+        # 注意：实际的MongoDB数据库处理应该在具体的数据库实现类中处理
+        from apilot.trader.setting import SETTINGS
+        old_settings = {}
+        
+        # 暂存原始设置
+        for key, value in database_settings.items():
+            if hasattr(SETTINGS, key):
+                old_settings[key] = getattr(SETTINGS, key)
+                setattr(SETTINGS, key, value)
+        
+        # 获取数据库连接
+        database = get_database()
+        
+        # 加载数据
+        ticks = database.load_tick_data(symbol, exchange, start, end)
+        
+        # 恢复原始设置
+        for key, value in old_settings.items():
+            setattr(SETTINGS, key, value)
+            
+        return ticks
+    else:
+        # 使用默认数据库连接
+        database = get_database()
+        return database.load_tick_data(symbol, exchange, start, end)

@@ -124,6 +124,7 @@ apilot
 - [ ] 更新所有策略代码，使用主引擎的log_xxx方法替代write_log
 - [ ] 为回测引擎添加与主引擎一致的log_debug/log_info等方法，统一API
 - put event涉及到GUI部分删除
+- tzlocal库的删除
 
 
 

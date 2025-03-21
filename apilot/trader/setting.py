@@ -1,6 +1,5 @@
 from logging import INFO
 from typing import Dict, Any
-from tzlocal import get_localzone_name
 
 from .utility import load_json
 
@@ -22,7 +21,7 @@ SETTINGS: Dict[str, Any] = {
     "email.receiver": "",
 
     # 数据库设置
-    "database.timezone": get_localzone_name(),
+    # "database.timezone": get_localzone_name(),
     "database.name": "csv",  # 默认使用CSV数据库，直接从CSV文件读取数据
     "database.data_path": "csv_database",  # CSV数据文件存储路径
     
