@@ -32,14 +32,6 @@ x64/
 # VeighNa specific
 .vntrader/
 
-# Data files
-SOL-USDT.csv
-*.h5
-*.pkl
-*.db
-*.sqlite
-*.sqlite3
-
 # Log files
 *.log
 
@@ -94,5 +86,6 @@ wheels/
 pytest-reports/
 .coverage.*
 
-*.png
-*.csv
+# Data files
+/data/*.csv
+!/data/

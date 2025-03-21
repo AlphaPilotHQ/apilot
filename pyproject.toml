@@ -35,7 +35,7 @@ dev = [
     "mypy",
 ]
 mongodb = [
-    "pymongo>=3.12.0",
+    "apilot_mongodb>=0.1.0",
 ]
 all = [
     "pytest",
@@ -43,7 +43,7 @@ all = [
     "black",
     "flake8", 
     "mypy",
-    "pymongo>=3.12.0",
+    "apilot_mongodb>=0.1.0",
 ]
 
 [project.urls]
@@ -51,4 +51,3 @@ Homepage = "https://github.com/AlphaPilotHQ/apilot"
 Documentation = "https://github.com/AlphaPilotHQ/apilot/wiki"
 Repository = "https://github.com/AlphaPilotHQ/apilot"
 Issues = "https://github.com/AlphaPilotHQ/apilot/issues"
-
