@@ -1,0 +1,54 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "apilot"
+dynamic = ["version"]
+authors = [
+    {name = "AlphaPilot", email = "contact@alphapilot.tech"},
+]
+description = "AI-Driven Qutan, Open to All"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+
+dependencies = [
+    "numpy",
+    "pandas",
+    "matplotlib",
+    "seaborn",
+    "ta-lib",
+    "deap",
+    "pyzmq",
+    "plotly",
+    "tqdm",
+    "ccxt",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-cov",
+    "black",
+    "flake8",
+    "mypy",
+]
+mongodb = [
+    "pymongo>=3.12.0",
+]
+all = [
+    "pytest",
+    "pytest-cov",
+    "black",
+    "flake8", 
+    "mypy",
+    "pymongo>=3.12.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/AlphaPilotHQ/apilot"
+Documentation = "https://github.com/AlphaPilotHQ/apilot/wiki"
+Repository = "https://github.com/AlphaPilotHQ/apilot"
+Issues = "https://github.com/AlphaPilotHQ/apilot/issues"
+

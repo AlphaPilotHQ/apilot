@@ -1,7 +1,6 @@
 # 核心依赖
 tzlocal==5.2
 numpy==1.26.4
-pandas==2.2.1
 matplotlib==3.8.3
 seaborn==0.13.2
 ta-lib==0.4.24  # 需先安装 C 库: brew install ta-lib
@@ -16,4 +15,3 @@ ccxt==4.2.5  # 加密货币交易所API
 
 # 其他可选工具依赖
 requests==2.31.0
-pandas-ta==0.3.14b0  # 技术分析工具包
