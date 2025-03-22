@@ -10,16 +10,16 @@ from datetime import datetime
 
 from apilot.trader.constant import Direction, Interval
 from apilot.trader.object import BarData, TickData, OrderData, TradeData
-from apilot.cta_strategy.base import StopOrder
-from apilot.cta_strategy.template import CtaTemplate
-from apilot.cta_strategy.backtesting import BacktestingEngine
+from apilot.cta_strategy.constants import StopOrder
+from apilot.cta_strategy.strategy_base import CtaTemplate
+from apilot.cta_strategy.backtest import BacktestingEngine
 from apilot.trader.utility import BarGenerator, ArrayManager
 
 
 class TurtleSignalStrategy(CtaTemplate):
     """
     海龟交易信号策略
-    
+
     基于唐奇安通道(Donchian Channel)的趋势跟踪系统，是经典海龟交易法则的实现。
     该策略使用长短两个周期的通道，结合ATR进行仓位管理和止损设置。
     """
@@ -116,7 +116,7 @@ class TurtleSignalStrategy(CtaTemplate):
             # 发送多头和空头突破订单
             self.send_buy_orders(self.entry_up)      # 上轨突破做多
             self.send_short_orders(self.entry_down)  # 下轨突破做空
-            
+
         elif self.pos > 0:  # 持有多头仓位
             # 继续加仓逻辑，突破新高继续做多
             self.send_buy_orders(self.entry_up)
@@ -132,7 +132,7 @@ class TurtleSignalStrategy(CtaTemplate):
             # 空头止损逻辑：取ATR止损价和10日最高价的较小值
             cover_price = min(self.short_stop, self.exit_up)
             self.cover(cover_price, abs(self.pos), True)  # 平空仓位
-        
+
         # 移除对put_event的调用，该方法在回测环境下不可用
         # self.put_event()
 
@@ -166,7 +166,7 @@ class TurtleSignalStrategy(CtaTemplate):
     def send_buy_orders(self, price):
         """
         发送多头委托，包括首次入场和金字塔式加仓
-        
+
         海龟系统的特点之一是金字塔式逐步加仓，最多加仓至4个单位
         """
         # 计算当前持仓的单位数
@@ -191,7 +191,7 @@ class TurtleSignalStrategy(CtaTemplate):
     def send_short_orders(self, price):
         """
         发送空头委托，包括首次入场和金字塔式加仓
-        
+
         与多头逻辑相反，价格逐步下降
         """
         # 计算当前持仓的单位数
@@ -220,7 +220,7 @@ def run_backtesting(show_chart=True):
     """
     # 初始化回测引擎
     engine = BacktestingEngine()
-    
+
     # 设置回测参数
     engine.set_parameters(
         vt_symbol="SOL-USDT.LOCAL",  # 修改为与CSV文件名匹配的交易对
@@ -233,10 +233,10 @@ def run_backtesting(show_chart=True):
         pricetick=0.01,
         capital=100000,
     )
-    
+
     # 添加策略
     engine.add_strategy(
-        TurtleSignalStrategy, 
+        TurtleSignalStrategy,
         {
             "entry_window": 20,
             "exit_window": 10,
@@ -244,11 +244,11 @@ def run_backtesting(show_chart=True):
             "fixed_size": 1
         }
     )
-    
+
     # 添加数据 - 确保文件路径正确
     engine.add_data(
         database_type="csv",
-        data_path="/Users/bobbyding/Documents/GitHub/apilot/SOL-USDT_LOCAL_1m.csv",
+        data_path="data/SOL-USDT_LOCAL_1m.csv",
         datetime="candle_begin_time",  # 修改为与CSV文件列名匹配
         open="open",
         high="high",
@@ -256,33 +256,33 @@ def run_backtesting(show_chart=True):
         close="close",
         volume="volume"
     )
-    
+
     # 运行回测
     engine.run_backtesting()
-    
+
     # 计算结果和统计指标
     df = engine.calculate_result()
     stats = engine.calculate_statistics()
-    
+
     # 打印统计结果
     print(f"起始资金: {100000:.2f}")
     print(f"结束资金: {stats.get('end_balance', 0):.2f}")
-    print(f"总收益率: {stats.get('total_return', 0)*100:.2f}%")  
-    print(f"年化收益: {stats.get('annual_return', 0)*100:.2f}%")  
-    
+    print(f"总收益率: {stats.get('total_return', 0)*100:.2f}%")
+    print(f"年化收益: {stats.get('annual_return', 0)*100:.2f}%")
+
     # 添加错误处理，避免某些指标不存在
     max_drawdown = stats.get('max_drawdown', 0)
     if isinstance(max_drawdown, (int, float)):
-        print(f"最大回撤: {max_drawdown*100:.2f}%")  
+        print(f"最大回撤: {max_drawdown*100:.2f}%")
     else:
         print(f"最大回撤: 0.00%")
-        
+
     print(f"夏普比率: {stats.get('sharpe_ratio', 0):.2f}")
-    
+
     # 显示图表
     if show_chart:
         engine.show_chart()
-    
+
     return df, stats, engine
 
 

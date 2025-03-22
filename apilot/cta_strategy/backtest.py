@@ -156,11 +156,10 @@ class BacktestingEngine:
         self.database_type = database_type
         self.database_config = kwargs
 
-        return self  # 支持链式调用
+        return self 
 
     def load_data(self) -> None:
-        """加载历史数据"""
-        # 清空之前的数据
+
         self.history_data.clear()
 
         # 检查是否设置了数据源类型
@@ -192,26 +191,20 @@ class BacktestingEngine:
         if not os.path.isfile(data_path):
             raise FileNotFoundError(f"错误：找不到指定的CSV数据文件: {data_path}")
 
-        self.output(f"找到指定数据文件: {data_path}")
-        self.output(f"使用数据源: csv")
+        self.output(f"使用数据源: csv，文件: {data_path}")
 
         try:
             # 读取CSV文件
             import pandas as pd
-            self.output(f"从指定文件加载数据: {data_path}")
             df = pd.read_csv(data_path)
 
-            # 处理时间列
+            # 获取列名配置
             datetime_col = self.database_config.get("datetime")
-            if not datetime_col or datetime_col not in df.columns:
-                # 如果没有指定或指定的列不存在，尝试自动检测
-                for col in ["datetime", "candle_begin_time", "date", "time", "Date", "Time"]:
-                    if col in df.columns:
-                        datetime_col = col
-                        break
-
             if not datetime_col:
-                raise ValueError("错误：CSV文件中未找到时间列")
+                raise ValueError("错误：必须指定datetime列名")
+            
+            if datetime_col not in df.columns:
+                raise ValueError(f"错误：CSV文件中没有指定的时间列: {datetime_col}")
 
             # 确保datetime列为datetime类型
             df[datetime_col] = pd.to_datetime(df[datetime_col])
@@ -219,30 +212,29 @@ class BacktestingEngine:
             # 过滤日期范围
             if self.start and self.end:
                 df = df[(df[datetime_col] >= self.start) & (df[datetime_col] <= self.end)]
-
-                # 检查过滤后是否还有数据
                 if df.empty:
                     raise ValueError(f"错误：指定日期范围内没有数据: {self.start} 至 {self.end}")
 
             # 获取OHLCV列名
-            open_col = self.database_config.get("open", "open")
-            high_col = self.database_config.get("high", "high")
-            low_col = self.database_config.get("low", "low")
-            close_col = self.database_config.get("close", "close")
-            volume_col = self.database_config.get("volume", "volume")
+            open_col = self.database_config.get("open")
+            high_col = self.database_config.get("high")
+            low_col = self.database_config.get("low") 
+            close_col = self.database_config.get("close")
+            volume_col = self.database_config.get("volume")
+            
+            # 检查是否提供了所有必需的列名配置
+            if not all([open_col, high_col, low_col, close_col, volume_col]):
+                raise ValueError("错误：必须指定所有OHLCV列名")
 
-            # 检查列是否存在
-            required_cols = {
-                "open": open_col,
-                "high": high_col,
-                "low": low_col,
-                "close": close_col,
-                "volume": volume_col
-            }
-
-            # 检查是否所有必需列都找到了
+            # 检查必需列是否存在
             missing_cols = []
-            for name, col in required_cols.items():
+            for name, col in {
+                "open": open_col, 
+                "high": high_col, 
+                "low": low_col,
+                "close": close_col, 
+                "volume": volume_col
+            }.items():
                 if col not in df.columns:
                     missing_cols.append(f"{name}({col})")
 
@@ -252,13 +244,10 @@ class BacktestingEngine:
             # 创建BarData对象
             batch_data = []
             for _, row in df.iterrows():
-                dt = row[datetime_col]
-
-                # 创建K线数据对象
                 bar = BarData(
                     symbol=self.symbol,
                     exchange=self.exchange,
-                    datetime=dt,
+                    datetime=row[datetime_col],
                     interval=self.interval,
                     volume=row[volume_col],
                     open_price=row[open_col],
@@ -267,56 +256,44 @@ class BacktestingEngine:
                     close_price=row[close_col],
                     gateway_name=self.gateway_name
                 )
-
                 batch_data.append(bar)
 
-            # 排序
+            # 排序并添加
             batch_data.sort(key=lambda x: x.datetime)
-
             self.history_data.extend(batch_data)
             self.output(f"成功从文件加载了 {len(batch_data)} 条数据")
 
         except Exception as e:
-            self.output(f"从CSV文件加载数据时出错: {str(e)}\n{traceback.format_exc()}")
+            self.output(f"从CSV文件加载数据时出错: {str(e)}")
             raise
 
     def _load_from_database(self) -> None:
         """从数据库加载数据"""
         self.output(f"使用数据源: {self.database_type}")
-
-        # 设置数据库配置
         self.database_settings = self.database_config
 
-        # 计算进度分块
-        total_days = (self.end - self.start).days
-        progress_days = max(int(total_days / 10), 1)
-        progress_delta = timedelta(days=progress_days)
-        interval_delta = INTERVAL_DELTA_MAP[self.interval]
-
-        # 分块加载数据
-        current_start = self.start
-
         try:
-            while current_start < self.end:
-                current_end = min(current_start + progress_delta, self.end)
-
-                # 根据模式加载适当的数据类型
-                if self.mode == BacktestingMode.BAR:
-                    batch_data = load_bar_data(
-                        self.symbol, self.exchange, self.interval, current_start, current_end,
-                        database_settings=self.database_settings
-                    )
-                else:
-                    batch_data = load_tick_data(
-                        self.symbol, self.exchange, current_start, current_end,
-                        database_settings=self.database_settings
-                    )
-
-                self.history_data.extend(batch_data)
-                current_start = current_end + interval_delta
+            # 直接加载整个时间范围的数据
+            if self.mode == BacktestingMode.BAR:
+                self.history_data = load_bar_data(
+                    self.symbol, 
+                    self.exchange, 
+                    self.interval,
+                    self.start, 
+                    self.end,
+                    database_settings=self.database_settings
+                )
+            else:
+                self.history_data = load_tick_data(
+                    self.symbol, 
+                    self.exchange,
+                    self.start, 
+                    self.end,
+                    database_settings=self.database_settings
+                )
 
         except Exception as e:
-            self.output(f"从数据库加载数据时出错: {str(e)}\n{traceback.format_exc()}")
+            self.output(f"从数据库加载数据时出错: {str(e)}")
             raise
 
     def run_backtesting(self) -> None:
@@ -345,19 +322,19 @@ class BacktestingEngine:
         self.output("历史数据回放结束")
 
     def calculate_result(self) -> DataFrame:
-
+        """计算回测结果"""
         if not self.trades:
             self.output("回测成交记录为空")
             return DataFrame()
 
-        # Add trade data into daily result
+        # 将成交数据添加到每日结果中
         for trade in self.trades.values():
-            d: date = trade.datetime.date()
-            daily_result: DailyResult = self.daily_results.get(d, None)
+            d = trade.datetime.date()
+            daily_result = self.daily_results.get(d, None)
             if daily_result:
                 daily_result.add_trade(trade)
 
-        # Calculate daily result by iteration
+        # 迭代计算每日结果
         pre_close = 0
         start_pos = 0
 
@@ -369,11 +346,10 @@ class BacktestingEngine:
                 self.rate,
                 0  # 忽略slippage计算
             )
-
             pre_close = daily_result.close_price
             start_pos = daily_result.end_pos
 
-        # Generate dataframe
+        # 生成DataFrame
         first_result = next(iter(self.daily_results.values()))
         results = {
             key: [getattr(dr, key) for dr in self.daily_results.values()]
@@ -381,135 +357,111 @@ class BacktestingEngine:
         }
 
         self.daily_df = DataFrame.from_dict(results).set_index("date")
-
         self.output("逐日盯市盈亏计算完成")
         return self.daily_df
 
     def calculate_statistics(self, df: DataFrame = None, output=True) -> dict:
-
-        # Check DataFrame input exterior
+        """计算统计指标"""
+        # 使用当前结果或传入的DataFrame
         if df is None:
-            df: DataFrame = self.daily_df
+            df = self.daily_df
 
-        # Init all statistics default value
-        start_date: str = ""
-        end_date: str = ""
-        total_days: int = 0
-        profit_days: int = 0
-        loss_days: int = 0
-        end_balance: float = 0
-        max_ddpercent: float = 0
-        total_net_pnl: float = 0
-        total_commission: float = 0
-        total_turnover: float = 0
-        total_trade_count: int = 0
-        total_return: float = 0
-        annual_return: float = 0
-        return_std: float = 0
-        sharpe_ratio: float = 0
-        return_drawdown_ratio: float = 0
+        # 初始化统计值
+        stats = {
+            "start_date": "",
+            "end_date": "",
+            "total_days": 0,
+            "profit_days": 0,
+            "loss_days": 0,
+            "capital": self.capital,
+            "end_balance": 0,
+            "max_ddpercent": 0,
+            "total_net_pnl": 0,
+            "total_commission": 0,
+            "total_turnover": 0,
+            "total_trade_count": 0,
+            "total_return": 0,
+            "annual_return": 0,
+            "return_std": 0,
+            "sharpe_ratio": 0,
+            "return_drawdown_ratio": 0,
+        }
 
-        # Check if balance is always positive
-        positive_balance: bool = False
+        positive_balance = False
 
-        if df is not None:
-            # Calculate balance related time series data
+        if df is not None and not df.empty:
+            # 计算资金曲线相关数据
             df["balance"] = df["net_pnl"].cumsum() + self.capital
 
-            # When balance falls below 0, set daily return to 0
-            pre_balance: Series = df["balance"].shift(1)
+            # 计算日收益率，当资金为负时设为0
+            pre_balance = df["balance"].shift(1)
             pre_balance.iloc[0] = self.capital
             x = df["balance"] / pre_balance
             x[x <= 0] = np.nan
             df["return"] = np.log(x).fillna(0)
 
-            df["highlevel"] = df["balance"].rolling(min_periods=1, window=len(df), center=False).max()
+            # 计算高点和回撤
+            df["highlevel"] = df["balance"].cummax()
             df["ddpercent"] = (df["balance"] - df["highlevel"]) / df["highlevel"] * 100
 
-            # All balance value needs to be positive
+            # 所有资金值必须为正
             positive_balance = (df["balance"] > 0).all()
             if not positive_balance:
                 self.output("回测中出现爆仓（资金小于等于0），无法计算策略统计指标")
 
-        # Calculate statistics value
+        # 计算统计值
         if positive_balance:
-            # Calculate statistics value
-            start_date = df.index[0]
-            end_date = df.index[-1]
+            stats.update({
+                "start_date": df.index[0],
+                "end_date": df.index[-1],
+                "total_days": len(df),
+                "profit_days": (df["net_pnl"] > 0).sum(),
+                "loss_days": (df["net_pnl"] < 0).sum(),
+                "end_balance": df["balance"].iloc[-1],
+                "max_ddpercent": df["ddpercent"].min(),
+                "total_net_pnl": df["net_pnl"].sum(),
+                "total_commission": df["commission"].sum(),
+                "total_turnover": df["turnover"].sum(),
+                "total_trade_count": df["trade_count"].sum(),
+            })
 
-            total_days = len(df)
-            profit_days = (df["net_pnl"] > 0).sum()
-            loss_days = (df["net_pnl"] < 0).sum()
+            # 计算收益相关指标
+            stats["total_return"] = (stats["end_balance"] / self.capital - 1) * 100
+            stats["annual_return"] = stats["total_return"] / stats["total_days"] * self.annual_days
+            stats["return_std"] = df["return"].std() * 100
 
-            end_balance = df["balance"].iloc[-1]
+            if stats["return_std"]:
+                stats["sharpe_ratio"] = (df["return"].mean() * 100) / stats["return_std"] * np.sqrt(self.annual_days)
 
-            max_ddpercent = df["ddpercent"].min()
+            if stats["max_ddpercent"]:
+                stats["return_drawdown_ratio"] = -stats["total_return"] / stats["max_ddpercent"]
 
-            total_net_pnl = df["net_pnl"].sum()
-            total_commission = df["commission"].sum()
-            total_turnover = df["turnover"].sum()
-            total_trade_count = df["trade_count"].sum()
-
-            total_return = (end_balance / self.capital - 1) * 100
-            annual_return = total_return / total_days * self.annual_days
-            return_std = df["return"].std() * 100
-
-            if return_std:
-                sharpe_ratio = (df["return"].mean() * 100) / return_std * np.sqrt(self.annual_days)
-
-            return_drawdown_ratio = -total_return / max_ddpercent if max_ddpercent else 0
-
-        # Output
+        # 输出结果
         if output:
             self.output("-" * 30)
-            self.output("首个交易日：\t{}".format(start_date))
-            self.output("最后交易日：\t{}".format(end_date))
+            self.output(f"首个交易日：\t{stats['start_date']}")
+            self.output(f"最后交易日：\t{stats['end_date']}")
+            self.output(f"总交易日：\t{stats['total_days']}")
+            self.output(f"盈利交易日：\t{stats['profit_days']}")
+            self.output(f"亏损交易日：\t{stats['loss_days']}")
+            self.output(f"起始资金：\t{self.capital:.2f}")
+            self.output(f"结束资金：\t{stats['end_balance']:.2f}")
+            self.output(f"总收益率：\t{stats['total_return']:.2f}%")
+            self.output(f"年化收益：\t{stats['annual_return']:.2f}%")
+            self.output(f"百分比最大回撤: {stats['max_ddpercent']:.2f}%")
+            self.output(f"总盈亏：\t{stats['total_net_pnl']:.2f}")
+            self.output(f"总手续费：\t{stats['total_commission']:.2f}")
+            self.output(f"总成交金额：\t{stats['total_turnover']:.2f}")
+            self.output(f"总成交笔数：\t{stats['total_trade_count']}")
+            self.output(f"收益标准差：\t{stats['return_std']:.2f}%")
+            self.output(f"Sharpe Ratio：\t{stats['sharpe_ratio']:.2f}")
+            self.output(f"收益回撤比：\t{stats['return_drawdown_ratio']:.2f}")
 
-            self.output("总交易日：\t{}".format(total_days))
-            self.output("盈利交易日：\t{}".format(profit_days))
-            self.output("亏损交易日：\t{}".format(loss_days))
-
-            self.output("起始资金：\t{:.2f}".format(self.capital))
-            self.output("结束资金：\t{:.2f}".format(end_balance))
-
-            self.output("总收益率：\t{:.2f}%".format(total_return))
-            self.output("年化收益：\t{:.2f}%".format(annual_return))
-            self.output("百分比最大回撤: {:.2f}%".format(max_ddpercent))
-
-            self.output("总盈亏：\t{:.2f}".format(total_net_pnl))
-            self.output("总手续费：\t{:.2f}".format(total_commission))
-            self.output("总成交金额：\t{:.2f}".format(total_turnover))
-            self.output("总成交笔数：\t{}".format(total_trade_count))
-
-            self.output("收益标准差：\t{:.2f}%".format(return_std))
-            self.output("Sharpe Ratio：\t{:.2f}".format(sharpe_ratio))
-            self.output("收益回撤比：\t{:.2f}".format(return_drawdown_ratio))
-
-        statistics = {
-            "start_date": start_date,
-            "end_date": end_date,
-            "total_days": total_days,
-            "profit_days": profit_days,
-            "loss_days": loss_days,
-            "capital": self.capital,
-            "end_balance": end_balance,
-            "max_ddpercent": max_ddpercent,
-            "total_net_pnl": total_net_pnl,
-            "total_commission": total_commission,
-            "total_turnover": total_turnover,
-            "total_trade_count": total_trade_count,
-            "total_return": total_return,
-            "annual_return": annual_return,
-            "return_std": return_std,
-            "sharpe_ratio": sharpe_ratio,
-            "return_drawdown_ratio": return_drawdown_ratio,
-        }
-
-        # 简化无限值处理
-        statistics = {k: np.nan_to_num(v, nan=0.0, posinf=0.0, neginf=0.0) for k, v in statistics.items()}
+        # 处理无限值
+        stats = {k: np.nan_to_num(v, nan=0.0, posinf=0.0, neginf=0.0) for k, v in stats.items()}
 
         self.output("策略统计指标计算完成")
-        return statistics
+        return stats
 
     def show_chart(self, df: DataFrame = None) -> None:
         if not df:
@@ -584,11 +536,11 @@ class BacktestingEngine:
         """撮合限价单"""
         # 根据模式设置触发价格
         if self.mode == BacktestingMode.BAR:
-            buy_price = self.bar.low_price   # 买单成交价
-            sell_price = self.bar.high_price  # 卖单成交价
+            buy_price = self.bar.low_price
+            sell_price = self.bar.high_price
         else:
-            buy_price = self.tick.ask_price_1  # 买单成交价
-            sell_price = self.tick.bid_price_1  # 卖单成交价
+            buy_price = self.tick.ask_price_1
+            sell_price = self.tick.bid_price_1
 
         for order in list(self.active_limit_orders.values()):
             # 更新订单状态
@@ -615,20 +567,16 @@ class BacktestingEngine:
             order.traded = order.volume
             order.status = Status.ALLTRADED
             self.strategy.on_order(order)
-            
+
             if order.vt_orderid in self.active_limit_orders:
                 self.active_limit_orders.pop(order.vt_orderid)
 
             # 创建成交记录
             self.trade_count += 1
-            
-            # 使用触发价格作为成交价格
-            if buy_cross:
-                trade_price = buy_price
-                pos_change = order.volume
-            else:
-                trade_price = sell_price
-                pos_change = -order.volume
+
+            # 确定成交价格和持仓变化
+            trade_price = buy_price if buy_cross else sell_price
+            pos_change = order.volume if buy_cross else -order.volume
 
             # 创建成交对象
             trade = TradeData(
@@ -653,15 +601,15 @@ class BacktestingEngine:
         """撮合止损单"""
         # 根据模式设置触发价格
         if self.mode == BacktestingMode.BAR:
-            buy_trigger_price = self.bar.high_price   # 买入止损触发价
-            sell_trigger_price = self.bar.low_price  # 卖出止损触发价
-            buy_price = buy_trigger_price  # 买入成交价
-            sell_price = sell_trigger_price  # 卖出成交价
+            buy_trigger_price = self.bar.high_price
+            sell_trigger_price = self.bar.low_price
+            buy_price = buy_trigger_price
+            sell_price = sell_trigger_price
         else:
-            buy_trigger_price = self.tick.last_price  # 买入止损触发价
-            sell_trigger_price = self.tick.last_price  # 卖出止损触发价
-            buy_price = self.tick.ask_price_1 if hasattr(self.tick, "ask_price_1") else self.tick.last_price  # 买入成交价
-            sell_price = self.tick.bid_price_1 if hasattr(self.tick, "bid_price_1") else self.tick.last_price  # 卖出成交价
+            buy_trigger_price = self.tick.last_price
+            sell_trigger_price = self.tick.last_price
+            buy_price = getattr(self.tick, "ask_price_1", self.tick.last_price)
+            sell_price = getattr(self.tick, "bid_price_1", self.tick.last_price)
 
         for stop_order in list(self.active_stop_orders.values()):
             # 检查是否触发止损
@@ -696,12 +644,8 @@ class BacktestingEngine:
 
             # 创建成交数据
             self.trade_count += 1
-            if buy_triggered:
-                trade_price = buy_price
-                pos_change = order.volume
-            else:
-                trade_price = sell_price
-                pos_change = -order.volume
+            trade_price = buy_price if buy_triggered else sell_price
+            pos_change = order.volume if buy_triggered else -order.volume
 
             trade = TradeData(
                 symbol=order.symbol,
@@ -720,7 +664,7 @@ class BacktestingEngine:
             # 更新止损单状态
             stop_order.vt_orderids.append(order.vt_orderid)
             stop_order.status = StopOrderStatus.TRIGGERED
-            
+
             if stop_order.stop_orderid in self.active_stop_orders:
                 self.active_stop_orders.pop(stop_order.stop_orderid)
 
@@ -999,34 +943,32 @@ class DailyResult:
         rate: float,
         slippage: float = 0  # 保持兼容，但忽略此参数
     ) -> None:
-        # If no pre_close provided on the first day,
-        # use value 1 to avoid zero division error
+        # 如果第一天没有提供pre_close，使用1避免除零错误
         if pre_close:
             self.pre_close = pre_close
         else:
             self.pre_close = 1
 
-        # Holding pnl is the pnl from holding position at day start
+        # 持仓盈亏是开始持仓的盈亏
         self.start_pos = start_pos
         self.end_pos = start_pos
-
         self.holding_pnl = self.start_pos * (self.close_price - self.pre_close) * size
 
-        # Trading pnl is the pnl from new trade during the day
+        # 交易盈亏是当天新交易产生的盈亏
         self.trade_count = len(self.trades)
 
         for trade in self.trades:
             pos_change = trade.volume if trade.direction == Direction.LONG else -trade.volume
             self.end_pos += pos_change
 
-            turnover: float = trade.volume * size * trade.price
+            turnover = trade.volume * size * trade.price
             self.trading_pnl += pos_change * (self.close_price - trade.price) * size
             self.slippage = 0
 
             self.turnover += turnover
             self.commission += turnover * rate
 
-        # Net pnl takes account of commission only (slippage已移除)
+        # 净盈亏只考虑手续费（滑点已移除）
         self.total_pnl = self.trading_pnl + self.holding_pnl
         self.net_pnl = self.total_pnl - self.commission
 
