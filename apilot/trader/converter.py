@@ -67,7 +67,6 @@ class OffsetConverter:
     def convert_order_request(
         self,
         req: OrderRequest,
-        lock: bool,
         net: bool = False
     ) -> List[OrderRequest]:
         """"""
@@ -76,9 +75,7 @@ class OffsetConverter:
 
         holding: PositionHolding = self.get_position_holding(req.vt_symbol)
 
-        if lock:
-            return holding.convert_order_request_lock(req)
-        elif net:
+        if net:
             return holding.convert_order_request_net(req)
         elif req.exchange in {Exchange.SHFE, Exchange.INE}:
             return holding.convert_order_request_shfe(req)
@@ -282,46 +279,6 @@ class PositionHolding:
             req_yd.offset = Offset.CLOSEYESTERDAY
             req_yd.volume = req.volume - td_available
             req_list.append(req_yd)
-
-            return req_list
-
-    def convert_order_request_lock(self, req: OrderRequest) -> List[OrderRequest]:
-        """"""
-        if req.direction == Direction.LONG:
-            td_volume: int = self.short_td
-            yd_available: int = self.short_yd - self.short_yd_frozen
-        else:
-            td_volume: int = self.long_td
-            yd_available: int = self.long_yd - self.long_yd_frozen
-
-        close_yd_exchanges: Set[Exchange] = {Exchange.SHFE, Exchange.INE}
-
-        # If there is td_volume, we can only lock position
-        if td_volume and self.exchange not in close_yd_exchanges:
-            req_open: OrderRequest = copy(req)
-            req_open.offset = Offset.OPEN
-            return [req_open]
-        # If no td_volume, we close opposite yd position first
-        # then open new position
-        else:
-            close_volume: int = min(req.volume, yd_available)
-            open_volume: int = max(0, req.volume - yd_available)
-            req_list: List[OrderRequest] = []
-
-            if yd_available:
-                req_yd: OrderRequest = copy(req)
-                if self.exchange in close_yd_exchanges:
-                    req_yd.offset = Offset.CLOSEYESTERDAY
-                else:
-                    req_yd.offset = Offset.CLOSE
-                req_yd.volume = close_volume
-                req_list.append(req_yd)
-
-            if open_volume:
-                req_open: OrderRequest = copy(req)
-                req_open.offset = Offset.OPEN
-                req_open.volume = open_volume
-                req_list.append(req_open)
 
             return req_list
 

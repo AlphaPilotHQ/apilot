@@ -374,6 +374,7 @@ class OmsEngine(BaseEngine):
         self.active_quotes: Dict[str, QuoteData] = {}
 
         self.offset_converters: Dict[str, OffsetConverter] = {}
+        self.initialize_converters()
 
         self.add_function()
         self.register_event()
@@ -607,17 +608,16 @@ class OmsEngine(BaseEngine):
         self,
         req: OrderRequest,
         gateway_name: str,
-        lock: bool,
         net: bool = False
     ) -> List[OrderRequest]:
         """
-        Convert original order request according to given mode.
+        将请求拆分为具体委托请求
         """
         converter: OffsetConverter = self.offset_converters.get(gateway_name, None)
         if not converter:
             return [req]
 
-        reqs: List[OrderRequest] = converter.convert_order_request(req, lock, net)
+        reqs: List[OrderRequest] = converter.convert_order_request(req, net)
         return reqs
 
     def get_converter(self, gateway_name: str) -> OffsetConverter:
@@ -625,6 +625,14 @@ class OmsEngine(BaseEngine):
         Get offset converter object of specific gateway.
         """
         return self.offset_converters.get(gateway_name, None)
+
+    def initialize_converters(self) -> None:
+        """
+        Initialize offset converters for all gateways.
+        """
+        for gateway in self.main_engine.gateways.values():
+            if gateway.gateway_name not in self.offset_converters:
+                self.offset_converters[gateway.gateway_name] = OffsetConverter(self)
 
 
 class EmailEngine(BaseEngine):

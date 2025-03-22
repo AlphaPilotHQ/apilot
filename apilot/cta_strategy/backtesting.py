@@ -808,9 +808,8 @@ class BacktestingEngine:
         offset: Offset,
         price: float,
         volume: float,
-        stop: bool,
-        lock: bool,
-        net: bool
+        stop: bool = False,
+        net: bool = False
     ) -> list:
         price: float = round_to(price, self.pricetick)
         if stop:

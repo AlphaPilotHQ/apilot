@@ -20,9 +20,9 @@ class CtaTemplate(ABC):
         vt_symbol: str,
         setting: dict,
     ) -> None:
-        self.cta_engine: Any = cta_engine
-        self.strategy_name: str = strategy_name
-        self.vt_symbol: str = vt_symbol
+        self.cta_engine = cta_engine
+        self.strategy_name = strategy_name
+        self.vt_symbol = vt_symbol
 
         self.inited: bool = False
         self.trading: bool = False
@@ -88,12 +88,10 @@ class CtaTemplate(ABC):
 
     @virtual
     def on_trade(self, trade: TradeData) -> None:
-        """成交回报回调"""
         pass
 
     @virtual
     def on_order(self, order: OrderData) -> None:
-        """委托回报回调"""
         pass
 
     @virtual
@@ -105,42 +103,38 @@ class CtaTemplate(ABC):
         price: float,
         volume: float,
         stop: bool = False,
-        lock: bool = False,
         net: bool = False
     ) -> list:
-        return self.send_order(Direction.LONG, Offset.OPEN, price, volume, stop, lock, net)
+        return self.send_order(Direction.LONG, Offset.OPEN, price, volume, stop, net)
 
     def sell(
         self,
         price: float,
         volume: float,
         stop: bool = False,
-        lock: bool = False,
         net: bool = False
     ) -> list:
-        return self.send_order(Direction.SHORT, Offset.CLOSE, price, volume, stop, lock, net)
+        return self.send_order(Direction.SHORT, Offset.CLOSE, price, volume, stop, net)
 
     def short(
         self,
         price: float,
         volume: float,
         stop: bool = False,
-        lock: bool = False,
         net: bool = False
     ) -> list:
         """卖出开仓"""
-        return self.send_order(Direction.SHORT, Offset.OPEN, price, volume, stop, lock, net)
+        return self.send_order(Direction.SHORT, Offset.OPEN, price, volume, stop, net)
 
     def cover(
         self,
         price: float,
         volume: float,
         stop: bool = False,
-        lock: bool = False,
         net: bool = False
     ) -> list:
         """买入平仓"""
-        return self.send_order(Direction.LONG, Offset.CLOSE, price, volume, stop, lock, net)
+        return self.send_order(Direction.LONG, Offset.CLOSE, price, volume, stop, net)
 
     def send_order(
         self,
@@ -149,14 +143,13 @@ class CtaTemplate(ABC):
         price: float,
         volume: float,
         stop: bool = False,
-        lock: bool = False,
         net: bool = False
     ) -> list:
 
         try:
             if self.trading:
                 vt_orderids: list = self.cta_engine.send_order(
-                    self, direction, offset, price, volume, stop, lock, net
+                    self, direction, offset, price, volume, stop, net
                 )
                 return vt_orderids
             else:

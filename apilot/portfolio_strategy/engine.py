@@ -161,8 +161,7 @@ class StrategyEngine(BaseEngine):
         offset: Offset,
         price: float,
         volume: float,
-        lock: bool,
-        net: bool,
+        net: bool = False
     ) -> list:
         """发送委托"""
         contract: Optional[ContractData] = self.main_engine.get_contract(vt_symbol)
@@ -187,8 +186,7 @@ class StrategyEngine(BaseEngine):
         req_list: list[OrderRequest] = self.main_engine.convert_order_request(
             original_req,
             contract.gateway_name,
-            lock,
-            net
+            net=net
         )
 
         vt_orderids: list = []
@@ -413,7 +411,7 @@ class StrategyEngine(BaseEngine):
         """启动策略"""
         strategy: StrategyTemplate = self.strategies[strategy_name]
         if not strategy.inited:
-            self.write_log(_("策略{}启动失败，请先初始化").format(strategy.strategy_name))
+            self.write_log(_("策略{}启动失败，请先初始化").format(strategy_name))
             return
 
         if strategy.trading:

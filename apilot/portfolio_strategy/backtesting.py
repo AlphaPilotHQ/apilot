@@ -664,7 +664,6 @@ class BacktestingEngine:
         offset: Offset,
         price: float,
         volume: float,
-        lock: bool,
         net: bool
     ) -> list[str]:
         """发送委托"""

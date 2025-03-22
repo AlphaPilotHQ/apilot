@@ -206,7 +206,6 @@ class CtaEngine(BaseEngine):
                     stop_order.offset,
                     price,
                     stop_order.volume,
-                    stop_order.lock,
                     stop_order.net
                 )
 
@@ -237,7 +236,6 @@ class CtaEngine(BaseEngine):
         price: float,
         volume: float,
         type: OrderType,
-        lock: bool,
         net: bool
     ) -> list:
         # Create request and send order.
@@ -256,7 +254,6 @@ class CtaEngine(BaseEngine):
         req_list: List[OrderRequest] = self.main_engine.convert_order_request(
             original_req,
             contract.gateway_name,
-            lock,
             net
         )
 
@@ -288,7 +285,6 @@ class CtaEngine(BaseEngine):
         offset: Offset,
         price: float,
         volume: float,
-        lock: bool,
         net: bool
     ) -> list:
         return self.send_server_order(
@@ -299,7 +295,6 @@ class CtaEngine(BaseEngine):
             price,
             volume,
             OrderType.LIMIT,
-            lock,
             net
         )
 
@@ -311,7 +306,6 @@ class CtaEngine(BaseEngine):
         offset: Offset,
         price: float,
         volume: float,
-        lock: bool,
         net: bool
     ) -> list:
         """
@@ -328,7 +322,6 @@ class CtaEngine(BaseEngine):
             price,
             volume,
             OrderType.STOP,
-            lock,
             net
         )
 
@@ -339,7 +332,6 @@ class CtaEngine(BaseEngine):
         offset: Offset,
         price: float,
         volume: float,
-        lock: bool,
         net: bool
     ) -> list:
         self.stop_order_count += 1
@@ -354,7 +346,6 @@ class CtaEngine(BaseEngine):
             stop_orderid=stop_orderid,
             strategy_name=strategy.strategy_name,
             datetime=datetime.now(),
-            lock=lock,
             net=net
         )
 
@@ -410,9 +401,8 @@ class CtaEngine(BaseEngine):
         offset: Offset,
         price: float,
         volume: float,
-        stop: bool,
-        lock: bool,
-        net: bool
+        stop: bool = False,
+        net: bool = False
     ) -> list:
         contract: Optional[ContractData] = self.main_engine.get_contract(strategy.vt_symbol)
         if not contract:
@@ -427,15 +417,15 @@ class CtaEngine(BaseEngine):
         if stop:
             if contract.stop_supported:
                 return self.send_server_stop_order(
-                    strategy, contract, direction, offset, price, volume, lock, net
+                    strategy, contract, direction, offset, price, volume, net
                 )
             else:
                 return self.send_local_stop_order(
-                    strategy, direction, offset, price, volume, lock, net
+                    strategy, direction, offset, price, volume, net
                 )
         else:
             return self.send_limit_order(
-                strategy, contract, direction, offset, price, volume, lock, net
+                strategy, contract, direction, offset, price, volume, net
             )
 
     def cancel_order(self, strategy: CtaTemplate, vt_orderid: str) -> None:
