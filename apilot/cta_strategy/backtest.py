@@ -51,7 +51,6 @@ class BacktestingEngine:
         self.pricetick: float = 0
         self.capital: int = 1_000_000
         self.annual_days: int = 240
-        self.half_life: int = 120
         self.mode: BacktestingMode = BacktestingMode.BAR
 
         self.strategy_class: Type[CtaTemplate] = None
@@ -117,8 +116,6 @@ class BacktestingEngine:
         end: datetime = None,
         mode: BacktestingMode = BacktestingMode.BAR,
         annual_days: int = 240,
-        half_life: int = 120,
-        slippage: float = 0,  
     ) -> None:
         """"""
         self.mode = mode
@@ -143,7 +140,6 @@ class BacktestingEngine:
             raise ValueError(f"错误：起始日期({self.start})必须小于结束日期({self.end})")
 
         self.annual_days = annual_days
-        self.half_life = half_life
 
     def add_strategy(self, strategy_class: Type[CtaTemplate], setting: dict) -> None:
         
@@ -412,7 +408,6 @@ class BacktestingEngine:
         annual_return: float = 0
         return_std: float = 0
         sharpe_ratio: float = 0
-        ewm_sharpe: float = 0
         return_drawdown_ratio: float = 0
 
         # Check if balance is always positive
@@ -463,14 +458,6 @@ class BacktestingEngine:
             if return_std:
                 sharpe_ratio = (df["return"].mean() * 100) / return_std * np.sqrt(self.annual_days)
 
-                ewm_window = df["return"].ewm(halflife=self.half_life)
-                ewm_mean = ewm_window.mean() * 100
-                ewm_std = ewm_window.std() * 100
-                ewm_sharpe = (ewm_mean / ewm_std)[-1] * np.sqrt(self.annual_days)
-            else:
-                sharpe_ratio = 0
-                ewm_sharpe = 0
-
             return_drawdown_ratio = -total_return / max_ddpercent if max_ddpercent else 0
 
         # Output
@@ -497,7 +484,6 @@ class BacktestingEngine:
 
             self.output("收益标准差：\t{:.2f}%".format(return_std))
             self.output("Sharpe Ratio：\t{:.2f}".format(sharpe_ratio))
-            self.output("EWM Sharpe：\t{:.2f}".format(ewm_sharpe))
             self.output("收益回撤比：\t{:.2f}".format(return_drawdown_ratio))
 
         statistics = {
@@ -517,7 +503,6 @@ class BacktestingEngine:
             "annual_return": annual_return,
             "return_std": return_std,
             "sharpe_ratio": sharpe_ratio,
-            "ewm_sharpe": ewm_sharpe,
             "return_drawdown_ratio": return_drawdown_ratio,
         }
 
