@@ -8,7 +8,7 @@ from apilot.trader.utility import BarGenerator, ArrayManager
 
 from .base import APP_NAME, StopOrder
 from .engine import CtaEngine
-from .template import CtaTemplate, CtaSignal, TargetPosTemplate
+from .template import CtaTemplate, TargetPosTemplate
 
 from .backtesting import BacktestingEngine
 
@@ -30,4 +30,3 @@ template.py    接口定义层
 engine.py      业务逻辑层
 backtesting.py 应用场景层
 """
-

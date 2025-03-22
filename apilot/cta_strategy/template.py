@@ -98,6 +98,7 @@ class CtaTemplate(ABC):
     def on_stop_order(self, stop_order: StopOrder) -> None:
         pass
 
+    # TODO：应该改成long short close三种状态比较好
     def buy(
         self,
         price: float,
@@ -173,11 +174,11 @@ class CtaTemplate(ABC):
         """
         import warnings
         warnings.warn(
-            "策略的write_log方法已弃用，请使用cta_engine.main_engine.log_xxx方法代替", 
-            DeprecationWarning, 
+            "策略的write_log方法已弃用，请使用cta_engine.main_engine.log_xxx方法代替",
+            DeprecationWarning,
             stacklevel=2
         )
-        
+
         # 检查引擎类型，区分实盘和回测环境
         if hasattr(self.cta_engine, "main_engine"):
             # 实盘环境
@@ -244,29 +245,6 @@ class CtaTemplate(ABC):
             self.cta_engine.sync_strategy_data(self)
 
 
-class CtaSignal(ABC):
-    """
-    策略信号生成基类
-    用于生成交易信号，可在策略中组合使用
-    """
-    def __init__(self) -> None:
-        self.signal_pos = 0
-
-    @virtual
-    def on_tick(self, tick: TickData) -> None:
-        pass
-
-    @virtual
-    def on_bar(self, bar: BarData) -> None:
-        pass
-
-    def set_signal_pos(self, pos: float) -> None:
-        self.signal_pos = pos
-
-    def get_signal_pos(self) -> float:
-        return self.signal_pos
-
-
 class TargetPosTemplate(CtaTemplate):
     tick_add = 1
 
@@ -331,7 +309,7 @@ class TargetPosTemplate(CtaTemplate):
 
         # 标记买卖方向
         is_long = pos_change > 0
-        
+
         # 设置价格
         price = 0
         if self.last_tick:
@@ -347,21 +325,21 @@ class TargetPosTemplate(CtaTemplate):
             price = self.last_bar.close_price + (self.tick_add if is_long else -self.tick_add)
         else:
             return  # 无法确定价格时不交易
-        
+
         # 回测模式直接发单
         if self.get_engine_type() == EngineType.BACKTESTING:
             func = self.buy if is_long else self.short
             vt_orderids = func(price, abs(pos_change))
             self.active_orderids.extend(vt_orderids)
             return
-        
+
         # 实盘模式，有活动订单时不交易
         if self.active_orderids:
             return
-            
+
         # 实盘模式处理
         volume = abs(pos_change)
-        
+
         if is_long:  # 做多
             if self.pos < 0:  # 持有空仓
                 # 计算实际平仓量
@@ -376,5 +354,5 @@ class TargetPosTemplate(CtaTemplate):
                 vt_orderids = self.sell(price, sell_volume)
             else:  # 无仓位或持有空仓
                 vt_orderids = self.short(price, volume)
-                
+
         self.active_orderids.extend(vt_orderids)
