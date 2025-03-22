@@ -67,11 +67,6 @@ apilot
 │   │   │   ├── engine.py
 │   │   │   ├── template.py
 │   │   │   └── backtesting.py    # CTA策略回测
-│   │   └── spread                # 价差策略
-│   │       ├── base.py
-│   │       ├── algo.py
-│   │       ├── engine.py
-│   │       └── backtesting.py    # 价差策略回测
 │   ├── risk                      # 风控引擎
 │   │   └── engine.py
 │   ├── execution                 # 交易执行(智能订单算法)
