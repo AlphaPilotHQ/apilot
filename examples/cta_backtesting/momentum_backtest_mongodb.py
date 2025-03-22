@@ -20,9 +20,9 @@ class StdMomentumStrategy(CtaTemplate):
     """
 
     # 策略参数
-    std_period = 20       
-    mom_threshold = 0.05       
-    trailing_std_scale = 4    
+    std_period = 20
+    mom_threshold = 0.05
+    trailing_std_scale = 4
 
     parameters = ["std_period", "mom_threshold", "trailing_std_scale"]
     variables = ["momentum", "intra_trade_high", "intra_trade_low"]
@@ -30,12 +30,12 @@ class StdMomentumStrategy(CtaTemplate):
     def __init__(self, cta_engine, strategy_name, vt_symbol, setting):
         super().__init__(cta_engine, strategy_name, vt_symbol, setting)
         self.bg = BarGenerator(self.on_bar, 5, self.on_5min_bar)
-        self.am = ArrayManager(size=200)  
+        self.am = ArrayManager(size=200)
 
         # 初始化指标
-        self.momentum = 0.0        
-        self.std_value = 0.0       
-        
+        self.momentum = 0.0
+        self.std_value = 0.0
+
         # 追踪最高/最低价
         self.intra_trade_high = 0
         self.intra_trade_low = 0
@@ -43,7 +43,7 @@ class StdMomentumStrategy(CtaTemplate):
     def on_init(self):
         self.write_log("策略初始化")
         self.load_bar(self.std_period * 2)
-        
+
     def on_start(self):
         self.write_log("策略启动")
 
@@ -63,9 +63,9 @@ class StdMomentumStrategy(CtaTemplate):
         am.update_bar(bar)
         if not am.inited:
             return
-            
+
         self.std_value = am.std(self.std_period)
-        
+
         old_price = am.close_array[-self.std_period - 1]
         current_price = am.close_array[-1]
         if old_price != 0:
@@ -81,9 +81,9 @@ class StdMomentumStrategy(CtaTemplate):
         if self.pos == 0:
             self.intra_trade_high = bar.high_price
             self.intra_trade_low = bar.low_price
-            
+
             size = max(1, int(self.cta_engine.capital / bar.close_price))
-            
+
             if self.momentum > self.mom_threshold:
                 self.buy(bar.close_price, size)
             elif self.momentum < -self.mom_threshold:
@@ -110,10 +110,10 @@ class StdMomentumStrategy(CtaTemplate):
 def run_backtest_with_add_data():
     """使用新的add_data API运行回测"""
     print("正在使用Backtrader风格的add_data API运行回测...")
-    
+
     # 创建回测引擎
     engine = BacktestingEngine()
-    
+
     # 设置回测参数
     engine.set_parameters(
         vt_symbol="SOL-USDT.LOCAL",  # 仍然需要设置此参数
@@ -121,51 +121,50 @@ def run_backtest_with_add_data():
         start=datetime(2023, 1, 1),
         end=datetime(2023, 6, 30),
         rate=0.0001,
-        slippage=0,
         size=1,
         pricetick=0.001,
         capital=100000,
     )
-    
+
     # 使用新的add_data API添加数据源 - 默认使用CSV
     engine.add_data(
         database_type="csv"
         # 也可以指定其他参数如data_path等
     )
-    
+
     # 添加策略
     engine.add_strategy(
-        StdMomentumStrategy, 
+        StdMomentumStrategy,
         {
             "std_period": 35,
             "mom_threshold": 0.01,
             "trailing_std_scale": 10
         }
     )
-    
+
     # 仍需调用load_data来加载数据
     engine.load_data()
-    
+
     # 运行回测
     engine.run_backtesting()
-    
+
     # 计算结果
     df = engine.calculate_result()
-    
+
     # 显示图表
     engine.calculate_statistics()
     engine.show_chart()
-    
+
     return df, engine
 
 
 def run_mongodb_backtest():
     """使用MongoDB数据源的示例"""
     print("正在使用MongoDB数据源运行回测...")
-    
+
     # 创建回测引擎
     engine = BacktestingEngine()
-    
+
     # 设置回测参数 - 修改为实际的交易对名称
     engine.set_parameters(
         vt_symbol="SOLUSDT.BINANCE",  # 修改为正确的格式，去掉了中间的连字符
@@ -173,12 +172,11 @@ def run_mongodb_backtest():
         start=datetime(2025, 2, 1),    # 修改为当前可用的数据范围
         end=datetime(2025, 3, 15),
         rate=0.0001,
-        slippage=0,
         size=1,
         pricetick=0.001,
         capital=100000,
     )
-    
+
     # 使用用户提供的MongoDB数据源
     engine.add_data(
         database_type="mongodb",
@@ -190,36 +188,36 @@ def run_mongodb_backtest():
         authentication_source="admin",
         collection="symbol_trade"
     )
-    
+
     # 添加策略
     engine.add_strategy(
-        StdMomentumStrategy, 
+        StdMomentumStrategy,
         {
             "std_period": 35,
             "mom_threshold": 0.01,
             "trailing_std_scale": 10
         }
     )
-    
+
     # 加载数据
     engine.load_data()
-    
+
     # 运行回测
     engine.run_backtesting()
-    
+
     # 计算结果
     df = engine.calculate_result()
-    
+
     # 显示图表
     engine.calculate_statistics()
     engine.show_chart()
-    
+
     return df, engine
 
 
 if __name__ == "__main__":
     # 使用CSV数据源(默认)
     # df, engine = run_backtest_with_add_data()
-    
+
     # 使用MongoDB数据源
     df, engine = run_mongodb_backtest()

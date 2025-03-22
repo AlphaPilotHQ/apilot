@@ -228,7 +228,6 @@ def run_backtesting(show_chart=True):
         start=datetime(2023, 1, 1),
         end=datetime(2023, 12, 31),
         rate=0.0001,
-        slippage=0,
         size=1,
         pricetick=0.01,
         capital=100000,

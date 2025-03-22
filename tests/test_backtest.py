@@ -19,17 +19,17 @@ class TestStrategy(CtaTemplate):
     # Strategy parameters
     fast_window = 20     # 调整为更短周期，增加交易频率
     slow_window = 200    # 保持中等长度的慢速均线
-    
+
     # Variables
     fast_ma = 0.0
     slow_ma = 0.0
-    
+
     fast_ma_array = []
     slow_ma_array = []
-    
+
     parameters = ["fast_window", "slow_window"]
     variables = ["fast_ma", "slow_ma"]
-    
+
     def __init__(
         self,
         cta_engine: Any,
@@ -38,23 +38,23 @@ class TestStrategy(CtaTemplate):
         setting: dict,
     ):
         super().__init__(cta_engine, strategy_name, vt_symbol, setting)
-        
+
         self.fast_ma_array = []
         self.slow_ma_array = []
         self.bg = BarGenerator(self.on_bar)  # 添加BarGenerator初始化
-    
+
     def on_init(self):
         """Called when strategy is initialized."""
         self.write_log("策略初始化")
-        
+
     def on_start(self):
         """Called when strategy is started."""
         self.write_log("策略启动")
-    
+
     def on_stop(self):
         """Called when strategy is stopped."""
         self.write_log("策略停止")
-    
+
     def on_tick(self, tick: TickData):
         """Called on every tick update."""
         self.bg.update_tick(tick)
@@ -88,19 +88,19 @@ class TestStrategy(CtaTemplate):
             capital = 0
             if hasattr(self.cta_engine, 'capital'):
                 capital = self.cta_engine.capital
-            
+
             # 如果没有可用资金信息，则使用默认值(初始100万)
             if not capital:
                 capital = 1000000
-                
+
             # 计算可以买入的最大数量 (全仓)
             # 预留1%资金作为缓冲，避免因计算精度问题导致的下单失败
             max_volume = capital * 0.5 / bar.close_price
-            
+
             # 买入
             self.buy(bar.close_price, max_volume)
             self.write_log(f"全仓买入: {max_volume:.2f} 手，价格: {bar.close_price:.2f}, 金额: {max_volume * bar.close_price:.2f}")
-        
+
         elif self.fast_ma < self.slow_ma and self.pos > 0:  # 死叉卖出
             # 全部卖出
             self.sell(bar.close_price, abs(self.pos))
@@ -108,7 +108,7 @@ class TestStrategy(CtaTemplate):
 
 
 
-    
+
 # 创建回测引擎
 engine = BacktestingEngine()
 
@@ -119,7 +119,6 @@ engine.set_parameters(
     start=datetime(2023, 1, 1),
     end=datetime(2023, 1, 31),
     rate=0.0001,
-    slippage=0.0001,
     size=1,
     pricetick=0.01,
     capital=1000000

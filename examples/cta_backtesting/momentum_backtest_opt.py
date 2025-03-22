@@ -157,7 +157,6 @@ def run_simple_backtest(std_period=20, mom_threshold=0.05, trailing_std_scale=4.
         start=datetime(2023, 1, 1),
         end=datetime(2023, 6, 30),
         rate=0.0001,
-        # slippage=0,
         size=1,
         pricetick=0.001,
         capital=100000,
