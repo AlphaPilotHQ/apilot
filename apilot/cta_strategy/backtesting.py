@@ -157,7 +157,6 @@ class BacktestingEngine:
         database_type: Optional[str] = None,
         **kwargs
     ) -> None:
-        """"""
         self.database_type = database_type
         self.database_config = kwargs
         
@@ -186,7 +185,6 @@ class BacktestingEngine:
         self.output(f"历史数据加载完成，数据量：{len(self.history_data)}")
     
     def _load_from_csv(self) -> None:
-        """从CSV文件加载数据"""
         # 获取CSV文件路径
         data_path = self.database_config.get("data_path")
         
@@ -530,7 +528,6 @@ class BacktestingEngine:
         return statistics
 
     def show_chart(self, df: DataFrame = None) -> None:
-        """"""
         if not df:
             df = self.daily_df
 
@@ -590,7 +587,6 @@ class BacktestingEngine:
         self.update_daily_close(bar.close_price)
 
     def new_tick(self, tick: TickData) -> None:
-        """"""
         self.tick = tick
         self.datetime = tick.datetime
 
@@ -876,16 +872,12 @@ class BacktestingEngine:
         return order.vt_orderid
 
     def cancel_order(self, strategy: CtaTemplate, vt_orderid: str) -> None:
-        """
-        Cancel order by vt_orderid.
-        """
         if vt_orderid.startswith(STOPORDER_PREFIX):
             self.cancel_stop_order(strategy, vt_orderid)
         else:
             self.cancel_limit_order(strategy, vt_orderid)
 
     def cancel_stop_order(self, strategy: CtaTemplate, vt_orderid: str) -> None:
-        """"""
         if vt_orderid not in self.active_stop_orders:
             return
         stop_order: StopOrder = self.active_stop_orders.pop(vt_orderid)
@@ -894,7 +886,6 @@ class BacktestingEngine:
         self.strategy.on_stop_order(stop_order)
 
     def cancel_limit_order(self, strategy: CtaTemplate, vt_orderid: str) -> None:
-        """"""
         if vt_orderid not in self.active_limit_orders:
             return
         order: OrderData = self.active_limit_orders.pop(vt_orderid)
@@ -903,9 +894,6 @@ class BacktestingEngine:
         self.strategy.on_order(order)
 
     def cancel_all(self, strategy: CtaTemplate) -> None:
-        """
-        Cancel all orders, both limit and stop.
-        """
         vt_orderids: list = list(self.active_limit_orders.keys())
         for vt_orderid in vt_orderids:
             self.cancel_limit_order(strategy, vt_orderid)
@@ -915,40 +903,22 @@ class BacktestingEngine:
             self.cancel_stop_order(strategy, vt_orderid)
 
     def write_log(self, msg: str, strategy: CtaTemplate = None) -> None:
-        """
-        Write log message.
-        """
         msg: str = f"{self.datetime}\t{msg}"
         self.logs.append(msg)
 
     def send_email(self, msg: str, strategy: CtaTemplate = None) -> None:
-        """
-        Send email to default receiver.
-        """
         pass
 
     def sync_strategy_data(self, strategy: CtaTemplate) -> None:
-        """
-        Sync strategy data into json file.
-        """
         pass
 
     def get_engine_type(self) -> EngineType:
-        """
-        Return engine type.
-        """
         return self.engine_type
 
     def get_pricetick(self, strategy: CtaTemplate) -> float:
-        """
-        Return contract pricetick data.
-        """
         return self.pricetick
 
     def get_size(self, strategy: CtaTemplate) -> int:
-        """
-        Return contract size data.
-        """
         return self.size
 
     def put_strategy_event(self, strategy: CtaTemplate) -> None:
