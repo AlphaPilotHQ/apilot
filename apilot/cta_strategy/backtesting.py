@@ -920,12 +920,6 @@ class BacktestingEngine:
     def get_size(self, strategy: CtaTemplate) -> int:
         return self.size
 
-    def put_strategy_event(self, strategy: CtaTemplate) -> None:
-        """
-        Put an event to update strategy status.
-        """
-        pass
-
     def output(self, msg) -> None:
         """
         Output message of backtesting engine.

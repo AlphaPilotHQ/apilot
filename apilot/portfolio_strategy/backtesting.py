@@ -724,10 +724,6 @@ class BacktestingEngine:
         """获取合约乘数"""
         return self.sizes[vt_symbol]
 
-    def put_strategy_event(self, strategy: StrategyTemplate) -> None:
-        """推送事件更新策略界面"""
-        pass
-
     def output(self, msg) -> None:
         """输出回测引擎信息"""
         print(f"{datetime.now()}\t{msg}")

@@ -270,8 +270,14 @@ class StrategyTemplate(ABC):
         return list(self.active_orderids)
 
     def write_log(self, msg: str) -> None:
-        """记录日志"""
-        self.strategy_engine.write_log(msg, self)
+        """记录日志信息"""
+        if self.inited:
+            self.strategy_engine.write_log(msg, self)
+
+    def send_email(self, msg: str) -> None:
+        """发送邮件信息"""
+        if self.inited:
+            self.strategy_engine.send_email(msg, self)
 
     def get_engine_type(self) -> EngineType:
         """查询引擎类型"""
@@ -288,16 +294,6 @@ class StrategyTemplate(ABC):
     def load_bars(self, days: int, interval: Interval = Interval.MINUTE) -> None:
         """加载历史K线数据来执行初始化"""
         self.strategy_engine.load_bars(self, days, interval)
-
-    def put_event(self) -> None:
-        """推送策略数据更新事件"""
-        if self.inited:
-            self.strategy_engine.put_strategy_event(self)
-
-    def send_email(self, msg: str) -> None:
-        """发送邮件信息"""
-        if self.inited:
-            self.strategy_engine.send_email(msg, self)
 
     def sync_data(self) -> None:
         """同步策略状态数据到文件"""
