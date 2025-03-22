@@ -43,7 +43,6 @@ class BacktestingEngine:
         self.end: datetime = None
 
         self.rates: dict[str, float] = 0
-        self.slippages: dict[str, float] = 0
         self.sizes: dict[str, float] = 1
         self.priceticks: dict[str, float] = 0
 
@@ -109,7 +108,6 @@ class BacktestingEngine:
         self.interval = interval
 
         self.rates = rates
-        self.slippages = slippages
         self.sizes = sizes
         self.priceticks = priceticks
 
@@ -360,9 +358,6 @@ class BacktestingEngine:
 
             total_commission: float = df["commission"].sum()
             daily_commission: float = total_commission / total_days
-
-            total_slippage: float = df["slippage"].sum()
-            daily_slippage: float = total_slippage / total_days
 
             total_turnover: float = df["turnover"].sum()
             daily_turnover: float = total_turnover / total_days
