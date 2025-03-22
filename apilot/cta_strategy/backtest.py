@@ -79,11 +79,11 @@ class BacktestingEngine:
 
         self.daily_results: Dict[date, DailyResult] = {}
         self.daily_df: DataFrame = None
-        
+
         # 添加数据源配置
         self.database_config = None
         self.specific_data_file = None
-        
+
     def clear_data(self) -> None:
         self.strategy = None
         self.tick = None
@@ -122,7 +122,7 @@ class BacktestingEngine:
         self.vt_symbol = vt_symbol
         self.interval = Interval(interval)
         self.rate = rate
-        self.slippage = 0  
+        self.slippage = 0
         self.size = size
         self.pricetick = pricetick
         self.start = start
@@ -135,14 +135,14 @@ class BacktestingEngine:
         if not end:
             end = datetime.now()
         self.end = end.replace(hour=23, minute=59, second=59)
-        
+
         if self.start >= self.end:
             raise ValueError(f"错误：起始日期({self.start})必须小于结束日期({self.end})")
 
         self.annual_days = annual_days
 
     def add_strategy(self, strategy_class: Type[CtaTemplate], setting: dict) -> None:
-        
+
         self.strategy_class = strategy_class
         self.strategy = strategy_class(
             self, strategy_class.__name__, self.vt_symbol, setting
@@ -155,18 +155,18 @@ class BacktestingEngine:
     ) -> None:
         self.database_type = database_type
         self.database_config = kwargs
-        
+
         return self  # 支持链式调用
 
     def load_data(self) -> None:
         """加载历史数据"""
         # 清空之前的数据
         self.history_data.clear()
-        
+
         # 检查是否设置了数据源类型
         if not self.database_type:
             raise ValueError("错误：未设置数据源类型，请先调用add_data方法")
-            
+
         # CSV数据源处理逻辑
         if self.database_type == "csv":
             self._load_from_csv()
@@ -177,30 +177,30 @@ class BacktestingEngine:
         else:
             self.output(f"使用自定义数据源: {self.database_type}")
             self._load_from_database()
-            
+
         self.output(f"历史数据加载完成，数据量：{len(self.history_data)}")
-    
+
     def _load_from_csv(self) -> None:
         # 获取CSV文件路径
         data_path = self.database_config.get("data_path")
-        
+
         # 检查是否提供了文件路径
         if not data_path:
             raise ValueError("错误：使用CSV数据源时必须提供data_path参数")
-            
+
         # 检查文件是否存在
         if not os.path.isfile(data_path):
             raise FileNotFoundError(f"错误：找不到指定的CSV数据文件: {data_path}")
-            
+
         self.output(f"找到指定数据文件: {data_path}")
         self.output(f"使用数据源: csv")
-        
+
         try:
             # 读取CSV文件
             import pandas as pd
             self.output(f"从指定文件加载数据: {data_path}")
             df = pd.read_csv(data_path)
-            
+
             # 处理时间列
             datetime_col = self.database_config.get("datetime")
             if not datetime_col or datetime_col not in df.columns:
@@ -209,28 +209,28 @@ class BacktestingEngine:
                     if col in df.columns:
                         datetime_col = col
                         break
-            
+
             if not datetime_col:
                 raise ValueError("错误：CSV文件中未找到时间列")
-            
+
             # 确保datetime列为datetime类型
             df[datetime_col] = pd.to_datetime(df[datetime_col])
-            
+
             # 过滤日期范围
             if self.start and self.end:
                 df = df[(df[datetime_col] >= self.start) & (df[datetime_col] <= self.end)]
-                
+
                 # 检查过滤后是否还有数据
                 if df.empty:
                     raise ValueError(f"错误：指定日期范围内没有数据: {self.start} 至 {self.end}")
-            
+
             # 获取OHLCV列名
             open_col = self.database_config.get("open", "open")
-            high_col = self.database_config.get("high", "high") 
+            high_col = self.database_config.get("high", "high")
             low_col = self.database_config.get("low", "low")
             close_col = self.database_config.get("close", "close")
             volume_col = self.database_config.get("volume", "volume")
-            
+
             # 检查列是否存在
             required_cols = {
                 "open": open_col,
@@ -239,21 +239,21 @@ class BacktestingEngine:
                 "close": close_col,
                 "volume": volume_col
             }
-            
+
             # 检查是否所有必需列都找到了
             missing_cols = []
             for name, col in required_cols.items():
                 if col not in df.columns:
                     missing_cols.append(f"{name}({col})")
-            
+
             if missing_cols:
                 raise ValueError(f"错误：CSV文件缺少必需列: {', '.join(missing_cols)}")
-            
+
             # 创建BarData对象
             batch_data = []
             for _, row in df.iterrows():
                 dt = row[datetime_col]
-                
+
                 # 创建K线数据对象
                 bar = BarData(
                     symbol=self.symbol,
@@ -267,43 +267,43 @@ class BacktestingEngine:
                     close_price=row[close_col],
                     gateway_name=self.gateway_name
                 )
-                
+
                 batch_data.append(bar)
-            
+
             # 排序
             batch_data.sort(key=lambda x: x.datetime)
-            
+
             self.history_data.extend(batch_data)
             self.output(f"成功从文件加载了 {len(batch_data)} 条数据")
-            
+
         except Exception as e:
             self.output(f"从CSV文件加载数据时出错: {str(e)}\n{traceback.format_exc()}")
             raise
-    
+
     def _load_from_database(self) -> None:
         """从数据库加载数据"""
         self.output(f"使用数据源: {self.database_type}")
-        
+
         # 设置数据库配置
         self.database_settings = self.database_config
-        
+
         # 计算进度分块
         total_days = (self.end - self.start).days
         progress_days = max(int(total_days / 10), 1)
         progress_delta = timedelta(days=progress_days)
         interval_delta = INTERVAL_DELTA_MAP[self.interval]
-        
+
         # 分块加载数据
         current_start = self.start
-        
+
         try:
             while current_start < self.end:
                 current_end = min(current_start + progress_delta, self.end)
-                
+
                 # 根据模式加载适当的数据类型
                 if self.mode == BacktestingMode.BAR:
                     batch_data = load_bar_data(
-                        self.symbol, self.exchange, self.interval, current_start, current_end, 
+                        self.symbol, self.exchange, self.interval, current_start, current_end,
                         database_settings=self.database_settings
                     )
                 else:
@@ -311,10 +311,10 @@ class BacktestingEngine:
                         self.symbol, self.exchange, current_start, current_end,
                         database_settings=self.database_settings
                     )
-                
+
                 self.history_data.extend(batch_data)
                 current_start = current_end + interval_delta
-                
+
         except Exception as e:
             self.output(f"从数据库加载数据时出错: {str(e)}\n{traceback.format_exc()}")
             raise
@@ -322,7 +322,7 @@ class BacktestingEngine:
     def run_backtesting(self) -> None:
         if not self.history_data:
             self.load_data()
-            
+
         if self.mode == BacktestingMode.BAR:
             func = self.new_bar
         else:
@@ -334,7 +334,6 @@ class BacktestingEngine:
         self.strategy.on_start()
         self.strategy.trading = True
 
-        # 简化批处理逻辑
         try:
             for data in self.history_data:
                 func(data)
@@ -349,7 +348,7 @@ class BacktestingEngine:
 
         if not self.trades:
             self.output("回测成交记录为空")
-            return DataFrame()  
+            return DataFrame()
 
         # Add trade data into daily result
         for trade in self.trades.values():
@@ -374,7 +373,7 @@ class BacktestingEngine:
             pre_close = daily_result.close_price
             start_pos = daily_result.end_pos
 
-        # Generate dataframe 
+        # Generate dataframe
         first_result = next(iter(self.daily_results.values()))
         results = {
             key: [getattr(dr, key) for dr in self.daily_results.values()]
@@ -582,61 +581,57 @@ class BacktestingEngine:
         self.update_daily_close(tick.last_price)
 
     def cross_limit_order(self) -> None:
-        """
-        Cross limit order with last bar/tick data.
-        """
+        """撮合限价单"""
+        # 根据模式设置触发价格
         if self.mode == BacktestingMode.BAR:
-            long_cross_price = self.bar.low_price
-            short_cross_price = self.bar.high_price
-            long_best_price = self.bar.open_price
-            short_best_price = self.bar.open_price
+            buy_price = self.bar.low_price   # 买单成交价
+            sell_price = self.bar.high_price  # 卖单成交价
         else:
-            long_cross_price = self.tick.ask_price_1
-            short_cross_price = self.tick.bid_price_1
-            long_best_price = long_cross_price
-            short_best_price = short_cross_price
+            buy_price = self.tick.ask_price_1  # 买单成交价
+            sell_price = self.tick.bid_price_1  # 卖单成交价
 
         for order in list(self.active_limit_orders.values()):
-            # Push order update with status "not traded" (pending).
+            # 更新订单状态
             if order.status == Status.SUBMITTING:
                 order.status = Status.NOTTRADED
                 self.strategy.on_order(order)
 
-            # Check whether limit orders can be filled.
-            long_cross: bool = (
+            # 判断是否满足成交条件
+            buy_cross = (
                 order.direction == Direction.LONG
-                and order.price >= long_cross_price
-                and long_cross_price > 0
+                and order.price >= buy_price
+                and buy_price > 0
             )
-
-            short_cross: bool = (
+            sell_cross = (
                 order.direction == Direction.SHORT
-                and order.price <= short_cross_price
-                and short_cross_price > 0
+                and order.price <= sell_price
+                and sell_price > 0
             )
 
-            if not long_cross and not short_cross:
+            if not buy_cross and not sell_cross:
                 continue
 
-            # Push order udpate with status "all traded" (filled).
+            # 设置成交
             order.traded = order.volume
             order.status = Status.ALLTRADED
             self.strategy.on_order(order)
-
+            
             if order.vt_orderid in self.active_limit_orders:
                 self.active_limit_orders.pop(order.vt_orderid)
 
-            # Push trade update
+            # 创建成交记录
             self.trade_count += 1
-
-            if long_cross:
-                trade_price = min(order.price, long_best_price)
+            
+            # 使用触发价格作为成交价格
+            if buy_cross:
+                trade_price = buy_price
                 pos_change = order.volume
             else:
-                trade_price = max(order.price, short_best_price)
+                trade_price = sell_price
                 pos_change = -order.volume
 
-            trade: TradeData = TradeData(
+            # 创建成交对象
+            trade = TradeData(
                 symbol=order.symbol,
                 exchange=order.exchange,
                 orderid=order.orderid,
@@ -649,45 +644,42 @@ class BacktestingEngine:
                 gateway_name=self.gateway_name,
             )
 
+            # 更新策略持仓和记录
             self.strategy.pos += pos_change
             self.strategy.on_trade(trade)
-
             self.trades[trade.vt_tradeid] = trade
 
     def cross_stop_order(self) -> None:
-        """
-        Cross stop order with last bar/tick data.
-        """
+        """撮合止损单"""
+        # 根据模式设置触发价格
         if self.mode == BacktestingMode.BAR:
-            long_cross_price = self.bar.high_price
-            short_cross_price = self.bar.low_price
-            long_best_price = self.bar.open_price
-            short_best_price = self.bar.open_price
+            buy_trigger_price = self.bar.high_price   # 买入止损触发价
+            sell_trigger_price = self.bar.low_price  # 卖出止损触发价
+            buy_price = buy_trigger_price  # 买入成交价
+            sell_price = sell_trigger_price  # 卖出成交价
         else:
-            long_cross_price = self.tick.last_price
-            short_cross_price = self.tick.last_price
-            long_best_price = long_cross_price
-            short_best_price = short_cross_price
+            buy_trigger_price = self.tick.last_price  # 买入止损触发价
+            sell_trigger_price = self.tick.last_price  # 卖出止损触发价
+            buy_price = self.tick.ask_price_1 if hasattr(self.tick, "ask_price_1") else self.tick.last_price  # 买入成交价
+            sell_price = self.tick.bid_price_1 if hasattr(self.tick, "bid_price_1") else self.tick.last_price  # 卖出成交价
 
         for stop_order in list(self.active_stop_orders.values()):
-            # Check whether stop order can be triggered.
-            long_cross: bool = (
+            # 检查是否触发止损
+            buy_triggered = (
                 stop_order.direction == Direction.LONG
-                and stop_order.price <= long_cross_price
+                and stop_order.price <= buy_trigger_price
             )
-
-            short_cross: bool = (
+            sell_triggered = (
                 stop_order.direction == Direction.SHORT
-                and stop_order.price >= short_cross_price
+                and stop_order.price >= sell_trigger_price
             )
 
-            if not long_cross and not short_cross:
+            if not buy_triggered and not sell_triggered:
                 continue
 
-            # Create order data.
+            # 创建订单数据
             self.limit_order_count += 1
-
-            order: OrderData = OrderData(
+            order = OrderData(
                 symbol=self.symbol,
                 exchange=self.exchange,
                 orderid=str(self.limit_order_count),
@@ -700,20 +692,18 @@ class BacktestingEngine:
                 gateway_name=self.gateway_name,
                 datetime=self.datetime
             )
-
             self.limit_orders[order.vt_orderid] = order
 
-            # Create trade data.
-            if long_cross:
-                trade_price = max(stop_order.price, long_best_price)
+            # 创建成交数据
+            self.trade_count += 1
+            if buy_triggered:
+                trade_price = buy_price
                 pos_change = order.volume
             else:
-                trade_price = min(stop_order.price, short_best_price)
+                trade_price = sell_price
                 pos_change = -order.volume
 
-            self.trade_count += 1
-
-            trade: TradeData = TradeData(
+            trade = TradeData(
                 symbol=order.symbol,
                 exchange=order.exchange,
                 orderid=order.orderid,
@@ -725,20 +715,18 @@ class BacktestingEngine:
                 datetime=self.datetime,
                 gateway_name=self.gateway_name,
             )
-
             self.trades[trade.vt_tradeid] = trade
 
-            # Update stop order.
+            # 更新止损单状态
             stop_order.vt_orderids.append(order.vt_orderid)
             stop_order.status = StopOrderStatus.TRIGGERED
-
+            
             if stop_order.stop_orderid in self.active_stop_orders:
                 self.active_stop_orders.pop(stop_order.stop_orderid)
 
-            # Push update to strategy.
+            # 推送更新给策略
             self.strategy.on_stop_order(stop_order)
             self.strategy.on_order(order)
-
             self.strategy.pos += pos_change
             self.strategy.on_trade(trade)
 
@@ -949,12 +937,12 @@ class BacktestingEngine:
         for easier usage.
         """
         self.clear_data()
-        
+
         if interval == Interval.TICK.value:
             mode = BacktestingMode.TICK
         else:
             mode = BacktestingMode.BAR
-            
+
         self.set_parameters(
             vt_symbol=vt_symbol,
             interval=interval,
@@ -966,15 +954,15 @@ class BacktestingEngine:
             capital=capital,
             mode=mode
         )
-        
+
         self.add_strategy(strategy_class, setting)
         self.load_data()
         self.run_backtesting()
         self.calculate_result()
-        
+
         statistics = self.calculate_statistics()
         df = self.daily_df.copy()
-        
+
         return df, statistics
 
 
@@ -1059,23 +1047,23 @@ def load_bar_data(
         # 注意：实际的MongoDB数据库处理应该在具体的数据库实现类中处理
         from apilot.trader.setting import SETTINGS
         old_settings = {}
-        
+
         # 暂存原始设置
         for key, value in database_settings.items():
             if hasattr(SETTINGS, key):
                 old_settings[key] = getattr(SETTINGS, key)
                 setattr(SETTINGS, key, value)
-        
+
         # 获取数据库连接
         database = get_database()
-        
+
         # 加载数据
         bars = database.load_bar_data(symbol, exchange, interval, start, end)
-        
+
         # 恢复原始设置
         for key, value in old_settings.items():
             setattr(SETTINGS, key, value)
-            
+
         return bars
     else:
         # 使用默认数据库连接
@@ -1098,23 +1086,23 @@ def load_tick_data(
         # 注意：实际的MongoDB数据库处理应该在具体的数据库实现类中处理
         from apilot.trader.setting import SETTINGS
         old_settings = {}
-        
+
         # 暂存原始设置
         for key, value in database_settings.items():
             if hasattr(SETTINGS, key):
                 old_settings[key] = getattr(SETTINGS, key)
                 setattr(SETTINGS, key, value)
-        
+
         # 获取数据库连接
         database = get_database()
-        
+
         # 加载数据
         ticks = database.load_tick_data(symbol, exchange, start, end)
-        
+
         # 恢复原始设置
         for key, value in old_settings.items():
             setattr(SETTINGS, key, value)
-            
+
         return ticks
     else:
         # 使用默认数据库连接
