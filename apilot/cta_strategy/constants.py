@@ -29,10 +29,10 @@ class BacktestingMode(Enum):
 class StopOrder:
     """
     停止单数据结构
-    
+
     用于记录和管理CTA策略中的停止单信息。停止单是在价格达到特定条件时触发的订单，
     主要用于止损、止盈等风险管理场景。
-    
+
     属性:
         vt_symbol: 合约代码（包含交易所信息）
         direction: 买卖方向
@@ -67,16 +67,16 @@ class StopOrder:
     #     # 验证价格必须为正数
     #     if self.price <= 0:
     #         raise ValueError(f"停止单价格必须为正数: {self.price}")
-            
+
     #     # 验证交易量必须为正数
     #     if self.volume <= 0:
     #         raise ValueError(f"停止单数量必须为正数: {self.volume}")
 
 
 
-EVENT_CTA_LOG: str = "eCtaLog"
-EVENT_CTA_STRATEGY = "eCtaStrategy"
-EVENT_CTA_STOPORDER = "eCtaStopOrder"
+EVENT_CTA_LOG: str = "EVENT_CTA_LOG"
+EVENT_CTA_STRATEGY = "EVENT_CTA_STRATEGY"
+EVENT_CTA_STOPORDER = "EVENT_CTA_STOPORDER"
 
 INTERVAL_DELTA_MAP: Dict[Interval, timedelta] = {
     Interval.TICK: timedelta(milliseconds=1),

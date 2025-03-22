@@ -1,11 +1,8 @@
 """
 APilot量化交易平台使用的常量枚举定义。
-针对加密货币交易场景进行了优化。
 """
 
 from enum import Enum
-
-# 使用中文字符串便于日志和UI显示
 
 
 class Direction(Enum):
@@ -85,7 +82,7 @@ class Exchange(Enum):
     KRAKEN = "KRAKEN"       # Kraken
     BITFINEX = "BITFINEX"   # Bitfinex
     BITSTAMP = "BITSTAMP"   # Bitstamp
-    
+
     LOCAL = "LOCAL"         # 本地生成数据（回测使用）
 
 

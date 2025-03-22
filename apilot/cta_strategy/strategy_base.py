@@ -1,12 +1,20 @@
 from abc import ABC
 from copy import copy
-from typing import Any, Callable, List
+from typing import Any, Callable, List, Dict
+from collections import defaultdict
+from datetime import datetime, timedelta
 
-from apilot.trader.constant import Interval, Direction, Offset
-from apilot.trader.object import BarData, TickData, OrderData, TradeData
-from apilot.trader.utility import virtual
+from apilot.trader.object import (
+    TickData,
+    BarData,
+    TradeData,
+    OrderData,
+    ContractData
+)
+from apilot.trader.constant import Direction, Offset, Status, OrderType, Interval
+from apilot.trader.utility import BarGenerator, ArrayManager, virtual
 
-from .base import StopOrder, EngineType
+from .constants import StopOrder, EngineType
 
 
 class CtaTemplate(ABC):

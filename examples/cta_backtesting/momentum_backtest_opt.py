@@ -1,12 +1,11 @@
-
 from init_env import *
 from datetime import datetime
 from typing import Dict, List, Tuple, Optional
 from apilot.trader.constant import Direction, Interval
 from apilot.trader.object import BarData, TickData, OrderData, TradeData
-from apilot.cta_strategy.base import StopOrder
-from apilot.cta_strategy.template import CtaTemplate
-from apilot.cta_strategy.backtesting import BacktestingEngine
+from apilot.cta_strategy.constants import StopOrder
+from apilot.cta_strategy.strategy_base import CtaTemplate
+from apilot.cta_strategy.backtest import BacktestingEngine
 from apilot.trader.utility import BarGenerator, ArrayManager
 from apilot.trader.optimize import OptimizationSetting, run_ga_optimization
 import numpy as np

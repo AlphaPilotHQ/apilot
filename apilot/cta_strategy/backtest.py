@@ -23,7 +23,7 @@ from apilot.trader.database import get_database, BaseDatabase
 from apilot.trader.object import OrderData, TradeData, BarData, TickData
 from apilot.trader.utility import round_to, extract_vt_symbol
 
-from .base import (
+from .constants import (
     BacktestingMode,
     EngineType,
     STOPORDER_PREFIX,
@@ -31,7 +31,7 @@ from .base import (
     StopOrderStatus,
     INTERVAL_DELTA_MAP
 )
-from .template import CtaTemplate
+from .strategy_base import CtaTemplate
 
 
 class BacktestingEngine:

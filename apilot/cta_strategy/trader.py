@@ -1,57 +1,53 @@
-import importlib
 import traceback
-from collections import defaultdict
-from pathlib import Path
-from datetime import datetime, timedelta
-from concurrent.futures import ThreadPoolExecutor
-from copy import copy
+import importlib
+import os
 import sys
 import glob
+import csv
+import copy
 import logging
-from typing import Any, Callable, List, Dict, Type, Optional, Tuple
-from concurrent.futures import Future
+import re
+from datetime import datetime, timedelta
+from collections import defaultdict, OrderedDict
+from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor, Future
+from typing import Any, Type, Dict, List, Set, Tuple, Optional, Callable
 
-from apilot.event import Event, EventEngine
-from apilot.trader.engine import BaseEngine, MainEngine
+import numpy as np
+import apilot
+from apilot.event import EventEngine, Event
+from apilot.trader.engine import MainEngine, BaseEngine
 from apilot.trader.object import (
     OrderRequest,
     SubscribeRequest,
     HistoryRequest,
-    CancelRequest,
     LogData,
     TickData,
     BarData,
+    ContractData,
     OrderData,
     TradeData,
-    ContractData,
 )
 from apilot.trader.event import (
     EVENT_TICK,
     EVENT_ORDER,
     EVENT_TRADE
 )
-from apilot.trader.constant import (
-    Direction,
-    OrderType,
-    Interval,
-    Exchange,
-    Offset,
-    Status
-)
+from apilot.trader.constant import Direction, Offset, Exchange, Interval, Status, OrderType
 from apilot.trader.utility import load_json, save_json, extract_vt_symbol, round_to
 from apilot.trader.database import BaseDatabase, get_database
 
-from .base import (
+from .constants import (
     APP_NAME,
+    EngineType,
     EVENT_CTA_LOG,
     EVENT_CTA_STRATEGY,
     EVENT_CTA_STOPORDER,
-    EngineType,
+    STOPORDER_PREFIX,
     StopOrder,
     StopOrderStatus,
-    STOPORDER_PREFIX
 )
-from .template import CtaTemplate, TargetPosTemplate
+from .strategy_base import CtaTemplate, TargetPosTemplate
 
 # 停止单状态映射
 STOP_STATUS_MAP: Dict[Status, StopOrderStatus] = {
@@ -86,9 +82,13 @@ class CtaEngine(BaseEngine):
         self.database: BaseDatabase = get_database()
 
     def init_engine(self) -> None:
+        """
+        初始化引擎
+        """
         self.load_strategy_setting()
         self.load_strategy_data()
-        self.load_strategy_class()
+        # 脚本环境中不需要动态加载策略类
+        # self.load_strategy_class()
         self.register_event()
         self.main_engine.log_info("CTA策略引擎初始化成功", source=APP_NAME)
 
