@@ -35,10 +35,7 @@ class CtaTemplate(ABC):
         self.variables.insert(1, "trading")
         self.variables.insert(2, "pos")
 
-        self.update_setting(setting)
-
-    def update_setting(self, setting: dict) -> None:
-        """更新策略参数"""
+        # 设置策略参数
         for name in self.parameters:
             if name in setting:
                 setattr(self, name, setting[name])

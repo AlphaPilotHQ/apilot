@@ -52,10 +52,6 @@ class StrategyTemplate(ABC):
         self.variables.insert(3, "target_data")
 
         # 设置策略参数
-        self.update_setting(setting)
-
-    def update_setting(self, setting: dict) -> None:
-        """设置策略参数"""
         for name in self.parameters:
             if name in setting:
                 setattr(self, name, setting[name])
