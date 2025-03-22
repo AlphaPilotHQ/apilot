@@ -65,7 +65,7 @@ STOP_STATUS_MAP: Dict[Status, StopOrderStatus] = {
 
 
 class CtaEngine(BaseEngine):
-    engine_type: EngineType = EngineType.LIVE  
+    engine_type: EngineType = EngineType.LIVE
     setting_filename: str = "cta_strategy_setting.json"
     data_filename: str = "cta_strategy_data.json"
 
@@ -167,9 +167,6 @@ class CtaEngine(BaseEngine):
         # Sync strategy variables to data file
         self.sync_strategy_data(strategy)
 
-        # Update GUI
-        self.put_strategy_event(strategy)
-
     def check_stop_order(self, tick: TickData) -> None:
         for stop_order in list(self.stop_orders.values()):
             if stop_order.vt_symbol != tick.vt_symbol:
@@ -225,7 +222,6 @@ class CtaEngine(BaseEngine):
                     self.call_strategy_func(
                         strategy, strategy.on_stop_order, stop_order
                     )
-                    self.put_stop_order_event(stop_order)
 
     def send_server_order(
         self,
@@ -355,7 +351,6 @@ class CtaEngine(BaseEngine):
         vt_orderids.add(stop_orderid)
 
         self.call_strategy_func(strategy, strategy.on_stop_order, stop_order)
-        self.put_stop_order_event(stop_order)
 
         return [stop_orderid]
 
@@ -392,7 +387,6 @@ class CtaEngine(BaseEngine):
         stop_order.status = StopOrderStatus.CANCELLED
 
         self.call_strategy_func(strategy, strategy.on_stop_order, stop_order)
-        self.put_stop_order_event(stop_order)
 
     def send_order(
         self,
@@ -536,8 +530,6 @@ class CtaEngine(BaseEngine):
         # Update to setting file.
         self.update_strategy_setting(strategy_name, setting)
 
-        self.put_strategy_event(strategy)
-
     def init_strategy(self, strategy_name: str) -> Future:
         return self.init_executor.submit(self._init_strategy, strategy_name)
 
@@ -575,7 +567,6 @@ class CtaEngine(BaseEngine):
 
         # Put event to update init completed status.
         strategy.inited = True
-        self.put_strategy_event(strategy)
         self.main_engine.log_info(f"{strategy_name}初始化完成", source=APP_NAME)
 
     def start_strategy(self, strategy_name: str) -> None:
@@ -589,8 +580,6 @@ class CtaEngine(BaseEngine):
             return
         self.call_strategy_func(strategy, strategy.on_start)
         strategy.trading = True
-
-        self.put_strategy_event(strategy)
 
     def stop_strategy(self, strategy_name: str) -> None:
         strategy: CtaTemplate = self.strategies[strategy_name]
@@ -609,15 +598,11 @@ class CtaEngine(BaseEngine):
         # Sync strategy variables to data file
         self.sync_strategy_data(strategy)
 
-        # Update GUI
-        self.put_strategy_event(strategy)
-
     def edit_strategy(self, strategy_name: str, setting: dict) -> None:
         strategy: CtaTemplate = self.strategies[strategy_name]
         strategy.update_setting(setting)
 
         self.update_strategy_setting(strategy_name, setting)
-        self.put_strategy_event(strategy)
 
     def remove_strategy(self, strategy_name: str) -> bool:
         strategy: CtaTemplate = self.strategies[strategy_name]
@@ -649,43 +634,24 @@ class CtaEngine(BaseEngine):
 
     def load_strategy_class(self) -> None:
         """
-        Load strategy class from source code.
+        加载策略类（简化版本，脚本环境不需要动态加载）
         """
-        path1: Path = Path(__file__).parent.joinpath("strategies")
-        self.load_strategy_class_from_folder(path1, "apilot_ctastrategy.strategies")
-
-        path2: Path = Path.cwd().joinpath("strategies")
-        self.load_strategy_class_from_folder(path2, "strategies")
+        # 在脚本环境中，策略类通常通过直接导入获取，无需动态加载
+        pass
 
     def load_strategy_class_from_folder(self, path: Path, module_name: str = "") -> None:
         """
-        Load strategy class from certain folder.
+        从特定文件夹加载策略类（简化版本，脚本环境不需要）
         """
-        for suffix in ["py", "pyd", "so"]:
-            pathname: str = str(path.joinpath(f"*.{suffix}"))
-            for filepath in glob(pathname):
-                filename = Path(filepath).stem
-                name: str = f"{module_name}.{filename}"
-                self.load_strategy_class_from_module(name)
+        # 在脚本环境中，通常直接导入策略类，此方法可删除
+        pass
 
     def load_strategy_class_from_module(self, module_name: str) -> None:
-        try:
-            module: ModuleType = importlib.import_module(module_name)
-
-            # 重载模块，确保如果策略文件中有任何修改，能够立即生效。
-            importlib.reload(module)
-
-            for name in dir(module):
-                value = getattr(module, name)
-                if (
-                    isinstance(value, type)
-                    and issubclass(value, CtaTemplate)
-                    and value not in {CtaTemplate, TargetPosTemplate}
-                ):
-                    self.classes[value.__name__] = value
-        except:  # noqa
-            msg: str = "策略文件{}加载失败，触发异常：\n{}".format(module_name, traceback.format_exc())
-            self.main_engine.log_error(msg, source=APP_NAME)
+        """
+        从模块加载策略类（简化版本，脚本环境不需要）
+        """
+        # 在脚本环境中，通常直接导入策略类，此方法可删除
+        pass
 
     def load_strategy_data(self) -> None:
         self.strategy_data = load_json(self.data_filename)
@@ -702,50 +668,66 @@ class CtaEngine(BaseEngine):
         save_json(self.data_filename, self.strategy_data)
 
     def get_all_strategy_class_names(self) -> list:
-        """
-        Return names of strategy classes loaded.
-        """
+        """获取所有已加载的策略类名（简化版）"""
+        # 在脚本环境中，可以直接引用策略类，无需此方法
         return list(self.classes.keys())
 
     def get_strategy_class_parameters(self, class_name: str) -> dict:
+        """获取策略类默认参数（简化版）"""
+        # 在脚本环境中，可以直接从策略类获取默认参数
         strategy_class: Type[CtaTemplate] = self.classes[class_name]
-
-        parameters: dict = {}
-        for name in strategy_class.parameters:
-            parameters[name] = getattr(strategy_class, name)
-
-        return parameters
+        return {name: getattr(strategy_class, name) for name in strategy_class.parameters}
 
     def get_strategy_parameters(self, strategy_name) -> dict:
+        """获取策略实例参数（简化版）"""
+        # 在脚本环境中，可以直接访问策略实例获取参数
         strategy: CtaTemplate = self.strategies[strategy_name]
         return strategy.get_parameters()
 
     def init_all_strategies(self) -> Dict[str, Future]:
+        """初始化所有策略（简化版）"""
+        # 在脚本环境中通常会显式初始化每个策略
+        # 此方法主要用于GUI批量操作
         futures: Dict[str, Future] = {}
         for strategy_name in self.strategies.keys():
             futures[strategy_name] = self.init_strategy(strategy_name)
         return futures
 
     def start_all_strategies(self) -> None:
+        """启动所有策略（简化版）"""
+        # 在脚本环境中通常会显式启动每个策略
         for strategy_name in self.strategies.keys():
             self.start_strategy(strategy_name)
 
     def stop_all_strategies(self) -> None:
+        """停止所有策略（简化版）"""
+        # 在关闭引擎时仍然需要调用此方法
         for strategy_name in self.strategies.keys():
             self.stop_strategy(strategy_name)
 
     def load_strategy_setting(self) -> None:
+        """
+        加载策略设置（简化版）
+        """
+        # 在脚本环境中，策略设置通常直接在代码中定义，而不是从文件加载
+        # 但保留此方法可以支持从配置文件恢复
         self.strategy_setting = load_json(self.setting_filename)
 
-        for strategy_name, strategy_config in self.strategy_setting.items():
-            self.add_strategy(
-                strategy_config["class_name"],
-                strategy_name,
-                strategy_config["vt_symbol"],
-                strategy_config["setting"]
-            )
+        # 在脚本环境中通常不自动添加策略，注释掉自动加载的代码
+        # for strategy_name, strategy_config in self.strategy_setting.items():
+        #     self.add_strategy(
+        #         strategy_config["class_name"],
+        #         strategy_name,
+        #         strategy_config["vt_symbol"],
+        #         strategy_config["setting"]
+        #     )
 
     def update_strategy_setting(self, strategy_name: str, setting: dict) -> None:
+        """
+        更新策略设置（简化版）
+        """
+        # 在脚本环境中，策略参数通常直接在代码中修改，而不是动态更新
+        # 但保留文件保存功能以便记录
         strategy: CtaTemplate = self.strategies[strategy_name]
 
         self.strategy_setting[strategy_name] = {
@@ -756,6 +738,11 @@ class CtaEngine(BaseEngine):
         save_json(self.setting_filename, self.strategy_setting)
 
     def remove_strategy_setting(self, strategy_name: str) -> None:
+        """
+        移除策略设置（简化版）
+        """
+        # 在脚本环境中，通常不需要动态移除策略
+        # 但保留此方法以便在需要时清理配置文件
         if strategy_name not in self.strategy_setting:
             return
 
@@ -766,32 +753,27 @@ class CtaEngine(BaseEngine):
         save_json(self.data_filename, self.strategy_data)
 
     def put_stop_order_event(self, stop_order: StopOrder) -> None:
-        event: Event = Event(EVENT_CTA_STOPORDER, stop_order)
-        self.event_engine.put(event)
+        """发送本地停止单事件（GUI用，可删除）"""
+        # 在无GUI环境下不需要此方法
+        pass
 
     def put_strategy_event(self, strategy: CtaTemplate) -> None:
-        data: dict = strategy.get_data()
-        event: Event = Event(EVENT_CTA_STRATEGY, data)
-        self.event_engine.put(event)
+        """发送策略状态更新事件（GUI用，可删除）"""
+        # 在无GUI环境下不需要此方法
+        pass
 
     def write_log(self, msg: str, strategy: CtaTemplate = None, level: int = logging.INFO) -> None:
         """
         记录日志消息（已弃用，请使用主引擎的日志方法）
         """
-        import warnings
-        warnings.warn(
-            "CTA引擎的write_log方法已弃用，请使用main_engine.log_xxx方法代替", 
-            DeprecationWarning, 
-            stacklevel=2
-        )
-        
-        # 处理策略名称并转发到主引擎
         if strategy:
             msg = f"[{strategy.strategy_name}] {msg}"
-            
+
         self.main_engine._write_log(msg, source=APP_NAME, gateway_name="", level=level)
 
     def send_email(self, msg: str, strategy: CtaTemplate = None) -> None:
+        """发送邮件通知（可以删除）"""
+        # 在脚本环境中可以直接使用主引擎的邮件功能
         if strategy:
             subject: str = "{}".format(strategy.strategy_name)
         else:

@@ -357,7 +357,6 @@ class StrategyEngine(BaseEngine):
             strategies.append(strategy)
 
         self.save_strategy_setting()
-        self.put_strategy_event(strategy)
 
     def init_strategy(self, strategy_name: str) -> None:
         """初始化策略"""
@@ -404,7 +403,6 @@ class StrategyEngine(BaseEngine):
 
         # 推送策略事件通知初始化完成状态
         strategy.inited = True
-        self.put_strategy_event(strategy)
         self.write_log(_("{}初始化完成").format(strategy_name))
 
     def start_strategy(self, strategy_name: str) -> None:
@@ -423,7 +421,6 @@ class StrategyEngine(BaseEngine):
 
         # 推送策略事件通知启动完成状态
         strategy.trading = True
-        self.put_strategy_event(strategy)
 
     def stop_strategy(self, strategy_name: str) -> None:
         """停止策略"""
@@ -442,17 +439,6 @@ class StrategyEngine(BaseEngine):
 
         # 同步数据状态
         self.sync_strategy_data(strategy)
-
-        # 推送策略事件通知停止完成状态
-        self.put_strategy_event(strategy)
-
-    def edit_strategy(self, strategy_name: str, setting: dict) -> None:
-        """编辑策略参数"""
-        strategy: StrategyTemplate = self.strategies[strategy_name]
-        strategy.update_setting(setting)
-
-        self.save_strategy_setting()
-        self.put_strategy_event(strategy)
 
     def remove_strategy(self, strategy_name: str) -> bool:
         """移除策略实例"""
@@ -478,34 +464,25 @@ class StrategyEngine(BaseEngine):
         return True
 
     def load_strategy_class(self) -> None:
-        """加载策略类"""
-        path1: Path = Path(__file__).parent.joinpath("strategies")
-        self.load_strategy_class_from_folder(path1, "apilot_portfoliostrategy.strategies")
-
-        path2: Path = Path.cwd().joinpath("strategies")
-        self.load_strategy_class_from_folder(path2, "strategies")
+        """
+        加载策略类（简化版本，脚本环境不需要动态加载）
+        """
+        # 在脚本环境中，策略类通常通过直接导入获取，无需动态加载
+        pass
 
     def load_strategy_class_from_folder(self, path: Path, module_name: str = "") -> None:
-        """通过指定文件夹加载策略类"""
-        for suffix in ["py", "pyd", "so"]:
-            pathname: str = str(path.joinpath(f"*.{suffix}"))
-            for filepath in glob.glob(pathname):
-                stem: str = Path(filepath).stem
-                strategy_module_name: str = f"{module_name}.{stem}"
-                self.load_strategy_class_from_module(strategy_module_name)
+        """
+        从特定文件夹加载策略类（简化版本，脚本环境不需要）
+        """
+        # 在脚本环境中，通常直接导入策略类，此方法可删除
+        pass
 
     def load_strategy_class_from_module(self, module_name: str) -> None:
-        """通过策略文件加载策略类"""
-        try:
-            module: ModuleType = importlib.import_module(module_name)
-
-            for name in dir(module):
-                value = getattr(module, name)
-                if (isinstance(value, type) and issubclass(value, StrategyTemplate) and value is not StrategyTemplate):
-                    self.classes[value.__name__] = value
-        except:  # noqa
-            msg: str = _("策略文件{}加载失败，触发异常：\n{}").format(module_name, traceback.format_exc())
-            self.write_log(msg)
+        """
+        从模块加载策略类（简化版本，脚本环境不需要）
+        """
+        # 在脚本环境中，通常直接导入策略类，此方法可删除
+        pass
 
     def load_strategy_data(self) -> None:
         """加载策略数据"""
@@ -555,19 +532,28 @@ class StrategyEngine(BaseEngine):
             self.stop_strategy(strategy_name)
 
     def load_strategy_setting(self) -> None:
-        """加载策略配置"""
+        """
+        加载策略配置（简化版）
+        """
+        # 在脚本环境中，策略设置通常直接在代码中定义，而不是从文件加载
+        # 但保留此方法可以支持从配置文件恢复
         strategy_setting: dict = load_json(self.setting_filename)
 
-        for strategy_name, strategy_config in strategy_setting.items():
-            self.add_strategy(
-                strategy_config["class_name"],
-                strategy_name,
-                strategy_config["vt_symbols"],
-                strategy_config["setting"]
-            )
+        # 在脚本环境中通常不自动添加策略，注释掉自动加载的代码
+        # for strategy_name, strategy_config in strategy_setting.items():
+        #     self.add_strategy(
+        #         strategy_config["class_name"],
+        #         strategy_name,
+        #         strategy_config["vt_symbols"],
+        #         strategy_config["setting"]
+        #     )
 
     def save_strategy_setting(self) -> None:
-        """保存策略配置"""
+        """
+        保存策略配置（简化版）
+        """
+        # 在脚本环境中，策略参数通常直接在代码中修改，而不是动态更新
+        # 但保留文件保存功能以便记录
         strategy_setting: dict = {}
 
         for name, strategy in self.strategies.items():
@@ -579,26 +565,24 @@ class StrategyEngine(BaseEngine):
 
         save_json(self.setting_filename, strategy_setting)
 
-    def put_strategy_event(self, strategy: StrategyTemplate) -> None:
-        """推送事件更新策略界面"""
-        data: dict = strategy.get_data()
-        event: Event = Event(EVENT_PORTFOLIO_STRATEGY, data)
-        self.event_engine.put(event)
-
     def write_log(self, msg: str, strategy: StrategyTemplate = None) -> None:
-        """输出日志"""
+        """
+        输出日志（可简化为直接使用主引擎日志）
+        """
+        # 在脚本环境中，可以直接使用主引擎的日志功能
         if strategy:
             msg: str = f"{strategy.strategy_name}: {msg}"
-
-        log: LogData = LogData(msg=msg, gateway_name=APP_NAME)
-        event: Event = Event(type=EVENT_PORTFOLIO_LOG, data=log)
-        self.event_engine.put(event)
+            
+        self.main_engine.log_info(msg, source=APP_NAME)
 
     def send_email(self, msg: str, strategy: StrategyTemplate = None) -> None:
-        """发送邮件"""
+        """
+        发送邮件通知（可以删除）
+        """
+        # 在脚本环境中可以直接使用主引擎的邮件功能
         if strategy:
             subject: str = f"{strategy.strategy_name}"
         else:
-            subject: str = _("组合策略引擎")
+            subject: str = "组合策略引擎"
 
         self.main_engine.send_email(subject, msg)
