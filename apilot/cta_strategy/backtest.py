@@ -46,7 +46,6 @@ class BacktestingEngine:
         self.start: datetime = None
         self.end: datetime = None
         self.rate: float = 0
-        self.slippage: float = 0
         self.size: float = 1
         self.pricetick: float = 0
         self.capital: int = 1_000_000
@@ -122,7 +121,6 @@ class BacktestingEngine:
         self.vt_symbol = vt_symbol
         self.interval = Interval(interval)
         self.rate = rate
-        self.slippage = 0
         self.size = size
         self.pricetick = pricetick
         self.start = start
@@ -156,7 +154,7 @@ class BacktestingEngine:
         self.database_type = database_type
         self.database_config = kwargs
 
-        return self 
+        return self
 
     def load_data(self) -> None:
 
@@ -202,7 +200,7 @@ class BacktestingEngine:
             datetime_col = self.database_config.get("datetime")
             if not datetime_col:
                 raise ValueError("错误：必须指定datetime列名")
-            
+
             if datetime_col not in df.columns:
                 raise ValueError(f"错误：CSV文件中没有指定的时间列: {datetime_col}")
 
@@ -218,10 +216,10 @@ class BacktestingEngine:
             # 获取OHLCV列名
             open_col = self.database_config.get("open")
             high_col = self.database_config.get("high")
-            low_col = self.database_config.get("low") 
+            low_col = self.database_config.get("low")
             close_col = self.database_config.get("close")
             volume_col = self.database_config.get("volume")
-            
+
             # 检查是否提供了所有必需的列名配置
             if not all([open_col, high_col, low_col, close_col, volume_col]):
                 raise ValueError("错误：必须指定所有OHLCV列名")
@@ -229,10 +227,10 @@ class BacktestingEngine:
             # 检查必需列是否存在
             missing_cols = []
             for name, col in {
-                "open": open_col, 
-                "high": high_col, 
+                "open": open_col,
+                "high": high_col,
                 "low": low_col,
-                "close": close_col, 
+                "close": close_col,
                 "volume": volume_col
             }.items():
                 if col not in df.columns:
@@ -276,18 +274,18 @@ class BacktestingEngine:
             # 直接加载整个时间范围的数据
             if self.mode == BacktestingMode.BAR:
                 self.history_data = load_bar_data(
-                    self.symbol, 
-                    self.exchange, 
+                    self.symbol,
+                    self.exchange,
                     self.interval,
-                    self.start, 
+                    self.start,
                     self.end,
                     database_settings=self.database_settings
                 )
             else:
                 self.history_data = load_tick_data(
-                    self.symbol, 
+                    self.symbol,
                     self.exchange,
-                    self.start, 
+                    self.start,
                     self.end,
                     database_settings=self.database_settings
                 )
@@ -344,7 +342,6 @@ class BacktestingEngine:
                 start_pos,
                 self.size,
                 self.rate,
-                0  # 忽略slippage计算
             )
             pre_close = daily_result.close_price
             start_pos = daily_result.end_pos
@@ -361,12 +358,9 @@ class BacktestingEngine:
         return self.daily_df
 
     def calculate_statistics(self, df: DataFrame = None, output=True) -> dict:
-        """计算统计指标"""
-        # 使用当前结果或传入的DataFrame
         if df is None:
             df = self.daily_df
 
-        # 初始化统计值
         stats = {
             "start_date": "",
             "end_date": "",
@@ -376,91 +370,87 @@ class BacktestingEngine:
             "capital": self.capital,
             "end_balance": 0,
             "max_ddpercent": 0,
-            "total_net_pnl": 0,
             "total_commission": 0,
             "total_turnover": 0,
             "total_trade_count": 0,
             "total_return": 0,
             "annual_return": 0,
-            "return_std": 0,
             "sharpe_ratio": 0,
             "return_drawdown_ratio": 0,
         }
 
-        positive_balance = False
+        # Return early if no data
+        if df is None or df.empty:
+            self.output("No trading data available")
+            return stats
 
-        if df is not None and not df.empty:
-            # 计算资金曲线相关数据
-            df["balance"] = df["net_pnl"].cumsum() + self.capital
+        # Make a copy to avoid modifying original data
+        df = df.copy()
 
-            # 计算日收益率，当资金为负时设为0
-            pre_balance = df["balance"].shift(1)
-            pre_balance.iloc[0] = self.capital
-            x = df["balance"] / pre_balance
-            x[x <= 0] = np.nan
-            df["return"] = np.log(x).fillna(0)
+        df["balance"] = df["net_pnl"].cumsum() + self.capital
 
-            # 计算高点和回撤
-            df["highlevel"] = df["balance"].cummax()
-            df["ddpercent"] = (df["balance"] - df["highlevel"]) / df["highlevel"] * 100
+        # Calculate daily returns
+        pre_balance = df["balance"].shift(1)
+        pre_balance.iloc[0] = self.capital
+        x = df["balance"] / pre_balance
+        x[x <= 0] = np.nan
+        df["return"] = np.log(x).fillna(0)
 
-            # 所有资金值必须为正
-            positive_balance = (df["balance"] > 0).all()
-            if not positive_balance:
-                self.output("回测中出现爆仓（资金小于等于0），无法计算策略统计指标")
+        # Calculate drawdown
+        df["highlevel"] = df["balance"].cummax()
+        df["ddpercent"] = (df["balance"] - df["highlevel"]) / df["highlevel"] * 100
 
-        # 计算统计值
-        if positive_balance:
-            stats.update({
-                "start_date": df.index[0],
-                "end_date": df.index[-1],
-                "total_days": len(df),
-                "profit_days": (df["net_pnl"] > 0).sum(),
-                "loss_days": (df["net_pnl"] < 0).sum(),
-                "end_balance": df["balance"].iloc[-1],
-                "max_ddpercent": df["ddpercent"].min(),
-                "total_net_pnl": df["net_pnl"].sum(),
-                "total_commission": df["commission"].sum(),
-                "total_turnover": df["turnover"].sum(),
-                "total_trade_count": df["trade_count"].sum(),
-            })
+        # Save dataframe for charting
+        self.daily_df = df
 
-            # 计算收益相关指标
-            stats["total_return"] = (stats["end_balance"] / self.capital - 1) * 100
-            stats["annual_return"] = stats["total_return"] / stats["total_days"] * self.annual_days
-            stats["return_std"] = df["return"].std() * 100
+        # Check for bankruptcy
+        if not (df["balance"] > 0).all():
+            self.output("Bankruptcy detected during backtest")
+            return stats
 
-            if stats["return_std"]:
-                stats["sharpe_ratio"] = (df["return"].mean() * 100) / stats["return_std"] * np.sqrt(self.annual_days)
+        # Calculate basic statistics
+        stats.update({
+            "start_date": df.index[0],
+            "end_date": df.index[-1],
+            "total_days": len(df),
+            "profit_days": (df["net_pnl"] > 0).sum(),
+            "loss_days": (df["net_pnl"] < 0).sum(),
+            "end_balance": df["balance"].iloc[-1],
+            "max_ddpercent": df["ddpercent"].min(),
+            "total_commission": df["commission"].sum(),
+            "total_turnover": df["turnover"].sum(),
+            "total_trade_count": df["trade_count"].sum(),
+        })
 
-            if stats["max_ddpercent"]:
-                stats["return_drawdown_ratio"] = -stats["total_return"] / stats["max_ddpercent"]
+        # Calculate return metrics
+        stats["total_return"] = (stats["end_balance"] / self.capital - 1) * 100
+        stats["annual_return"] = stats["total_return"] / stats["total_days"] * self.annual_days
 
-        # 输出结果
-        if output:
-            self.output("-" * 30)
-            self.output(f"首个交易日：\t{stats['start_date']}")
-            self.output(f"最后交易日：\t{stats['end_date']}")
-            self.output(f"总交易日：\t{stats['total_days']}")
-            self.output(f"盈利交易日：\t{stats['profit_days']}")
-            self.output(f"亏损交易日：\t{stats['loss_days']}")
-            self.output(f"起始资金：\t{self.capital:.2f}")
-            self.output(f"结束资金：\t{stats['end_balance']:.2f}")
-            self.output(f"总收益率：\t{stats['total_return']:.2f}%")
-            self.output(f"年化收益：\t{stats['annual_return']:.2f}%")
-            self.output(f"百分比最大回撤: {stats['max_ddpercent']:.2f}%")
-            self.output(f"总盈亏：\t{stats['total_net_pnl']:.2f}")
-            self.output(f"总手续费：\t{stats['total_commission']:.2f}")
-            self.output(f"总成交金额：\t{stats['total_turnover']:.2f}")
-            self.output(f"总成交笔数：\t{stats['total_trade_count']}")
-            self.output(f"收益标准差：\t{stats['return_std']:.2f}%")
-            self.output(f"Sharpe Ratio：\t{stats['sharpe_ratio']:.2f}")
-            self.output(f"收益回撤比：\t{stats['return_drawdown_ratio']:.2f}")
+        # Calculate risk-adjusted metrics
+        daily_returns = df["return"].values
+        if len(daily_returns) > 0 and np.std(daily_returns) > 0:
+            stats["sharpe_ratio"] = np.mean(daily_returns) / np.std(daily_returns) * np.sqrt(self.annual_days)
 
-        # 处理无限值
+        if stats["max_ddpercent"] < 0:
+            stats["return_drawdown_ratio"] = -stats["total_return"] / stats["max_ddpercent"]
+
+        # Clean up invalid values
         stats = {k: np.nan_to_num(v, nan=0.0, posinf=0.0, neginf=0.0) for k, v in stats.items()}
 
-        self.output("策略统计指标计算完成")
+        if output:
+            self.output(f"Trade day:\t{stats['start_date']} - {stats['end_date']}")
+            self.output(f"Profit days:\t{stats['profit_days']}")
+            self.output(f"Loss days:\t{stats['loss_days']}")
+            self.output(f"Initial capital:\t{self.capital:.2f}")
+            self.output(f"Final capital:\t{stats['end_balance']:.2f}")
+            self.output(f"Total return:\t{stats['total_return']:.2f}%")
+            self.output(f"Annual return:\t{stats['annual_return']:.2f}%")
+            self.output(f"Max drawdown:\t{stats['max_ddpercent']:.2f}%")
+            self.output(f"Total commission:\t{stats['total_commission']:.2f}")
+            self.output(f"Total turnover:\t{stats['total_turnover']:.2f}")
+            self.output(f"Total trades:\t{stats['total_trade_count']}")
+            self.output(f"Sharpe ratio:\t{stats['sharpe_ratio']:.2f}")
+            self.output(f"Return/Drawdown:\t{stats['return_drawdown_ratio']:.2f}")
         return stats
 
     def show_chart(self, df: DataFrame = None) -> None:
@@ -874,12 +864,6 @@ class BacktestingEngine:
         capital: int,
         setting: dict
     ) -> Tuple[DataFrame, dict]:
-        """
-        Run a single strategy backtest and return the results.
-
-        This is a high-level method that combines multiple steps into one
-        for easier usage.
-        """
         self.clear_data()
 
         if interval == Interval.TICK.value:
@@ -925,7 +909,6 @@ class DailyResult:
 
         self.turnover: float = 0
         self.commission: float = 0
-        self.slippage: float = 0
 
         self.trading_pnl: float = 0
         self.holding_pnl: float = 0
@@ -941,7 +924,6 @@ class DailyResult:
         start_pos: float,
         size: int,
         rate: float,
-        slippage: float = 0  # 保持兼容，但忽略此参数
     ) -> None:
         # 如果第一天没有提供pre_close，使用1避免除零错误
         if pre_close:
@@ -963,7 +945,6 @@ class DailyResult:
 
             turnover = trade.volume * size * trade.price
             self.trading_pnl += pos_change * (self.close_price - trade.price) * size
-            self.slippage = 0
 
             self.turnover += turnover
             self.commission += turnover * rate
