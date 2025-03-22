@@ -1,9 +1,3 @@
-"""
-改造成这样子：
-监控全部的标的，出现信号买入1%，可以继续加仓，最多到4%。
-可以一直选币，并给出
-但是这里仓位管理比较复杂，没有想好怎么做
-"""
 
 from init_env import *
 from datetime import datetime
@@ -195,7 +189,7 @@ def run_simple_backtest(std_period=20, mom_threshold=0.05, trailing_std_scale=4.
     # 5 运行策略
     engine.run_backtesting()
     
-    # 6 计算结果和统计指标
+    # 6 计算结果和统计指标 TODO：这里应该分出来写，不应该合并在backtest里面
     df = engine.calculate_result()
     stats = engine.calculate_statistics()
 
