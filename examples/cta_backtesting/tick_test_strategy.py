@@ -30,7 +30,6 @@ class TestStrategy(CtaTemplate):
             self.test_market_order,
             self.test_limit_order,
             self.test_cancel_all,
-            self.test_stop_order
         ]
         self.last_tick = None
 
@@ -96,11 +95,6 @@ class TestStrategy(CtaTemplate):
         """
         self.put_event()
 
-    def on_stop_order(self, stop_order: StopOrder):
-        """
-        Callback of stop order update.
-        """
-        self.put_event()
 
     def test_market_order(self):
         """"""
@@ -111,11 +105,6 @@ class TestStrategy(CtaTemplate):
         """"""
         self.buy(self.last_tick.limit_down, 1)
         self.write_log("执行限价单测试")
-
-    def test_stop_order(self):
-        """"""
-        self.buy(self.last_tick.ask_price_1, 1, True)
-        self.write_log("执行停止单测试")
 
     def test_cancel_all(self):
         """"""

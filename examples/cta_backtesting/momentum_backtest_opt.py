@@ -133,9 +133,6 @@ class StdMomentumStrategy(CtaTemplate):
         """成交回调"""
         self.write_log(f"成交: {trade.direction} {trade.offset} {trade.volume}@{trade.price}")
 
-    def on_stop_order(self, stop_order: StopOrder):
-        """停止单回调"""
-        pass
 
 def run_simple_backtest(std_period=20, mom_threshold=0.05, trailing_std_scale=4.0, show_chart=True):
     """

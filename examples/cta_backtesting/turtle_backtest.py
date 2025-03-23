@@ -157,11 +157,7 @@ class TurtleSignalStrategy(CtaTemplate):
         """
         pass
 
-    def on_stop_order(self, stop_order: StopOrder):
-        """
-        停止单回调函数
-        """
-        pass
+
 
     def send_buy_orders(self, price):
         """

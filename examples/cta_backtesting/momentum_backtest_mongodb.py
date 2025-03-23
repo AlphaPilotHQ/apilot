@@ -103,8 +103,7 @@ class StdMomentumStrategy(CtaTemplate):
     def on_trade(self, trade: TradeData):
         self.write_log(f"成交: {trade.direction} {trade.offset} {trade.volume}@{trade.price}")
 
-    def on_stop_order(self, stop_order: StopOrder):
-        pass
+
 
 
 def run_backtest_with_add_data():
