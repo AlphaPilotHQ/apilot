@@ -95,7 +95,6 @@ class BacktestingEngine:
         interval: Interval,
         start: datetime,
         rates: dict[str, float],
-        slippages: dict[str, float],
         sizes: dict[str, float],
         priceticks: dict[str, float],
         capital: int = 0,
@@ -259,7 +258,6 @@ class BacktestingEngine:
                 start_poses,
                 self.sizes,
                 self.rates,
-                self.slippages,
             )
 
             pre_closes = daily_result.close_prices
@@ -845,7 +843,6 @@ class PortfolioDailyResult:
         start_poses: dict[str, float],
         sizes: dict[str, float],
         rates: dict[str, float],
-        slippages: dict[str, float],
     ) -> None:
         """计算盈亏"""
         self.pre_closes = pre_closes
@@ -857,7 +854,6 @@ class PortfolioDailyResult:
                 start_poses.get(vt_symbol, 0),
                 sizes[vt_symbol],
                 rates[vt_symbol],
-                slippages[vt_symbol]
             )
 
             self.trade_count += contract_result.trade_count
@@ -907,7 +903,6 @@ def evaluate(
     interval: Interval,
     start: datetime,
     rates: dict[str, float],
-    slippages: dict[str, float],
     sizes: dict[str, float],
     priceticks: dict[str, float],
     capital: int,
@@ -922,7 +917,6 @@ def evaluate(
         interval=interval,
         start=start,
         rates=rates,
-        slippages=slippages,
         sizes=sizes,
         priceticks=priceticks,
         capital=capital,
@@ -949,7 +943,6 @@ def wrap_evaluate(engine: BacktestingEngine, target_name: str) -> callable:
         engine.interval,
         engine.start,
         engine.rates,
-        engine.slippages,
         engine.sizes,
         engine.priceticks,
         engine.capital,
