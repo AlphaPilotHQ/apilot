@@ -1,0 +1,95 @@
+# Python
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+__pycache__/
+*.eggs/
+
+# Virtual Environment
+.env
+.venv
+env/
+venv/
+ENV/
+.python-version
+
+# Jupyter
+.ipynb_checkpoints
+
+# IDE
+.vscode/
+.idea/
+*.wpr
+*.wpu
+.vs/
+x64/
+*.sublime-*
+
+# VeighNa specific
+.vntrader/
+
+# Log files
+*.log
+
+# Visual Studio intermediate files
+*.exp
+*.iobj
+*.ipdb
+*.pdb
+
+# Documents and generated docs
+_build/
+_static/
+_templates/
+docs/build/
+
+# Compiled files
+*.dll
+*.exe
+*.o
+*.so
+*.dylib
+
+# OS specific files
+.DS_Store
+.DS_Store?
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+*.swp
+*.swo
+*.mo
+
+# Large files
+*.zip
+*.tar.gz
+*.tar
+*.rar
+*.7z
+
+# Coverage reports
+.coverage
+htmlcov/
+.tox/
+
+# Distribution / packaging
+*.manifest
+*.spec
+wheels/
+
+# Pytest
+.pytest_cache/
+pytest-reports/
+.coverage.*
+
+# Data files
+/data/*.csv
+!/data/
+
+# CSV files - ignore all CSV files including those in csv_database
+*.csv
+csv_database/
