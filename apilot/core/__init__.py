@@ -1,31 +1,92 @@
 """
-核心模块定义
+核心模块
+
+包含量化交易平台的基础组件和数据结构。
+
+推荐导入:
+from apilot.core import BarData, OrderData  # 常规使用（推荐）
+import apilot.core as apcore  # 大量组件使用
 """
 
-# 导入CSV数据库模块
-from .csv_database import CsvDatabase
+# 定义公共API
+__all__ = [
+    # 常量定义
+    "Direction", "Offset", "Exchange", "Interval", "Status", "Product",
+    "OptionType", "OrderType",
 
-# 导入常量、事件和对象模块
+    # 事件相关组件
+    "Event", "EventEngine",
+    "EVENT_TICK", "EVENT_ORDER", "EVENT_TRADE", "EVENT_POSITION",
+    "EVENT_ACCOUNT", "EVENT_CONTRACT", "EVENT_LOG", "EVENT_TIMER",
+
+    # 核心数据对象
+    "OrderData", "TradeData", "AccountData", "PositionData",
+    "ContractData", "TickData", "BarData",
+    "OrderRequest", "CancelRequest", "SubscribeRequest",
+
+    # 引擎组件
+    "BaseEngine", "MainEngine",
+
+    # 网关接口
+    "BaseGateway",
+
+    # 应用基类
+    "BaseApp",
+
+    # 配置和工具函数
+    "SETTINGS", "get_settings", "load_json", "save_json",
+    "extract_vt_symbol", "BarGenerator", "ArrayManager"
+]
+
+# 导入常量定义
 from .constant import (
-    Direction, Offset, Exchange, 
-    Interval, Status, Product, 
-    OptionType, OrderType, TradeType
-)
-from .event import (
-    Event, EventEngine, 
-    EVENT_TICK, EVENT_ORDER, EVENT_TRADE, 
-    EVENT_POSITION, EVENT_ACCOUNT, EVENT_CONTRACT, 
-    EVENT_LOG, EVENT_TIMER
-)
-from .object import (
-    OrderData, TradeData, AccountData, 
-    PositionData, ContractData, TickData, 
-    OrderRequest, CancelRequest, SubscribeRequest
+    Direction,  # type: Enum
+    Offset,     # type: Enum
+    Exchange,   # type: Enum
+    Interval,   # type: Enum
+    Status,     # type: Enum
+    Product,    # type: Enum
+    OptionType, # type: Enum
+    OrderType   # type: Enum
 )
 
-# 导入引擎和工具模块
-from .engine import BaseEngine, MainEngine
-from .gateway import BaseGateway
-from .app import BaseApp
-from .setting import Setting
-from .utility import load_json, save_json
+# 导入事件相关组件
+from .event import (
+    Event,           # type: class
+    EventEngine,     # type: class
+    EVENT_TICK,      # type: str
+    EVENT_ORDER,     # type: str
+    EVENT_TRADE,     # type: str
+    EVENT_POSITION,  # type: str
+    EVENT_ACCOUNT,   # type: str
+    EVENT_CONTRACT,  # type: str
+    EVENT_LOG,       # type: str
+    EVENT_TIMER      # type: str
+)
+
+# 导入核心数据对象
+from .object import (
+    OrderData,        # type: class
+    TradeData,        # type: class
+    AccountData,      # type: class
+    PositionData,     # type: class
+    ContractData,     # type: class
+    TickData,         # type: class
+    BarData,          # type: class
+    OrderRequest,     # type: class
+    CancelRequest,    # type: class
+    SubscribeRequest  # type: class
+)
+
+# 导入引擎组件
+from .engine import BaseEngine, MainEngine  # type: class, class
+
+# 导入网关接口
+from .gateway import BaseGateway  # type: class
+
+# 导入应用基类
+from .app import BaseApp  # type: class
+
+# 导入配置和工具函数
+from .setting import SETTINGS, get_settings  # type: dict, function
+from .utility import load_json, save_json, extract_vt_symbol, BarGenerator, ArrayManager  # type: function, function, function, class, class

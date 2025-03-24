@@ -2,9 +2,9 @@ from datetime import datetime
 
 import numpy as np
 
-from apilot.trader.utility import BarGenerator
-from apilot.trader.object import TickData, BarData
-from apilot.trader.constant import Direction
+from apilot.core.utility import BarGenerator
+from apilot.core.object import TickData, BarData
+from apilot.core.constant import Direction
 
 from apilot_portfoliostrategy import StrategyTemplate, StrategyEngine
 

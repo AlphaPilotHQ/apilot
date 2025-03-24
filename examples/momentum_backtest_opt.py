@@ -1,16 +1,28 @@
-from init_env import *
-from datetime import datetime
-from typing import Dict, List, Tuple, Optional
-from apilot.core.constant import Direction, Interval
-from apilot.core.object import BarData, TickData, OrderData, TradeData
-from apilot.engine import CtaTemplate, BacktestingEngine
-from apilot.core.utility import BarGenerator, ArrayManager
-from apilot.core.optimize import OptimizationSetting, run_ga_optimization
-import numpy as np
-import pandas as pd
-import os
+"""
+动量策略回测与优化示例
 
-class StdMomentumStrategy(CtaTemplate):
+此模块实现了一个基于动量指标的趋势跟踪策略，结合标准差动态止损。
+包含单次回测和参数优化功能，支持使用遗传算法寻找最优参数组合。
+"""
+
+import os
+import sys
+
+# 导入路径设置模块
+import setup_path
+
+# 标准库导入
+from datetime import datetime
+from typing import Dict, Tuple
+
+# 第三方库导入
+import pandas as pd
+
+# 导入apilot包
+import apilot as ap
+
+
+class StdMomentumStrategy(ap.CtaTemplate):
     """
     策略逻辑：
 
@@ -26,7 +38,6 @@ class StdMomentumStrategy(CtaTemplate):
        - 使用基于标准差的动态追踪止损
        - 多头持仓：止损设置在最高价-4倍标准差
        - 空头持仓：止损设置在最低价+4倍标准差
-       - 市场波动大时止损距离更远，波动小时止损更紧
     """
 
     # 策略参数
@@ -38,19 +49,25 @@ class StdMomentumStrategy(CtaTemplate):
     variables = ["momentum", "intra_trade_high", "intra_trade_low"]
 
     def __init__(self, cta_engine, strategy_name, vt_symbol, setting):
+        """
+        初始化策略
+        """
         super().__init__(cta_engine, strategy_name, vt_symbol, setting)
-        self.bg = BarGenerator(self.on_bar, 5, self.on_5min_bar)
-        self.am = ArrayManager(size=200)  # 增加大小以支持长周期计算
+        self.bg = ap.BarGenerator(self.on_bar, 5, self.on_5min_bar)
+        self.am = ap.ArrayManager(size=200)  # 增加大小以支持长周期计算
 
         # 初始化指标
-        self.momentum = 0.0        # 动量
-        self.std_value = 0.0       # 标准差
+        self.momentum = 0.0  # 动量
+        self.std_value = 0.0  # 标准差
 
         # 追踪最高/最低价
         self.intra_trade_high = 0
         self.intra_trade_low = 0
 
     def on_init(self):
+        """
+        策略初始化
+        """
         self.write_log("策略初始化")
         self.write_log(f"加载历史数据: {self.std_period * 2}根K线")
         self.load_bar(self.std_period * 2)  # 加载足够的历史数据确保指标计算准确
@@ -63,18 +80,24 @@ class StdMomentumStrategy(CtaTemplate):
         """策略停止"""
         self.write_log("策略停止")
 
-    def on_tick(self, tick: TickData):
+    def on_tick(self, tick: ap.TickData):
         """Tick数据更新"""
         self.bg.update_tick(tick)
 
-    def on_bar(self, bar: BarData):
+    def on_bar(self, bar: ap.BarData):
         """1分钟K线数据更新"""
-        self.write_log(f"收到1分钟K线: {bar.datetime} O:{bar.open_price} H:{bar.high_price} L:{bar.low_price} C:{bar.close_price} V:{bar.volume}")
+        self.write_log(
+            f"收到1分钟K线: {bar.datetime} O:{bar.open_price} "
+            f"H:{bar.high_price} L:{bar.low_price} C:{bar.close_price} V:{bar.volume}"
+        )
         self.bg.update_bar(bar)
 
-    def on_5min_bar(self, bar: BarData):
+    def on_5min_bar(self, bar: ap.BarData):
         """5分钟K线数据更新，包含交易逻辑"""
-        self.write_log(f"生成5分钟K线: {bar.datetime} O:{bar.open_price} H:{bar.high_price} L:{bar.low_price} C:{bar.close_price} V:{bar.volume}")
+        self.write_log(
+            f"生成5分钟K线: {bar.datetime} O:{bar.open_price} "
+            f"H:{bar.high_price} L:{bar.low_price} C:{bar.close_price} V:{bar.volume}"
+        )
         self.cancel_all()  # 取消之前的所有订单
 
         am = self.am
@@ -95,7 +118,10 @@ class StdMomentumStrategy(CtaTemplate):
         else:
             self.momentum = 0.0
 
-        self.write_log(f"指标计算: std={self.std_value:.6f}, momentum={self.momentum:.6f}, threshold={self.mom_threshold}")
+        self.write_log(
+            f"指标计算: std={self.std_value:.6f}, momentum={self.momentum:.6f}, "
+            f"threshold={self.mom_threshold}"
+        )
 
         # 持仓状态下更新跟踪止损价格
         if self.pos > 0:
@@ -113,21 +139,29 @@ class StdMomentumStrategy(CtaTemplate):
             size = max(1, int(self.cta_engine.capital / bar.close_price))
 
             if self.momentum > self.mom_threshold:
-                self.write_log(f"多头开仓信号: momentum={self.momentum:.6f} > threshold={self.mom_threshold}")
+                self.write_log(
+                    f"多头开仓信号: momentum={self.momentum:.6f} > "
+                    f"threshold={self.mom_threshold}"
+                )
                 self.buy(bar.close_price, size)
             elif self.momentum < -self.mom_threshold:
-                self.write_log(f"空头开仓信号: momentum={self.momentum:.6f} < -threshold={-self.mom_threshold}")
+                self.write_log(
+                    f"空头开仓信号: momentum={self.momentum:.6f} < "
+                    f"-threshold={-self.mom_threshold}"
+                )
                 self.short(bar.close_price, size)
 
-        elif self.pos > 0:  # 多头持仓 → 标准差追踪止损 TODO：这里stop=Ture删了，止损没用了
+        elif self.pos > 0:  # 多头持仓 → 标准差追踪止损
             # 计算移动止损价格
             long_stop = self.intra_trade_high - self.trailing_std_scale * self.std_value
 
             # 当价格跌破止损线时平仓
             if bar.close_price < long_stop:
-                self.write_log(f"触发多头止损: 当前价={bar.close_price:.4f}, 止损线={long_stop:.4f}")
+                self.write_log(
+                    f"触发多头止损: 当前价={bar.close_price:.4f}, "
+                    f"止损线={long_stop:.4f}"
+                )
                 self.sell(bar.close_price, abs(self.pos))
-                # self.write_log(f"触发多头止损: 当前价={bar.close_price:.4f}, 止损线={long_stop:.4f}")
 
         elif self.pos < 0:  # 空头持仓 → 标准差追踪止损
             # 计算移动止损价格
@@ -135,17 +169,21 @@ class StdMomentumStrategy(CtaTemplate):
 
             # 当价格突破止损线时平仓
             if bar.close_price > short_stop:
-                self.write_log(f"触发空头止损: 当前价={bar.close_price:.4f}, 止损线={short_stop:.4f}")
+                self.write_log(
+                    f"触发空头止损: 当前价={bar.close_price:.4f}, "
+                    f"止损线={short_stop:.4f}"
+                )
                 self.cover(bar.close_price, abs(self.pos))
-                # self.write_log(f"触发空头止损: 当前价={bar.close_price:.4f}, 止损线={short_stop:.4f}")
 
-    def on_order(self, order: OrderData):
+    def on_order(self, order: ap.OrderData):
         """委托回调"""
-        pass
+        return
 
-    def on_trade(self, trade: TradeData):
+    def on_trade(self, trade: ap.TradeData):
         """成交回调"""
-        self.write_log(f"成交: {trade.direction} {trade.offset} {trade.volume}@{trade.price}")
+        self.write_log(
+            f"成交: {trade.direction} {trade.offset} {trade.volume}@{trade.price}"
+        )
 
 
 def run_backtesting(
@@ -155,7 +193,7 @@ def run_backtesting(
     end=datetime(2023, 6, 30),
     std_period=20,
     mom_threshold=0.05,
-    trailing_std_scale=4.0
+    trailing_std_scale=4.0,
 ):
     print("运行回测 - 参数:", std_period, mom_threshold, trailing_std_scale)
 
@@ -165,7 +203,7 @@ def run_backtesting(
         print(f"错误: CSV文件不存在: {csv_path}")
         return None, None
 
-    # 查看CSV文件内容
+    # 检查CSV文件内容
     print(f"读取CSV文件: {csv_path}")
     try:
         df = pd.read_csv(csv_path)
@@ -175,13 +213,14 @@ def run_backtesting(
     except Exception as e:
         print(f"读取CSV文件失败: {e}")
         import traceback
+
         traceback.print_exc()
         return None, None
 
-    # 1 创建回测引擎
-    engine = BacktestingEngine()
+    # 创建回测引擎
+    engine = ap.BacktestingEngine()
 
-    # 2 设置引擎参数
+    # 设置引擎参数
     engine.set_parameters(
         vt_symbols=["SOL-USDT.LOCAL"],
         interval="1m",
@@ -190,7 +229,7 @@ def run_backtesting(
         rates={"SOL-USDT.LOCAL": 0.00075},  # 万7.5手续费
         sizes={"SOL-USDT.LOCAL": 1},
         priceticks={"SOL-USDT.LOCAL": 0.001},
-        capital=init_cash
+        capital=init_cash,
     )
 
     # 3 添加策略
@@ -199,8 +238,8 @@ def run_backtesting(
         {
             "std_period": std_period,
             "mom_threshold": mom_threshold,
-            "trailing_std_scale": trailing_std_scale
-        }
+            "trailing_std_scale": trailing_std_scale,
+        },
     )
 
     # 3 添加CSV数据
@@ -212,7 +251,7 @@ def run_backtesting(
         high="high",
         low="low",
         close="close",
-        volume="volume"
+        volume="volume",
     )
 
     # 4 运行回测
@@ -242,7 +281,7 @@ def evaluate_with_parameters(params: Dict) -> Tuple[Dict, Dict]:
         end=datetime(2023, 6, 30),
         std_period=std_period,
         mom_threshold=mom_threshold,
-        trailing_std_scale=trailing_std_scale
+        trailing_std_scale=trailing_std_scale,
     )
 
     # 处理空结果
@@ -279,19 +318,19 @@ def get_sharpe_ratio(result):
 def run_optimization_ga():
     """使用遗传算法优化策略参数"""
     # 设置优化参数范围
-    setting = OptimizationSetting()
+    setting = ap.OptimizationSetting()
     setting.add_parameter("std_period", 10, 100, 5)
     setting.add_parameter("mom_threshold", 0.01, 0.15, 0.01)
     setting.add_parameter("trailing_std_scale", 1, 10, 1)
 
     # 运行遗传算法优化
-    results = run_ga_optimization(
+    results = ap.run_ga_optimization(
         evaluate_func=evaluate_with_parameters,
         optimization_setting=setting,
         key_func=get_sharpe_ratio,
         max_workers=8,
         population_size=16,
-        ngen_size=5
+        ngen_size=5,
     )
 
     # 获取并打印最佳结果
@@ -310,7 +349,11 @@ def run_optimization_ga():
             print(f"{name}: {float(value):.4f}")
 
     print("\n关键性能指标:")
-    metrics_names = {"sharpe_ratio": "夏普比率", "total_return": "总收益率", "max_drawdown": "最大回撤"}
+    metrics_names = {
+        "sharpe_ratio": "夏普比率",
+        "total_return": "总收益率",
+        "max_drawdown": "最大回撤",
+    }
     for key, label in metrics_names.items():
         if key in best_metrics:
             print(f"{label}: {best_metrics[key]:.4f}")
@@ -327,7 +370,7 @@ if __name__ == "__main__":
         end=datetime(2023, 6, 30),
         std_period=35,
         mom_threshold=0.01,
-        trailing_std_scale=10
+        trailing_std_scale=10,
     )
 
     # 输出结果

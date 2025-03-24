@@ -1,12 +1,12 @@
 from copy import copy
-from typing import Dict, List, Set, TYPE_CHECKING
+from typing import Dict, List, TYPE_CHECKING
 
 from .object import (
     ContractData,
     OrderData,
     TradeData,
     PositionData,
-    OrderRequest
+    OrderRequest,
 )
 from .constant import Direction, Offset, Exchange
 
@@ -65,9 +65,7 @@ class OffsetConverter:
         return holding
 
     def convert_order_request(
-        self,
-        req: OrderRequest,
-        net: bool = False
+        self, req: OrderRequest, net: bool = False
     ) -> List[OrderRequest]:
         """"""
         if not self.is_convert_required(req.vt_symbol):
@@ -218,8 +216,7 @@ class PositionHolding:
                     self.short_td_frozen += frozen
 
                     if self.short_td_frozen > self.short_td:
-                        self.short_yd_frozen += (self.short_td_frozen
-                                                 - self.short_td)
+                        self.short_yd_frozen += self.short_td_frozen - self.short_td
                         self.short_td_frozen = self.short_td
             elif order.direction == Direction.SHORT:
                 if order.offset == Offset.CLOSETODAY:
@@ -230,8 +227,7 @@ class PositionHolding:
                     self.long_td_frozen += frozen
 
                     if self.long_td_frozen > self.long_td:
-                        self.long_yd_frozen += (self.long_td_frozen
-                                                - self.long_td)
+                        self.long_yd_frozen += self.long_td_frozen - self.long_td
                         self.long_td_frozen = self.long_td
 
         self.sum_pos_frozen()

@@ -19,10 +19,10 @@ from apilot.core.constant import (
     EngineType,
     INTERVAL_DELTA_MAP,
 )
-from apilot.core.database import get_database
+from apilot.datafeed import get_database
 from apilot.core.object import OrderData, TradeData, BarData, TickData
 from apilot.core.utility import round_to, extract_vt_symbol
-from apilot.core.optimize import (
+from apilot.optimizer import (
     OptimizationSetting,
     run_optimization,
     run_ga_optimization

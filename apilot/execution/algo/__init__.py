@@ -1,31 +1,16 @@
-from pathlib import Path
+"""
+算法交易模块
 
-# 使用 Python 3.8+ 标准库
-from importlib.metadata import version, PackageNotFoundError
+包含各种执行算法的实现，用于优化交易执行。
+"""
 
-from apilot.trader.app import BaseApp
-
-from .engine import AlgoEngine, APP_NAME
-
-
-try:
-    __version__ = version("apilot_algotrading")
-except PackageNotFoundError:
-    __version__ = "dev"
-
-
-class AlgoTradingApp(BaseApp):
-    """"""
-
-    app_name: str = APP_NAME
-    app_module: str = __module__
-    app_path: Path = Path(__file__).parent
-    display_name: str = "算法交易"
-    engine_class: AlgoEngine = AlgoEngine
-    widget_name: str = "AlgoManager"
-    icon_name: str = str(app_path.joinpath("ui", "algo.ico"))
-
-
+from .algo_engine import AlgoEngine
+from .algo_template import AlgoTemplate
+from .best_limit_algo import BestLimitAlgo
+from .iceberg_algo import IcebergAlgo
+from .sniper_algo import SniperAlgo
+from .stop_algo import StopAlgo
+from .twap_algo import TwapAlgo
 
 # TODO: /Users/bobbyding/Documents/GitHub/apilot/apilot/algotrading/algo_base.py
 # 可以挪到core里面去

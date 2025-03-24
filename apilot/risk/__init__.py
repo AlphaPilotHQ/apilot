@@ -1,17 +1,7 @@
-from pathlib import Path
-from typing import Type
+"""
+风控模块
 
-from apilot.core.app import BaseApp
+提供风险控制功能，包括交易限制和风控规则。
+"""
 
 from .engine import RiskEngine, APP_NAME
-
-
-class RiskManagerApp(BaseApp):
-    """"""
-    app_name: str = APP_NAME
-    app_module: str = __module__
-    app_path: Path = Path(__file__).parent
-    display_name: str = "交易风控"
-    engine_class: Type[RiskEngine] = RiskEngine
-    widget_name: str = "RiskManager"
-    icon_name: str = str(app_path.joinpath("ui", "rm.ico"))
