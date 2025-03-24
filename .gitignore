@@ -1,94 +1,111 @@
-# Python
+### Python ###
+__pycache__/
 *.py[cod]
 *$py.class
 *.so
-*.egg
-*.egg-info/
-dist/
+.Python
 build/
-__pycache__/
-*.eggs/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
 
-# Virtual Environment
+### Virtual Environment ###
 .env
 .venv
 env/
 venv/
 ENV/
+env.bak/
+venv.bak/
 .python-version
 
-# Jupyter
-.ipynb_checkpoints
-
-# IDE
+### IDE and Editors ###
+# VSCode
 .vscode/
+# PyCharm
 .idea/
-*.wpr
-*.wpu
+*.iml
+# Visual Studio
 .vs/
 x64/
-*.sublime-*
-
-# VeighNa specific
-.vntrader/
-
-# Log files
-*.log
-
-# Visual Studio intermediate files
 *.exp
 *.iobj
 *.ipdb
 *.pdb
+# Sublime Text
+*.sublime-*
+# vim
+*.swp
+*.swo
 
-# Documents and generated docs
+### Jupyter ###
+.ipynb_checkpoints
+
+### Linting and Testing ###
+.flake8
+.pylintrc
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.pytest_cache/
+pytest-reports/
+nosetests.xml
+coverage.xml
+
+### Documentation ###
 _build/
 _static/
 _templates/
 docs/build/
+docs/_build/
 
-# Compiled files
+### Logs ###
+*.log
+logs/
+
+### Compiled files ###
 *.dll
 *.exe
 *.o
 *.so
 *.dylib
+*.manifest
+*.spec
 
-# OS specific files
+### OS specific files ###
 .DS_Store
 .DS_Store?
-Thumbs.db
+._*
+.Spotlight-V100
+.Trashes
 ehthumbs.db
+Thumbs.db
 Desktop.ini
-*.swp
-*.swo
 *.mo
 
-# Large files
+### Archives ###
 *.zip
 *.tar.gz
+*.tgz
 *.tar
 *.rar
 *.7z
 
-# Coverage reports
-.coverage
-htmlcov/
-.tox/
-
-# Distribution / packaging
-*.manifest
-*.spec
-wheels/
-
-# Pytest
-.pytest_cache/
-pytest-reports/
-.coverage.*
-
-# Data files
-/data/*.csv
-!/data/
-
-# CSV files - ignore all CSV files including those in csv_database
+### Data files ###
+# Ignore all CSV files
 *.csv
+# Ignore data directory contents but keep the directory
+/data/*
+!/data/.gitkeep

@@ -2,8 +2,5 @@
 2. Users import with 'import apilot as ap'.
 3. Support backtest and live trading.
 4. Use Backtrader style for user strategies.
-5. Use VN.py event-driven design inside.
-6. Use CSV data with many cryptos and strategies.
-7. Store logs in 'logs/' folder.
-8. Mark code from VN.py or Backtrader clearly.
-9. No GUI, only script or command line.
+5. Use CSV data with many cryptos and strategies.
+6. Mark code from VN.py or Backtrader clearly.
