@@ -9,13 +9,13 @@ import shutil
 import pandas as pd
 
 # 导入所需模块和图形库
-from apilot.trader.constant import Interval, Exchange
+from apilot.core.constant import Interval, Exchange
 
 from apilot.portfolio_strategy.backtesting import BacktestingEngine
 
 # 导入CTA模板类
-from apilot.trader.object import TickData, BarData, TradeData, OrderData
-from apilot.trader.utility import BarGenerator, ArrayManager
+from apilot.core.object import TickData, BarData, TradeData, OrderData
+from apilot.core.utility import BarGenerator, ArrayManager
 from apilot.portfolio_strategy.template import StrategyTemplate
 
 class StdMomentumStrategy(StrategyTemplate):

@@ -14,6 +14,6 @@ if ROOT_DIR not in sys.path:
 
 # 常用导入预加载 
 from datetime import datetime
-from apilot.trader.optimize import OptimizationSetting
-from apilot.cta_strategy import BacktestingEngine
-# from apilot.cta_strategy.strategies.atr_rsi_strategy import AtrRsiStrategy
+from apilot.core.optimize import OptimizationSetting
+from apilot.engine import BacktestingEngine
+# from apilot.engine.strategies.atr_rsi_strategy import AtrRsiStrategy
