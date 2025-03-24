@@ -7,9 +7,9 @@ from importlib import import_module
 import sys
 import os
 
-from .constant import Exchange, Interval
-from .object import BarData, TickData
-from .setting import SETTINGS
+from apilot.core.constant import Exchange, Interval
+from apilot.core.object import BarData, TickData
+from apilot.core.setting import SETTINGS
 
 @dataclass
 class BarOverview:
