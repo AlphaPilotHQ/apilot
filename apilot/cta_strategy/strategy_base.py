@@ -14,7 +14,7 @@ from apilot.trader.object import (
 from apilot.trader.constant import Direction, Offset, Status, OrderType, Interval
 from apilot.trader.utility import BarGenerator, ArrayManager, virtual
 
-from .constants import StopOrder, EngineType
+from .constants import EngineType
 
 
 class CtaTemplate(ABC):
@@ -149,52 +149,48 @@ class CtaTemplate(ABC):
         vt_symbol: str,
         price: float,
         volume: float,
-        stop: bool = False,
         net: bool = False
     ) -> List[str]:
         """
         买入开仓
         """
-        return self.send_order(vt_symbol, Direction.LONG, Offset.OPEN, price, volume, stop, net)
+        return self.send_order(vt_symbol, Direction.LONG, Offset.OPEN, price, volume, net)
 
     def sell(
         self,
         vt_symbol: str,
         price: float,
         volume: float,
-        stop: bool = False,
         net: bool = False
     ) -> List[str]:
         """
         卖出平仓
         """
-        return self.send_order(vt_symbol, Direction.SHORT, Offset.CLOSE, price, volume, stop, net)
+        return self.send_order(vt_symbol, Direction.SHORT, Offset.CLOSE, price, volume, net)
 
     def short(
         self,
         vt_symbol: str,
         price: float,
         volume: float,
-        stop: bool = False,
         net: bool = False
     ) -> List[str]:
         """
         卖出开仓
         """
-        return self.send_order(vt_symbol, Direction.SHORT, Offset.OPEN, price, volume, stop, net)
+        return self.send_order(vt_symbol, Direction.SHORT, Offset.OPEN, price, volume, net)
 
     def cover(
         self,
         vt_symbol: str,
         price: float,
         volume: float,
-        stop: bool = False,
         net: bool = False
     ) -> List[str]:
         """
         买入平仓
         """
-        return self.send_order(vt_symbol, Direction.LONG, Offset.CLOSE, price, volume, stop, net)
+        return self.send_order(vt_symbol, Direction.LONG, Offset.CLOSE, price, volume, net)
 
     def send_order(
         self,
@@ -203,7 +199,6 @@ class CtaTemplate(ABC):
         offset: Offset,
         price: float,
         volume: float,
-        stop: bool = False,
         net: bool = False
     ) -> List[str]:
         """发送委托"""
@@ -211,7 +206,7 @@ class CtaTemplate(ABC):
             if self.trading:
                 # 根据是否为多币种模式调用不同的发单接口
                 vt_orderids: List[str] = self.cta_engine.send_order(
-                    self, vt_symbol, direction, offset, price, volume, stop, net
+                    self, vt_symbol, direction, offset, price, volume, net
                 )
 
                 # 添加到活跃委托集合
