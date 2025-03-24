@@ -17,7 +17,7 @@ from typing import Any, Dict, List, Set, Optional, Callable
 import ccxt
 from ccxt.base.errors import NetworkError, ExchangeError, OrderNotFound, InsufficientFunds
 
-from apilot.event import Event, EventEngine
+from apilot.core.event import Event, EventEngine
 from apilot.core.constant import (
     Direction,
     Exchange,

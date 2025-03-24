@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Callable
 from copy import copy
 
-from apilot.event import Event, EventEngine
+from .event import Event, EventEngine
 from .event import (
     EVENT_TICK,
     EVENT_ORDER,

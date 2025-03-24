@@ -1,7 +1,7 @@
 from collections import defaultdict
 from typing import Optional, Type
 
-from apilot.event import EventEngine, Event
+from apilot.core.event import EventEngine, Event
 from apilot.core.engine import BaseEngine, MainEngine
 from apilot.core.constant import (
     Direction, 

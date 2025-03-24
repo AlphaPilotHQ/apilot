@@ -23,8 +23,11 @@ class TestImports(unittest.TestCase):
     
     def test_event_import(self):
         """测试事件系统的导入"""
-        from apilot.event import EventEngine
-        self.assertTrue(EventEngine)
+        try:
+            from apilot.core.event import EventEngine
+            self.assertTrue(True)
+        except ImportError:
+            self.fail("无法导入EventEngine")
     
     def test_trader_imports(self):
         """测试交易相关模块的导入"""

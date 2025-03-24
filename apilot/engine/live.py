@@ -15,7 +15,7 @@ from typing import Any, Type, Dict, List, Set, Tuple, Optional, Callable
 
 import numpy as np
 import apilot
-from apilot.event import EventEngine, Event
+from apilot.core.event import EventEngine, Event
 from apilot.core.engine import MainEngine, BaseEngine
 from apilot.core.object import (
     OrderRequest,
