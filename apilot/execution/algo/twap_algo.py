@@ -1,9 +1,10 @@
-from apilot.trader.utility import round_to
-from apilot.trader.constant import Direction
-from apilot.trader.object import TradeData, TickData, ContractData
-from apilot.trader.engine import BaseEngine
+from apilot.core import (
+    Direction, TradeData, TickData,
+    ContractData, BaseEngine
+)
+from apilot.core.utility import round_to
 
-from ..template import AlgoTemplate
+from .algo_template import AlgoTemplate
 
 
 class TwapAlgo(AlgoTemplate):

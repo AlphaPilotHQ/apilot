@@ -1,10 +1,8 @@
 from random import uniform
 
-from apilot.trader.constant import Direction
-from apilot.trader.object import TradeData, OrderData, TickData
-from apilot.trader.engine import BaseEngine
+from apilot.core import Direction, TradeData, OrderData, TickData, BaseEngine
 
-from ..template import AlgoTemplate
+from .algo_template import AlgoTemplate
 
 
 class BestLimitAlgo(AlgoTemplate):

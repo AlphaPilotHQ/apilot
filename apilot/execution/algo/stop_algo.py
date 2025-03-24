@@ -1,8 +1,6 @@
-from apilot.trader.constant import Direction
-from apilot.trader.object import OrderData, TickData, TradeData
-from apilot.trader.engine import BaseEngine
+from apilot.core import Direction, OrderData, TickData, TradeData, BaseEngine
 
-from ..template import AlgoTemplate
+from .algo_template import AlgoTemplate
 
 
 class StopAlgo(AlgoTemplate):
