@@ -8,17 +8,13 @@
 import os
 import sys
 
-# 导入路径设置模块
 import setup_path
 
-# 标准库导入
 from datetime import datetime
 from typing import Dict, Tuple
 
-# 第三方库导入
 import pandas as pd
 
-# 导入apilot包
 import apilot as ap
 
 
