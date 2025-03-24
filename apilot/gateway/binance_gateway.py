@@ -18,7 +18,7 @@ import ccxt
 from ccxt.base.errors import NetworkError, ExchangeError, OrderNotFound, InsufficientFunds
 
 from apilot.event import Event, EventEngine
-from apilot.trader.constant import (
+from apilot.core.constant import (
     Direction,
     Exchange,
     OrderType,
@@ -26,8 +26,8 @@ from apilot.trader.constant import (
     Status,
     Interval
 )
-from apilot.trader.gateway import BaseGateway
-from apilot.trader.object import (
+from apilot.core.gateway import BaseGateway
+from apilot.core.object import (
     TickData,
     OrderData,
     TradeData,
@@ -40,7 +40,7 @@ from apilot.trader.object import (
     SubscribeRequest,
     HistoryRequest
 )
-from apilot.trader.utility import round_to
+from apilot.core.utility import round_to
 
 # Binance exchange symbols for VeighNa
 EXCHANGE_BINANCE = Exchange.BINANCE
