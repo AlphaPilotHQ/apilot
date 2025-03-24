@@ -120,11 +120,30 @@ class MainEngine:
         self.add_engine(OmsEngine)
         self.add_engine(EmailEngine)
 
-    def _write_log(self, msg: str, source: str = "", gateway_name: str = "", level: int = logging.INFO) -> None:
+    def _write_log(self, msg: str, source: str = "", gateway_name: str = "", level: int = logging.INFO, **kwargs) -> None:
         """
         内部方法：创建并发送日志事件
+        
+        参数:
+            msg: 日志消息
+            source: 日志来源
+            gateway_name: 网关名称
+            level: 日志级别
+            **kwargs: 额外参数
         """
-        log = LogData(gateway_name=gateway_name, msg=msg, source=source, level=level)
+        extra = kwargs.pop("extra", {})
+        extra.update(kwargs)  # 添加所有额外的关键字参数到extra字典
+        
+        # 创建LogData对象并确保所有必要字段都有值
+        log = LogData(
+            msg=msg, 
+            level=level, 
+            source=source, 
+            gateway_name=gateway_name,
+            extra=extra
+        )
+        
+        # 创建并发送事件
         event = Event(EVENT_LOG, log)
         self.event_engine.put(event)
 

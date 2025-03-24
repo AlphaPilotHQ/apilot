@@ -244,25 +244,6 @@ class CtaTemplate(ABC):
         """设置目标仓位"""
         self.target_dict[vt_symbol] = target
 
-    def write_log(self, msg: str) -> None:
-        """
-        记录日志消息（已弃用，请使用主引擎的日志方法）
-        """
-        import warnings
-        warnings.warn(
-            "策略的write_log方法已弃用，请使用cta_engine.main_engine.log_xxx方法代替",
-            DeprecationWarning,
-            stacklevel=2
-        )
-
-        # 检查引擎类型，区分实盘和回测环境
-        if hasattr(self.cta_engine, "main_engine"):
-            # 实盘环境
-            self.cta_engine.main_engine.log_info(msg, source="CTA_STRATEGY")
-        else:
-            # 回测环境
-            self.cta_engine.write_log(msg, self)
-
     def get_engine_type(self) -> EngineType:
         """查询引擎类型"""
         return self.cta_engine.get_engine_type()

@@ -90,6 +90,7 @@ class TickData(BaseData):
             symbol=data["symbol"],
             exchange=data["exchange"],
             datetime=data["datetime"],
+            gateway_name=data.get("gateway_name", ""),
             name=data.get("name", ""),
             volume=data.get("volume", 0),
             turnover=data.get("turnover", 0),
@@ -122,7 +123,6 @@ class TickData(BaseData):
             ask_volume_3=data.get("ask_volume_3", 0),
             ask_volume_4=data.get("ask_volume_4", 0),
             ask_volume_5=data.get("ask_volume_5", 0),
-            gateway_name=data.get("gateway_name", "")
         )
         return tick
 
@@ -159,6 +159,7 @@ class BarData(BaseData):
             symbol=data["symbol"],
             exchange=data["exchange"],
             datetime=data["datetime"],
+            gateway_name=data.get("gateway_name", ""),
             interval=data.get("interval", None),
             volume=data.get("volume", 0),
             turnover=data.get("turnover", 0),
@@ -167,7 +168,6 @@ class BarData(BaseData):
             high_price=data.get("high_price", 0),
             low_price=data.get("low_price", 0),
             close_price=data.get("close_price", 0),
-            gateway_name=data.get("gateway_name", "")
         )
         return bar
 
@@ -182,6 +182,7 @@ class OrderData(BaseData):
     symbol: str
     exchange: Exchange
     orderid: str
+    gateway_name: str = ""
 
     type: OrderType = OrderType.LIMIT
     direction: Direction = None
@@ -281,13 +282,21 @@ class AccountData(BaseData):
 
 @dataclass
 class LogData(BaseData):
-    """日志数据结构"""
-    msg: str
-    level: int = INFO
-    source: str = ""  # 添加来源字段，便于追踪
-    
-    def __post_init__(self) -> None:
-        self.time = datetime.now()
+    """日志数据结构
+
+    包含日志消息、级别、来源和时间戳等信息，用于事件驱动的日志系统
+    """
+    msg: str  # 日志消息
+    level: int = INFO  # 日志级别
+    source: str = ""  # 日志来源
+    timestamp: datetime = field(default_factory=datetime.now)  # 日志记录时间
+    extra: dict = field(default_factory=dict)  # 额外信息字典，可用于扩展
+
+    @property
+    def level_name(self) -> str:
+        """获取日志级别名称"""
+        import logging
+        return logging.getLevelName(self.level)
 
 
 @dataclass
@@ -411,7 +420,6 @@ class OrderRequest:
             price=self.price,
             volume=self.volume,
             reference=self.reference,
-            gateway_name=gateway_name,
         )
         return order
 
@@ -483,6 +491,5 @@ class QuoteRequest:
             bid_offset=self.bid_offset,
             ask_offset=self.ask_offset,
             reference=self.reference,
-            gateway_name=gateway_name,
         )
         return quote

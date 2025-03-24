@@ -144,7 +144,6 @@ Core 目录 - 包含系统的所有抽象接口和核心数据结构
 - [ ] 完全移除CTA引擎中已弃用的write_log方法
 - [ ] 更新所有策略代码，使用主引擎的log_xxx方法替代write_log
 - [ ] 为回测引擎添加与主引擎一致的log_debug/log_info等方法，统一API
-- put event涉及到GUI部分删除
 - tzlocal库的删除
 - OffsetConverter类删除
 

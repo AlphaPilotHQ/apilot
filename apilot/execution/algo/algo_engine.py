@@ -54,7 +54,7 @@ class AlgoEngine(BaseEngine):
 
     def init_engine(self) -> None:
         """初始化引擎"""
-        self.write_log("算法交易引擎启动")
+        self.main_engine.log_info("算法交易引擎启动", source=APP_NAME)
 
     def close(self) -> None:
         """关闭引擎"""
@@ -136,7 +136,7 @@ class AlgoEngine(BaseEngine):
         """启动算法"""
         contract: Optional[ContractData] = self.main_engine.get_contract(vt_symbol)
         if not contract:
-            self.write_log(f'算法启动失败，找不到合约：{vt_symbol}')
+            self.main_engine.log_warning(f'算法启动失败，找不到合约：{vt_symbol}', source=APP_NAME)
             return ""
 
         algo_template: AlgoTemplate = self.algo_templates[template_name]
@@ -233,7 +233,7 @@ class AlgoEngine(BaseEngine):
         order: Optional[OrderData] = self.main_engine.get_order(vt_orderid)
 
         if not order:
-            self.write_log(f"委托撤单失败，找不到委托：{vt_orderid}", algo)
+            self.main_engine.log_warning(f"委托撤单失败，找不到委托：{vt_orderid}", source=f"{APP_NAME}:{algo.algo_name}")
             return
 
         req: CancelRequest = order.create_cancel_request()
@@ -244,7 +244,7 @@ class AlgoEngine(BaseEngine):
         tick: Optional[TickData] = self.main_engine.get_tick(algo.vt_symbol)
 
         if not tick:
-            self.write_log(f"查询行情失败，找不到行情：{algo.vt_symbol}", algo)
+            self.main_engine.log_warning(f"查询行情失败，找不到行情：{algo.vt_symbol}", source=f"{APP_NAME}:{algo.algo_name}")
 
         return tick
 
@@ -253,18 +253,10 @@ class AlgoEngine(BaseEngine):
         contract: Optional[ContractData] = self.main_engine.get_contract(algo.vt_symbol)
 
         if not contract:
-            self.write_log(f"查询合约失败，找不到合约：{algo.vt_symbol}", algo)
+            source = f"{APP_NAME}:{algo.algo_name}" if algo else APP_NAME
+            self.main_engine.log_warning(f"查询合约失败，找不到合约：{algo.vt_symbol}", source=source)
 
         return contract
-
-    def write_log(self, msg: str, algo: AlgoTemplate = None) -> None:
-        """输出日志"""
-        if algo:
-            msg: str = f"{algo.algo_name}：{msg}"
-
-        log: LogData = LogData(msg=msg, gateway_name=APP_NAME)
-        event: Event = Event(EVENT_ALGO_LOG, data=log)
-        self.event_engine.put(event)
 
     def put_algo_event(self, algo: AlgoTemplate, data: dict) -> None:
         """推送更新"""

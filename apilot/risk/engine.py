@@ -5,16 +5,16 @@ from apilot.core import (
     # Event related
     Event, EventEngine,
     EVENT_TRADE, EVENT_ORDER, EVENT_LOG, EVENT_TIMER,
-    
+
     # Engine components
     BaseEngine, MainEngine,
-    
+
     # Data objects
     OrderData, OrderRequest, LogData, TradeData,
-    
+
     # Constants
     Direction, Status,
-    
+
     # Utility functions
     load_json, save_json
 )
@@ -140,12 +140,6 @@ class RiskEngine(BaseEngine):
         if self.order_flow_timer >= self.order_flow_clear:
             self.order_flow_count = 0
             self.order_flow_timer = 0
-
-    def write_log(self, msg: str) -> None:
-        """"""
-        log: LogData = LogData(msg=msg, gateway_name="RiskManager")
-        event: Event = Event(type=EVENT_LOG, data=log)
-        self.event_engine.put(event)
 
     def check_risk(self, req: OrderRequest, gateway_name: str) -> bool:
         """"""

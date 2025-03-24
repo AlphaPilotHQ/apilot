@@ -100,7 +100,7 @@ class AlgoTemplate:
         self.status = AlgoStatus.RUNNING
         self.put_event()
 
-        self.write_log("算法启动")
+        self.algo_engine.main_engine.log_info("算法启动", source=f"Algo:{self.algo_name}")
 
     def stop(self) -> None:
         """停止"""
@@ -108,7 +108,7 @@ class AlgoTemplate:
         self.cancel_all()
         self.put_event()
 
-        self.write_log("算法停止")
+        self.algo_engine.main_engine.log_info("算法停止", source=f"Algo:{self.algo_name}")
 
     def finish(self) -> None:
         """结束"""
@@ -116,21 +116,21 @@ class AlgoTemplate:
         self.cancel_all()
         self.put_event()
 
-        self.write_log("算法结束")
+        self.algo_engine.main_engine.log_info("算法结束", source=f"Algo:{self.algo_name}")
 
     def pause(self) -> None:
         """暂停"""
         self.status = AlgoStatus.PAUSED
         self.put_event()
 
-        self.write_log("算法暂停")
+        self.algo_engine.main_engine.log_info("算法暂停", source=f"Algo:{self.algo_name}")
 
     def resume(self) -> None:
         """恢复"""
         self.status = AlgoStatus.RUNNING
         self.put_event()
 
-        self.write_log("算法恢复")
+        self.algo_engine.main_engine.log_info("算法恢复", source=f"Algo:{self.algo_name}")
 
     def buy(
         self,
@@ -144,7 +144,7 @@ class AlgoTemplate:
             return
 
         msg: str = f"{self.vt_symbol}，委托买入{order_type.value}，{volume}@{price}"
-        self.write_log(msg)
+        self.algo_engine.main_engine.log_info(msg, source=f"Algo:{self.algo_name}")
 
         return self.algo_engine.send_order(
             self,
@@ -167,7 +167,7 @@ class AlgoTemplate:
             return
 
         msg: str = f"{self.vt_symbol}委托卖出{order_type.value}，{volume}@{price}"
-        self.write_log(msg)
+        self.algo_engine.main_engine.log_info(msg, source=f"Algo:{self.algo_name}")
 
         return self.algo_engine.send_order(
             self,
@@ -229,10 +229,6 @@ class AlgoTemplate:
             "variables": self.get_variables()
         }
         return algo_data
-
-    def write_log(self, msg: str) -> None:
-        """输出日志"""
-        self.algo_engine.write_log(msg, self)
 
     def put_event(self) -> None:
         """推送更新"""
