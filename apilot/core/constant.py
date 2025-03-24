@@ -127,10 +127,6 @@ class BacktestingMode(Enum):
     TICK = 2
 
 
-# CTA策略事件
-EVENT_CTA_LOG: str = "EVENT_CTA_LOG"
-EVENT_CTA_STRATEGY = "EVENT_CTA_STRATEGY"
-
 # 时间间隔映射
 INTERVAL_DELTA_MAP: Dict[Interval, timedelta] = {
     Interval.TICK: timedelta(milliseconds=1),

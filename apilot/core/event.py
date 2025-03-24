@@ -1,6 +1,5 @@
 from apilot.event import EVENT_TIMER  # noqa
 
-# TODO:1. mod EVENT_TIMER 2. mod order
 EVENT_TICK = "eTick."
 EVENT_TRADE = "eTrade."
 EVENT_ORDER = "eOrder."
@@ -9,3 +8,11 @@ EVENT_ACCOUNT = "eAccount."
 EVENT_QUOTE = "eQuote."
 EVENT_CONTRACT = "eContract."
 EVENT_LOG = "eLog"
+
+# CTA策略事件
+EVENT_CTA_LOG: str = "EVENT_CTA_LOG"
+EVENT_CTA_STRATEGY = "EVENT_CTA_STRATEGY"
+
+# 算法交易事件
+EVENT_ALGO_LOG = "eAlgoLog"
+EVENT_ALGO_UPDATE = "eAlgoUpdate"

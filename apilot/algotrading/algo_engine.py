@@ -3,13 +3,20 @@ from typing import Optional, Type
 
 from apilot.event import EventEngine, Event
 from apilot.core.engine import BaseEngine, MainEngine
+from apilot.core.constant import (
+    Direction, 
+    Offset, 
+    OrderType, 
+    Exchange
+)
 from apilot.core.event import (
     EVENT_TICK,
     EVENT_TIMER,
     EVENT_ORDER,
-    EVENT_TRADE
+    EVENT_TRADE,
+    EVENT_ALGO_LOG,
+    EVENT_ALGO_UPDATE
 )
-from apilot.core.constant import Direction, Offset, OrderType, Exchange
 from apilot.core.object import (
     SubscribeRequest,
     OrderRequest,
@@ -24,8 +31,6 @@ from apilot.core.utility import round_to
 
 from .template import AlgoTemplate
 from .base import (
-    EVENT_ALGO_LOG,
-    EVENT_ALGO_UPDATE,
     APP_NAME,
     AlgoStatus
 )

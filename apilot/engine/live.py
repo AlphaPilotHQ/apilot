@@ -28,11 +28,6 @@ from apilot.core.object import (
     OrderData,
     TradeData,
 )
-from apilot.core.event import (
-    EVENT_TICK,
-    EVENT_ORDER,
-    EVENT_TRADE
-)
 from apilot.core.constant import (
     Direction, 
     Offset, 
@@ -42,8 +37,13 @@ from apilot.core.constant import (
     OrderType,
     APP_NAME,
     EngineType,
+)
+from apilot.core.event import (
     EVENT_CTA_LOG,
     EVENT_CTA_STRATEGY,
+    EVENT_TICK,
+    EVENT_ORDER,
+    EVENT_TRADE
 )
 from apilot.core.utility import load_json, save_json, extract_vt_symbol, round_to
 from apilot.core.database import BaseDatabase, get_database
