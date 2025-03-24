@@ -2,7 +2,6 @@ from abc import ABC
 from pathlib import Path
 from typing import Type, TYPE_CHECKING
 
-
 if TYPE_CHECKING:
     from .engine import BaseEngine
 

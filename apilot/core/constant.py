@@ -1,9 +1,12 @@
 """
-APilot量化交易平台使用的常量枚举定义。
+APilot quantitative trading platform constant definitions.
+
+This module contains all enumerations used throughout the platform.
 """
 
-from enum import Enum
+# Standard library imports
 from datetime import timedelta
+from enum import Enum
 from typing import Dict
 
 

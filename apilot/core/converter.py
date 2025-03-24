@@ -1,6 +1,13 @@
+"""
+持仓转换工具
+
+用于处理不同交易所的持仓和订单转换，支持中国特色的平今平昨仓位管理。
+"""
+
 from copy import copy
 from typing import Dict, List, TYPE_CHECKING
 
+from .constant import Direction, Offset, Exchange
 from .object import (
     ContractData,
     OrderData,
@@ -8,7 +15,6 @@ from .object import (
     PositionData,
     OrderRequest,
 )
-from .constant import Direction, Offset, Exchange
 
 if TYPE_CHECKING:
     from .engine import MainEngine

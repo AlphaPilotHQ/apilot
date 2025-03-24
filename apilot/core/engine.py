@@ -1,49 +1,55 @@
+"""
+核心引擎模块
+
+包含交易平台主引擎和基础引擎类，负责管理事件、网关和应用程序。
+"""
+
 import logging
-from logging import Logger
-import smtplib
 import os
+import smtplib
 import traceback
 from abc import ABC
-from pathlib import Path
 from datetime import datetime
 from email.message import EmailMessage
+from logging import Logger
+from pathlib import Path
 from queue import Empty, Queue
 from threading import Thread
-from typing import Any, Type, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Type
 
+from .app import BaseApp
 from .event import (
-    Event, 
-    EventEngine,
-    EVENT_TICK,
-    EVENT_ORDER,
-    EVENT_TRADE,
-    EVENT_POSITION,
     EVENT_ACCOUNT,
     EVENT_CONTRACT,
     EVENT_LOG,
-    EVENT_QUOTE
+    EVENT_ORDER,
+    EVENT_POSITION,
+    EVENT_QUOTE,
+    EVENT_TICK,
+    EVENT_TRADE,
+    Event,
+    EventEngine,
 )
-from .app import BaseApp
 from .gateway import BaseGateway
 from .object import (
+    AccountData,
+    BarData,
     CancelRequest,
+    ContractData,
+    Exchange,
+    HistoryRequest,
     LogData,
+    OrderData,
     OrderRequest,
+    PositionData,
     QuoteData,
     QuoteRequest,
     SubscribeRequest,
-    HistoryRequest,
-    OrderData,
-    BarData,
     TickData,
     TradeData,
-    PositionData,
-    AccountData,
-    ContractData,
-    Exchange
 )
 from .setting import SETTINGS
-from .utility import get_folder_path, TRADER_DIR
+from .utility import TRADER_DIR, get_folder_path
 
 
 class MainEngine:
@@ -109,7 +115,7 @@ class MainEngine:
         """
         # Import from engine package instead of individual modules
         from apilot.engine import LogEngine, OmsEngine, EmailEngine
-        
+
         self.add_engine(LogEngine)
         self.add_engine(OmsEngine)
         self.add_engine(EmailEngine)
@@ -121,29 +127,29 @@ class MainEngine:
         log = LogData(gateway_name=gateway_name, msg=msg, source=source, level=level)
         event = Event(EVENT_LOG, log)
         self.event_engine.put(event)
-        
+
     def write_log(self, msg: str, source: str = "", level: int = logging.INFO) -> None:
         """记录日志消息（已弃用，请使用log_debug/log_info等方法）"""
         import warnings
         warnings.warn("write_log方法已弃用，请使用log_debug/log_info等专用方法", DeprecationWarning, stacklevel=2)
         self._write_log(msg, source, level=level)
-        
+
     def log_debug(self, msg: str, source: str = "") -> None:
         """记录调试级别日志"""
         self._write_log(msg, source, level=logging.DEBUG)
-    
+
     def log_info(self, msg: str, source: str = "") -> None:
         """记录信息级别日志"""
         self._write_log(msg, source, level=logging.INFO)
-    
+
     def log_warning(self, msg: str, source: str = "") -> None:
         """记录警告级别日志"""
         self._write_log(msg, source, level=logging.WARNING)
-    
+
     def log_error(self, msg: str, source: str = "") -> None:
         """记录错误级别日志"""
         self._write_log(msg, source, level=logging.ERROR)
-        
+
     def log_critical(self, msg: str, source: str = "") -> None:
         """记录严重错误级别日志"""
         self._write_log(msg, source, level=logging.CRITICAL)
