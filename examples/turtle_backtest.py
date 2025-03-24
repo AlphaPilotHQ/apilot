@@ -5,12 +5,16 @@
 但是这里仓位管理比较复杂，没有想好怎么做
 """
 
-from init_env import *
+# 标准库导入
 from datetime import datetime
 
+# 从init_env导入必要的组件
+from init_env import BacktestingEngine
+
+# 从apilot导入必要的组件
 from apilot.core.constant import Direction, Interval
 from apilot.core.object import BarData, TickData, OrderData, TradeData
-from apilot.engine import CtaTemplate, BacktestingEngine
+from apilot.engine import CtaTemplate
 from apilot.core.utility import BarGenerator, ArrayManager
 
 
@@ -151,7 +155,7 @@ class TurtleSignalStrategy(CtaTemplate):
         """
         委托回调函数
         """
-        pass
+        # 委托回调函数不需要实现，但将来可能需要添加逻辑
 
     def send_buy_orders(self, price):
         """
@@ -209,10 +213,10 @@ def run_backtesting(show_chart=True):
     运行海龟信号策略回测
     """
     # 初始化回测引擎
-    engine = BacktestingEngine()
+    bt_engine = BacktestingEngine()
 
     # 设置回测参数
-    engine.set_parameters(
+    bt_engine.set_parameters(
         vt_symbol="SOL-USDT.LOCAL",  # 修改为与CSV文件名匹配的交易对
         interval=Interval.MINUTE,
         start=datetime(2023, 1, 1),
@@ -224,13 +228,13 @@ def run_backtesting(show_chart=True):
     )
 
     # 添加策略
-    engine.add_strategy(
+    bt_engine.add_strategy(
         TurtleSignalStrategy,
         {"entry_window": 20, "exit_window": 10, "atr_window": 20, "fixed_size": 1},
     )
 
     # 添加数据 - 确保文件路径正确
-    engine.add_data(
+    bt_engine.add_data(
         database_type="csv",
         data_path="data/SOL-USDT_LOCAL_1m.csv",
         datetime="candle_begin_time",  # 修改为与CSV文件列名匹配
@@ -242,14 +246,14 @@ def run_backtesting(show_chart=True):
     )
 
     # 运行回测
-    engine.run_backtesting()
+    bt_engine.run_backtesting()
 
     # 计算结果和统计指标
-    df = engine.calculate_result()
-    stats = engine.calculate_statistics()
+    df = bt_engine.calculate_result()
+    stats = bt_engine.calculate_statistics()
 
     # 打印统计结果
-    print(f"起始资金: {100000:.2f}")
+    print("起始资金: 100000.00")
     print(f"结束资金: {stats.get('end_balance', 0):.2f}")
     print(f"总收益率: {stats.get('total_return', 0)*100:.2f}%")
     print(f"年化收益: {stats.get('annual_return', 0)*100:.2f}%")
@@ -259,17 +263,17 @@ def run_backtesting(show_chart=True):
     if isinstance(max_drawdown, (int, float)):
         print(f"最大回撤: {max_drawdown*100:.2f}%")
     else:
-        print(f"最大回撤: 0.00%")
+        print("最大回撤: 0.00%")
 
     print(f"夏普比率: {stats.get('sharpe_ratio', 0):.2f}")
 
     # 显示图表
     if show_chart:
-        engine.show_chart()
+        bt_engine.show_chart()
 
-    return df, stats, engine
+    return df, stats, bt_engine
 
 
 if __name__ == "__main__":
     # 运行回测
-    df, stats, engine = run_backtesting(show_chart=True)
+    backtest_result_df, backtest_result_stats, backtest_engine = run_backtesting(show_chart=True)
