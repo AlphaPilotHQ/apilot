@@ -171,7 +171,8 @@ class BarGenerator:
         on_bars: Callable,
         window: int = 0,
         on_window_bars: Callable = None,
-        interval: Interval = Interval.MINUTE
+        interval: Interval = Interval.MINUTE,
+        daily_end: time = None
     ) -> None:
         """构造函数"""
         self.on_bars: Callable = on_bars

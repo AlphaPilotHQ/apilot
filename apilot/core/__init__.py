@@ -23,6 +23,7 @@ __all__ = [
     "OrderData", "TradeData", "AccountData", "PositionData",
     "ContractData", "TickData", "BarData",
     "OrderRequest", "CancelRequest", "SubscribeRequest",
+    "QuoteData", "LogData",
 
     # 引擎组件
     "BaseEngine", "MainEngine",
@@ -59,6 +60,7 @@ from .event import (
     EVENT_TRADE,     # type: str
     EVENT_POSITION,  # type: str
     EVENT_ACCOUNT,   # type: str
+    EVENT_QUOTE,
     EVENT_CONTRACT,  # type: str
     EVENT_LOG,       # type: str
     EVENT_TIMER      # type: str
@@ -75,7 +77,9 @@ from .object import (
     BarData,          # type: class
     OrderRequest,     # type: class
     CancelRequest,    # type: class
-    SubscribeRequest  # type: class
+    SubscribeRequest,  # type: class
+    QuoteData,
+    LogData          # type: class
 )
 
 # 导入引擎组件
@@ -90,3 +94,5 @@ from .app import BaseApp  # type: class
 # 导入配置和工具函数
 from .setting import SETTINGS, get_settings  # type: dict, function
 from .utility import load_json, save_json, extract_vt_symbol, BarGenerator, ArrayManager  # type: function, function, function, class, class
+
+from .converter import OffsetConverter
