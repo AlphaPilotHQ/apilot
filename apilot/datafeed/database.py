@@ -1,15 +1,20 @@
-from abc import ABC, abstractmethod
-from datetime import datetime
-from types import ModuleType
-from typing import List, Optional, Dict, Any, Type
-from dataclasses import dataclass
-from importlib import import_module
-import sys
-import os
+"""
+数据库抽象接口和实现
 
-from apilot.core.constant import Exchange, Interval
-from apilot.core.object import BarData, TickData
-from apilot.core.setting import SETTINGS
+定义了行情数据存储的通用接口和工厂方法
+"""
+
+import os
+import sys
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
+from datetime import datetime
+from importlib import import_module
+from types import ModuleType
+from typing import Any, Dict, List, Optional, Type, TYPE_CHECKING
+
+from apilot.core import Exchange, Interval, BarData, TickData, SETTINGS
+
 
 @dataclass
 class BarOverview:
@@ -37,6 +42,9 @@ class TickOverview:
 
 
 class BaseDatabase(ABC):
+    """
+    抽象基类，定义了数据库接口的标准方法
+    """
 
     @abstractmethod
     def load_bar_data(
@@ -82,11 +90,10 @@ class BaseDatabase(ABC):
 
     @abstractmethod
     def get_tick_overview(self) -> List[TickOverview]:
-
         pass
 
 # 全局数据库实例
-database: BaseDatabase = None
+database: Optional[BaseDatabase] = None
 
 # 数据库插件注册表
 _DATABASE_REGISTRY: Dict[str, Type[BaseDatabase]] = {}
