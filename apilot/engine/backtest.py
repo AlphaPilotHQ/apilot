@@ -991,9 +991,6 @@ def load_bar_data(
     """
     加载K线数据
     """
-    # 调试输出
-    print(f"加载K线数据参数: {symbol}, {exchange}, {interval}, {start}, {end}")
-    print(f"数据库配置: {database_settings}")
 
     # 获取数据库实例，如果提供了特殊设置，则使用这些设置
     if database_settings:

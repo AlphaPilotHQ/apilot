@@ -4,3 +4,4 @@
 4. Use Backtrader style for user strategies.
 5. Use CSV data with many cryptos and strategies.
 6. Mark code from VN.py or Backtrader clearly.
+7. Prefer importing from the public API exposed in __init__.py

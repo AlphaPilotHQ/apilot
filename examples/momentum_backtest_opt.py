@@ -64,9 +64,9 @@ class StdMomentumStrategy(ap.CtaTemplate):
         """
         策略初始化
         """
-        self.write_log("策略初始化")
-        self.write_log(f"加载历史数据: {self.std_period * 2}根K线")
         self.load_bar(self.std_period * 2)  # 加载足够的历史数据确保指标计算准确
+        self.write_log(f"加载历史数据: {self.std_period * 2}根K线")
+
 
     def on_start(self):
         """策略启动"""
@@ -200,12 +200,9 @@ def run_backtesting(
         return None, None
 
     # 检查CSV文件内容
-    print(f"读取CSV文件: {csv_path}")
     try:
         df = pd.read_csv(csv_path)
-        print(f"CSV文件行数: {len(df)}")
-        print(f"CSV文件列名: {df.columns.tolist()}")
-        print(f"第一行数据: {df.iloc[0].to_dict()}")
+        print(f"CSV文件行数: {len(df)} 文件列名: {df.columns.tolist()}")
     except Exception as e:
         print(f"读取CSV文件失败: {e}")
         import traceback
