@@ -1,14 +1,11 @@
 from datetime import datetime, date, timedelta
-from collections import defaultdict
-from enum import Enum
-from typing import Any, Callable, List, Dict, Type, Tuple, Union, Optional
+from typing import Callable, List, Dict, Type, Tuple, Optional
 from functools import lru_cache
 import traceback
 import os
 import os.path
 import numpy as np
-from pandas import DataFrame, Series
-from pandas.core.window import ExponentialMovingWindow
+from pandas import DataFrame
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
@@ -20,13 +17,16 @@ from apilot.core.constant import (
     Status,
     BacktestingMode,
     EngineType,
-    INTERVAL_DELTA_MAP
+    INTERVAL_DELTA_MAP,
 )
-from apilot.core.database import get_database, BaseDatabase
+from apilot.core.database import get_database
 from apilot.core.object import OrderData, TradeData, BarData, TickData
 from apilot.core.utility import round_to, extract_vt_symbol
-from apilot.core.optimize import OptimizationSetting
-
+from apilot.core.optimize import (
+    OptimizationSetting,
+    run_optimization,
+    run_ga_optimization
+)
 from apilot.strategy.template import CtaTemplate
 
 
@@ -134,11 +134,15 @@ class BacktestingEngine:
         self.end = end.replace(hour=23, minute=59, second=59)
 
         if self.start >= self.end:
-            raise ValueError(f"错误：起始日期({self.start})必须小于结束日期({self.end})")
+            raise ValueError(
+                f"错误：起始日期({self.start})必须小于结束日期({self.end})"
+            )
 
         self.annual_days = annual_days
 
-    def add_strategy(self, strategy_class: Type[CtaTemplate], setting: dict) -> None:
+    def add_strategy(
+        self, strategy_class: Type[CtaTemplate], setting: dict = None
+    ) -> None:
         """
         添加策略
         """
@@ -147,20 +151,22 @@ class BacktestingEngine:
             self, strategy_class.__name__, self.vt_symbols, setting
         )
 
-    def add_data(
-        self,
-        database_type: Optional[str] = None,
-        **kwargs
-    ) -> None:
+    def add_data(self, database_type: Optional[str] = None, **kwargs) -> None:
         """
         添加数据
         """
         # 检查是否为直接CSV文件路径
         data_path = kwargs.get("data_path", "")
-        if database_type == "csv" and data_path and data_path.endswith(".csv") and os.path.isfile(data_path):
+        if (
+            database_type == "csv"
+            and data_path
+            and data_path.endswith(".csv")
+            and os.path.isfile(data_path)
+        ):
             # 如果是直接指定的CSV文件，我们需要保存字段映射信息
             # 将字段映射信息直接添加到kwargs中，后续CSV数据库会使用
             from apilot.core.setting import SETTINGS
+
             # 将字段映射添加到SETTINGS字典
             if "datetime" in kwargs:
                 SETTINGS["csv_datetime_field"] = kwargs["datetime"]
@@ -174,7 +180,7 @@ class BacktestingEngine:
                 SETTINGS["csv_close_field"] = kwargs["close"]
             if "volume" in kwargs:
                 SETTINGS["csv_volume_field"] = kwargs["volume"]
-            
+
         self.database_type = database_type
         self.database_config = kwargs
 
@@ -220,11 +226,11 @@ class BacktestingEngine:
                         self.interval,
                         start,
                         end,
-                        database_settings=getattr(self, "database_settings", None)
+                        database_settings=getattr(self, "database_settings", None),
                     )
 
                     for bar in data:
-                        bar.vt_symbol = vt_symbol  # 确保bar有正确的vt_symbol
+                        bar.vt_symbol = vt_symbol
                         self.dts.append(bar.datetime)
                         self.history_data[(bar.datetime, vt_symbol)] = bar
                         data_count += 1
@@ -235,7 +241,7 @@ class BacktestingEngine:
                     self.output(f"{vt_symbol}加载进度：{progress_bar} [{progress:.0%}]")
 
                     start = end + interval_delta
-                    end += (progress_delta + interval_delta)
+                    end += progress_delta + interval_delta
             else:
                 data: list[BarData] = load_bar_data(
                     self.symbols[vt_symbol],
@@ -243,11 +249,11 @@ class BacktestingEngine:
                     self.interval,
                     self.start,
                     self.end,
-                    database_settings=getattr(self, "database_settings", None)
+                    database_settings=getattr(self, "database_settings", None),
                 )
 
                 for bar in data:
-                    bar.vt_symbol = vt_symbol  # 确保bar有正确的vt_symbol
+                    bar.vt_symbol = vt_symbol
                     self.dts.append(bar.datetime)
                     self.history_data[(bar.datetime, vt_symbol)] = bar
 
@@ -422,33 +428,46 @@ class BacktestingEngine:
             return stats
 
         # Calculate basic statistics
-        stats.update({
-            "start_date": df.index[0],
-            "end_date": df.index[-1],
-            "total_days": len(df),
-            "profit_days": (df["net_pnl"] > 0).sum(),
-            "loss_days": (df["net_pnl"] < 0).sum(),
-            "end_balance": df["balance"].iloc[-1],
-            "max_ddpercent": df["ddpercent"].min(),
-            "total_commission": df["commission"].sum(),
-            "total_turnover": df["turnover"].sum(),
-            "total_trade_count": df["trade_count"].sum(),
-        })
+        stats.update(
+            {
+                "start_date": df.index[0],
+                "end_date": df.index[-1],
+                "total_days": len(df),
+                "profit_days": (df["net_pnl"] > 0).sum(),
+                "loss_days": (df["net_pnl"] < 0).sum(),
+                "end_balance": df["balance"].iloc[-1],
+                "max_ddpercent": df["ddpercent"].min(),
+                "total_commission": df["commission"].sum(),
+                "total_turnover": df["turnover"].sum(),
+                "total_trade_count": df["trade_count"].sum(),
+            }
+        )
 
         # Calculate return metrics
         stats["total_return"] = (stats["end_balance"] / self.capital - 1) * 100
-        stats["annual_return"] = stats["total_return"] / stats["total_days"] * self.annual_days
+        stats["annual_return"] = (
+            stats["total_return"] / stats["total_days"] * self.annual_days
+        )
 
         # Calculate risk-adjusted metrics
         daily_returns = df["return"].values
         if len(daily_returns) > 0 and np.std(daily_returns) > 0:
-            stats["sharpe_ratio"] = np.mean(daily_returns) / np.std(daily_returns) * np.sqrt(self.annual_days)
+            stats["sharpe_ratio"] = (
+                np.mean(daily_returns)
+                / np.std(daily_returns)
+                * np.sqrt(self.annual_days)
+            )
 
         if stats["max_ddpercent"] < 0:
-            stats["return_drawdown_ratio"] = -stats["total_return"] / stats["max_ddpercent"]
+            stats["return_drawdown_ratio"] = (
+                -stats["total_return"] / stats["max_ddpercent"]
+            )
 
         # Clean up invalid values
-        stats = {k: np.nan_to_num(v, nan=0.0, posinf=0.0, neginf=0.0) for k, v in stats.items()}
+        stats = {
+            k: np.nan_to_num(v, nan=0.0, posinf=0.0, neginf=0.0)
+            for k, v in stats.items()
+        }
 
         if output:
             self.output(f"Trade day:\t{stats['start_date']} - {stats['end_date']}")
@@ -480,22 +499,19 @@ class BacktestingEngine:
             rows=4,
             cols=1,
             subplot_titles=["Balance", "Drawdown", "Pnl", "Pnl Distribution"],
-            vertical_spacing=0.06
+            vertical_spacing=0.06,
         )
 
         balance_line = go.Scatter(
-            x=df.index,
-            y=df["balance"],
-            mode="lines",
-            name="Balance"
+            x=df.index, y=df["balance"], mode="lines", name="Balance"
         )
         drawdown_scatter = go.Scatter(
             x=df.index,
             y=df["ddpercent"],
             fillcolor="red",
-            fill='tozeroy',
+            fill="tozeroy",
             mode="lines",
-            name="Drawdown"
+            name="Drawdown",
         )
         pnl_bar = go.Bar(y=df["net_pnl"], name="Pnl")
         pnl_histogram = go.Histogram(x=df["net_pnl"], nbinsx=100, name="Days")
@@ -630,7 +646,7 @@ class BacktestingEngine:
         days: int,
         interval: Interval,
         callback: Callable,
-        use_database: bool
+        use_database: bool,
     ) -> List[BarData]:
         """
         加载bar数据
@@ -648,12 +664,14 @@ class BacktestingEngine:
             interval,
             init_start,
             init_end,
-            database_settings=getattr(self, "database_settings", None)
+            database_settings=getattr(self, "database_settings", None),
         )
 
         return bars
 
-    def load_tick(self, vt_symbol: str, days: int, callback: Callable) -> List[TickData]:
+    def load_tick(
+        self, vt_symbol: str, days: int, callback: Callable
+    ) -> List[TickData]:
         """
         加载tick数据
         """
@@ -669,7 +687,7 @@ class BacktestingEngine:
             exchange,
             init_start,
             init_end,
-            database_settings=getattr(self, "database_settings", None)
+            database_settings=getattr(self, "database_settings", None),
         )
 
         return ticks
@@ -683,13 +701,15 @@ class BacktestingEngine:
         price: float,
         volume: float,
         stop: bool = False,
-        net: bool = False
+        net: bool = False,
     ) -> list:
         """
         发送订单
         """
         price: float = round_to(price, self.priceticks[vt_symbol])
-        vt_orderid: str = self.send_limit_order(vt_symbol, direction, offset, price, volume)
+        vt_orderid: str = self.send_limit_order(
+            vt_symbol, direction, offset, price, volume
+        )
         return [vt_orderid]
 
     def send_limit_order(
@@ -698,7 +718,7 @@ class BacktestingEngine:
         direction: Direction,
         offset: Offset,
         price: float,
-        volume: float
+        volume: float,
     ) -> str:
         """
         发送限价单
@@ -715,7 +735,7 @@ class BacktestingEngine:
             volume=volume,
             status=Status.SUBMITTING,
             gateway_name=self.gateway_name,
-            datetime=self.datetime
+            datetime=self.datetime,
         )
 
         self.active_limit_orders[order.vt_orderid] = order
@@ -814,7 +834,7 @@ class BacktestingEngine:
         sizes: Dict[str, float],
         priceticks: Dict[str, float],
         capital: int,
-        setting: dict
+        setting: dict,
     ) -> Tuple[DataFrame, dict]:
         """
         运行单一回测
@@ -835,7 +855,7 @@ class BacktestingEngine:
             sizes=sizes,
             priceticks=priceticks,
             capital=capital,
-            mode=mode
+            mode=mode,
         )
 
         self.add_strategy(strategy_class, setting)
@@ -921,7 +941,9 @@ class DailyResult:
 
         for trade in self.trades:
             vt_symbol = trade.vt_symbol
-            pos_change = trade.volume if trade.direction == Direction.LONG else -trade.volume
+            pos_change = (
+                trade.volume if trade.direction == Direction.LONG else -trade.volume
+            )
 
             if vt_symbol in self.end_poses:
                 self.end_poses[vt_symbol] += pos_change
@@ -950,7 +972,7 @@ def load_bar_data(
     interval: Interval,
     start: datetime,
     end: datetime,
-    database_settings: dict = None
+    database_settings: dict = None,
 ) -> List[BarData]:
     """
     加载K线数据
@@ -958,12 +980,13 @@ def load_bar_data(
     # 调试输出
     print(f"加载K线数据参数: {symbol}, {exchange}, {interval}, {start}, {end}")
     print(f"数据库配置: {database_settings}")
-    
+
     # 获取数据库实例，如果提供了特殊设置，则使用这些设置
     if database_settings:
         # 用于支持MongoDB等特殊数据库的实现
         # 注意：实际的MongoDB数据库处理应该在具体的数据库实现类中处理
         from apilot.core.setting import SETTINGS
+
         old_settings = {}
 
         # 暂存原始设置
@@ -995,7 +1018,7 @@ def load_tick_data(
     exchange: Exchange,
     start: datetime,
     end: datetime,
-    database_settings: dict = None
+    database_settings: dict = None,
 ) -> List[TickData]:
     """
     加载Tick数据
@@ -1005,6 +1028,7 @@ def load_tick_data(
         # 用于支持MongoDB等特殊数据库的实现
         # 注意：实际的MongoDB数据库处理应该在具体的数据库实现类中处理
         from apilot.core.setting import SETTINGS
+
         old_settings = {}
 
         # 暂存原始设置
@@ -1044,7 +1068,7 @@ def optimize(
     setting: dict,
     optimization_setting: OptimizationSetting,
     use_ga: bool = True,
-    max_workers: int = None
+    max_workers: int = None,
 ) -> DataFrame:
     """
     多币种回测优化
@@ -1069,14 +1093,14 @@ def optimize(
             target_name=target_name,
             evaluator=engine,
             optimization_setting=optimization_setting,
-            max_workers=max_workers
+            max_workers=max_workers,
         )
     else:
         result = run_optimization(
             target_name=target_name,
             evaluator=engine,
             optimization_setting=optimization_setting,
-            max_workers=max_workers
+            max_workers=max_workers,
         )
 
     return result
