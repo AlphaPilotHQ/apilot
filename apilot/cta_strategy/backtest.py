@@ -5,7 +5,7 @@ from typing import Any, Callable, List, Dict, Type, Tuple, Union, Optional
 from functools import lru_cache
 import traceback
 import os
-
+import os.path
 import numpy as np
 from pandas import DataFrame, Series
 from pandas.core.window import ExponentialMovingWindow
@@ -22,6 +22,7 @@ from apilot.trader.constant import (
 from apilot.trader.database import get_database, BaseDatabase
 from apilot.trader.object import OrderData, TradeData, BarData, TickData
 from apilot.trader.utility import round_to, extract_vt_symbol
+from apilot.trader.optimize import OptimizationSetting
 
 from .constants import (
     BacktestingMode,
@@ -156,6 +157,27 @@ class BacktestingEngine:
         """
         添加数据
         """
+        # 检查是否为直接CSV文件路径
+        data_path = kwargs.get("data_path", "")
+        if database_type == "csv" and data_path and data_path.endswith(".csv") and os.path.isfile(data_path):
+            # 如果是直接指定的CSV文件，我们需要保存字段映射信息
+            # 将字段映射信息直接添加到kwargs中，后续CSV数据库会使用
+            from apilot.trader.setting import SETTINGS
+            
+            # 将字段映射添加到SETTINGS字典
+            if "datetime" in kwargs:
+                SETTINGS["csv_datetime_field"] = kwargs["datetime"]
+            if "open" in kwargs:
+                SETTINGS["csv_open_field"] = kwargs["open"]
+            if "high" in kwargs:
+                SETTINGS["csv_high_field"] = kwargs["high"]
+            if "low" in kwargs:
+                SETTINGS["csv_low_field"] = kwargs["low"]
+            if "close" in kwargs:
+                SETTINGS["csv_close_field"] = kwargs["close"]
+            if "volume" in kwargs:
+                SETTINGS["csv_volume_field"] = kwargs["volume"]
+            
         self.database_type = database_type
         self.database_config = kwargs
 
@@ -166,6 +188,8 @@ class BacktestingEngine:
         加载历史数据
         """
         self.output("开始加载历史数据")
+        self.output(f"数据库类型: {self.database_type}")
+        self.output(f"数据库配置: {self.database_config}")
 
         if not self.end:
             self.end = datetime.now()
@@ -934,6 +958,10 @@ def load_bar_data(
     """
     加载K线数据
     """
+    # 调试输出
+    print(f"加载K线数据参数: {symbol}, {exchange}, {interval}, {start}, {end}")
+    print(f"数据库配置: {database_settings}")
+    
     # 获取数据库实例，如果提供了特殊设置，则使用这些设置
     if database_settings:
         # 用于支持MongoDB等特殊数据库的实现
@@ -943,9 +971,9 @@ def load_bar_data(
 
         # 暂存原始设置
         for key, value in database_settings.items():
-            if hasattr(SETTINGS, key):
-                old_settings[key] = getattr(SETTINGS, key)
-                setattr(SETTINGS, key, value)
+            if key in SETTINGS:
+                old_settings[key] = SETTINGS[key]
+                SETTINGS[key] = value
 
         # 获取数据库连接
         database = get_database()
@@ -955,7 +983,7 @@ def load_bar_data(
 
         # 恢复原始设置
         for key, value in old_settings.items():
-            setattr(SETTINGS, key, value)
+            SETTINGS[key] = value
 
         return bars
     else:
@@ -984,9 +1012,9 @@ def load_tick_data(
 
         # 暂存原始设置
         for key, value in database_settings.items():
-            if hasattr(SETTINGS, key):
-                old_settings[key] = getattr(SETTINGS, key)
-                setattr(SETTINGS, key, value)
+            if key in SETTINGS:
+                old_settings[key] = SETTINGS[key]
+                SETTINGS[key] = value
 
         # 获取数据库连接
         database = get_database()
@@ -996,7 +1024,7 @@ def load_tick_data(
 
         # 恢复原始设置
         for key, value in old_settings.items():
-            setattr(SETTINGS, key, value)
+            SETTINGS[key] = value
 
         return ticks
     else:
