@@ -24,3 +24,8 @@ class AlgoTradingApp(BaseApp):
     engine_class: AlgoEngine = AlgoEngine
     widget_name: str = "AlgoManager"
     icon_name: str = str(app_path.joinpath("ui", "algo.ico"))
+
+
+
+# TODO: /Users/bobbyding/Documents/GitHub/apilot/apilot/algotrading/algo_base.py
+# 可以挪到core里面去

@@ -53,55 +53,50 @@ APilot是一款专注于加密货币市场的高性能量化交易框架，由Al
 
 ## 技术架构
 apilot
-├── src                           # 主Python包(核心框架)
+├── apilot                        # 主Python包
 │   ├── __init__.py
+│   ├── core                      # 核心组件
+│   │   ├── constant.py           # 常量定义
+│   │   ├── event.py              # 事件类型
+│   │   ├── object.py             # 数据对象
+│   │   ├── engine.py             # 引擎基类
+│   │   ├── gateway.py            # 接口基类
+│   │   ├── utility.py            # 工具函数
+│   │   ├── setting.py            # 全局设置
+│   │   ├── optimize.py           # 优化相关
+│   │   └── database.py           # 数据库接口
 │   ├── event                     # 事件引擎
-│   │   └── engine.py
+│   │   ├── __init__.py
+│   │   └── engine.py             # 事件引擎实现
 │   ├── gateway                   # 交易所/券商接口
-│   │   └── binance_gateway.py
-│   ├── data                      # 数据模块(仅保留CSV读取等轻量功能)
-│   │   └── csv_loader.py         # 内置对csv数据的读取支持
-│   ├── strategy                  # 策略引擎
-│   │   ├── cta                   # CTA策略
-│   │   │   ├── base.py
-│   │   │   ├── engine.py
-│   │   │   ├── template.py
-│   │   │   └── backtesting.py    # CTA策略回测
-│   ├── risk                      # 风控引擎
-│   │   └── engine.py
-│   ├── execution                 # 交易执行(智能订单算法)
-│   │   ├── engine.py             # 执行引擎管理入口
-│   │   └── algos
-│   │       ├── best_limit_algo.py
-│   │       ├── iceberg_algo.py
-│   │       ├── sniper_algo.py
-│   │       ├── stop_algo.py
-│   │       └── twap_algo.py
-│   ├── order                     # 订单管理
-│   │   └── manager.py
-│   ├── account                   # 账户管理
-│   │   └── manager.py
-│   ├── backtester                # 通用回测/优化(可选)
-│   │   ├── engine.py
-│   │   ├── optimize.py           # 策略参数优化
-│   │   └── performance.py        # 回测绩效评估
-│   ├── logmonitor                # 日志 & 监控合并 (事件驱动)
-│   │   ├── logger.py             # 自定义事件驱动Logger
-│   │   └── notify.py             # 各种通知 (email, telegram 等)
-│   └── utils                     # 通用工具/常量/对象
-│       ├── constant.py
-│       ├── object.py
-│       ├── setting.py
-│       └── utility.py
+│   │   ├── __init__.py
+│   │   └── binance.py            # 币安交易所接口
+│   ├── engine                    # 策略引擎
+│   │   ├── __init__.py
+│   │   └── live.py               # 实盘引擎
+│   ├── strategy                  # 策略模块
+│   │   ├── __init__.py
+│   │   └── template.py           # 策略模板
+│   ├── riskmanager               # 风控引擎
+│   │   ├── __init__.py
+│   │   └── engine.py             # 风控引擎实现
+│   ├── algotrading               # 算法交易
+│   │   ├── __init__.py
+│   │   ├── algo_base.py          # 算法基类
+│   │   └── algo_engine.py        # 算法引擎
+│   └── optimizer                 # 策略优化
+│       ├── __init__.py
+│       └── engine.py             # 优化引擎
 │
 ├── docs                          # 文档
 ├── examples                      # 示例
-│   ├── cta_backtesting
-│   └── spread_backtesting
+│   ├── cta_backtesting           # CTA策略回测示例
+│   └── spread_backtesting        # 价差交易回测示例
 ├── tests                         # 测试
 ├── requirements.txt              # 依赖
-├── README.md
-└── pyproject.toml                # 发布到PyPI
+├── setup.py                      # 打包配置
+├── README.md                     # 项目说明
+└── pyproject.toml                # 项目配置
 
 ## TODO：
 ## 重要TODO：

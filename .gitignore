@@ -92,4 +92,3 @@ pytest-reports/
 
 # CSV files - ignore all CSV files including those in csv_database
 *.csv
-csv_database/
