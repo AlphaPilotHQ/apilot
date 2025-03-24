@@ -52,6 +52,8 @@ APilot是一款专注于加密货币市场的高性能量化交易框架，由Al
 
 
 ## 技术架构
+
+### 具体架构
 apilot
 ├── apilot                        # 主Python包
 │   ├── __init__.py
@@ -77,26 +79,41 @@ apilot
 │   ├── strategy                  # 策略模块
 │   │   ├── __init__.py
 │   │   └── template.py           # 策略模板
-│   ├── riskmanager               # 风控引擎
+│   ├── riskmanager/               # 风控引擎
 │   │   ├── __init__.py
 │   │   └── engine.py             # 风控引擎实现
-│   ├── algotrading               # 算法交易
+│   ├── algotrading/               # 算法交易
 │   │   ├── __init__.py
 │   │   ├── algo_base.py          # 算法基类
 │   │   └── algo_engine.py        # 算法引擎
-│   └── optimizer                 # 策略优化
+│   └── optimizer/                 # 策略优化
 │       ├── __init__.py
 │       └── engine.py             # 优化引擎
 │
-├── docs                          # 文档
-├── examples                      # 示例
+├── docs/                          # 文档
+├── examples/                      # 示例
 │   ├── cta_backtesting           # CTA策略回测示例
 │   └── spread_backtesting        # 价差交易回测示例
-├── tests                         # 测试
+├── tests/                         # 测试
 ├── requirements.txt              # 依赖
 ├── setup.py                      # 打包配置
 ├── README.md                     # 项目说明
 └── pyproject.toml                # 项目配置
+
+
+### 设计原则
+Core 目录 - 包含系统的所有抽象接口和核心数据结构
+    抽象基类（如 BaseEngine, BaseGateway）
+    数据模型（如 OrderData, TickData）
+    常量定义（如 Direction, Interval）
+    基础事件系统
+
+
+功能目录 - 包含各自领域的具体实现
+    gateway/ - 各交易所接口实现
+    engine/ - 各种引擎的具体实现
+    risk/ - 风险管理具体实现
+    等等
 
 ## TODO：
 ## 重要TODO：
