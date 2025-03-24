@@ -58,43 +58,60 @@ apilot
 ├── apilot                        # 主Python包
 │   ├── __init__.py
 │   ├── core                      # 核心组件
-│   │   ├── constant.py           # 常量定义
-│   │   ├── event.py              # 事件类型
-│   │   ├── object.py             # 数据对象
-│   │   ├── engine.py             # 引擎基类
-│   │   ├── gateway.py            # 接口基类
-│   │   ├── utility.py            # 工具函数
-│   │   ├── setting.py            # 全局设置
-│   │   ├── optimize.py           # 优化相关
-│   │   └── database.py           # 数据库接口
-│   ├── event                     # 事件引擎
 │   │   ├── __init__.py
-│   │   └── engine.py             # 事件引擎实现
+│   │   ├── app.py                # 应用基类
+│   │   ├── constant.py           # 常量定义
+│   │   ├── converter.py          # 转换器
+│   │   ├── csv_database.py       # CSV数据库
+│   │   ├── database.py           # 数据库接口
+│   │   ├── engine.py             # 引擎基类和主引擎
+│   │   ├── event.py              # 事件类型和事件引擎
+│   │   ├── gateway.py            # 接口基类
+│   │   ├── object.py             # 数据对象
+│   │   ├── setting.py            # 全局设置
+│   │   └── utility.py            # 工具函数
 │   ├── gateway                   # 交易所/券商接口
 │   │   ├── __init__.py
 │   │   └── binance.py            # 币安交易所接口
-│   ├── engine                    # 策略引擎
+│   ├── engine                    # 引擎模块
 │   │   ├── __init__.py
-│   │   └── live.py               # 实盘引擎
+│   │   ├── backtest.py           # 回测引擎
+│   │   ├── email_engine.py       # 邮件引擎
+│   │   ├── live.py               # 实盘引擎
+│   │   ├── log_engine.py         # 日志引擎
+│   │   └── oms_engine.py         # 订单管理引擎
 │   ├── strategy                  # 策略模块
 │   │   ├── __init__.py
-│   │   └── template.py           # 策略模板
-│   ├── riskmanager/               # 风控引擎
+│   │   ├── template.py           # 策略模板
+│   │   └── examples              # 策略示例
+│   │       ├── pair_trading_strategy.py          # 配对交易策略
+│   │       ├── pcp_arbitrage_strategy.py         # PCP套利策略
+│   │       ├── portfolio_boll_channel_strategy.py # 投资组合布林通道策略
+│   │       └── trend_following_strategy.py       # 趋势跟踪策略
+│   ├── riskmanager               # 风控引擎
 │   │   ├── __init__.py
 │   │   └── engine.py             # 风控引擎实现
-│   ├── algotrading/               # 算法交易
+│   ├── algotrading               # 算法交易
 │   │   ├── __init__.py
 │   │   ├── algo_base.py          # 算法基类
-│   │   └── algo_engine.py        # 算法引擎
-│   └── optimizer/                 # 策略优化
+│   │   ├── algo_engine.py        # 算法引擎
+│   │   ├── algo_template.py      # 算法模板
+│   │   ├── best_limit_algo.py    # 最优限价算法
+│   │   ├── iceberg_algo.py       # 冰山算法
+│   │   ├── sniper_algo.py        # 狙击算法
+│   │   ├── stop_algo.py          # 止损算法
+│   │   └── twap_algo.py          # 时间加权平均价格算法
+│   └── optimizer                 # 策略优化
 │       ├── __init__.py
-│       └── engine.py             # 优化引擎
+│       └── optimizer.py          # 优化引擎
 │
-├── docs/                          # 文档
-├── examples/                      # 示例
-│   ├── cta_backtesting           # CTA策略回测示例
-│   └── spread_backtesting        # 价差交易回测示例
-├── tests/                         # 测试
+├── docs                          # 文档
+├── examples                      # 示例
+│   ├── cta_backtesting          # CTA策略回测示例
+│   ├── spread_backtesting       # 价差交易回测示例
+│   ├── algo_backtesting         # 算法交易回测示例
+│   └── portfolio_backtesting    # 投资组合回测示例
+├── tests                         # 测试
 ├── requirements.txt              # 依赖
 ├── setup.py                      # 打包配置
 ├── README.md                     # 项目说明
