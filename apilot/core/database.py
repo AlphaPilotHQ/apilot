@@ -20,8 +20,8 @@ class BarOverview:
     exchange: Exchange = None
     interval: Interval = None
     count: int = 0
-    start: int = None  
-    end: int = None    
+    start: int = None
+    end: int = None
 
 
 @dataclass
@@ -32,19 +32,11 @@ class TickOverview:
     symbol: str = ""
     exchange: Exchange = None
     count: int = 0
-    start: int = None  
-    end: int = None    
+    start: int = None
+    end: int = None
 
 
 class BaseDatabase(ABC):
-
-    @abstractmethod
-    def save_bar_data(self, bars: List[BarData], stream: bool = False) -> bool:
-        pass
-
-    @abstractmethod
-    def save_tick_data(self, ticks: List[TickData], stream: bool = False) -> bool:
-        pass
 
     @abstractmethod
     def load_bar_data(
@@ -116,13 +108,13 @@ def get_database() -> BaseDatabase:
     获取数据库对象，如果未初始化则进行初始化。
     """
     global database
-    
+
     if database:
         return database
-    
+
     # 从设置中读取数据库类型
     database_name = SETTINGS.get("database.name", "")
-    
+
     # 提取对应数据库类型的参数
     database_params = {}
     prefix = f"database.{database_name}."
@@ -130,7 +122,7 @@ def get_database() -> BaseDatabase:
         if key.startswith(prefix):
             param_name = key[len(prefix):]
             database_params[param_name] = value
-    
+
     try:
         database = use_database(database_name, **database_params)
         return database
