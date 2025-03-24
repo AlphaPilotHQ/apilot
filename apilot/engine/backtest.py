@@ -1,30 +1,44 @@
-from datetime import datetime, date, timedelta
-from typing import Callable, List, Dict, Type, Tuple, Optional
-from functools import lru_cache
-import traceback
+"""
+回测引擎模块
+
+提供策略的历史回测、性能分析和参数优化功能
+"""
+
 import os
 import os.path
+import traceback
+from datetime import date, datetime, timedelta
+from functools import lru_cache
+from typing import Callable, Dict, List, Optional, Tuple, Type
+
 import numpy as np
-from pandas import DataFrame
 import plotly.graph_objects as go
+from pandas import DataFrame
 from plotly.subplots import make_subplots
 
 from apilot.core.constant import (
     Direction,
-    Offset,
+    EngineType,
     Exchange,
+    INTERVAL_DELTA_MAP,
     Interval,
+    Offset,
     Status,
     BacktestingMode,
-    EngineType,
-    INTERVAL_DELTA_MAP,
+)
+from apilot.core.object import (
+    BarData,
+    OrderData,
+    TickData,
+    TradeData,
+)
+from apilot.core.utility import (
+    extract_vt_symbol,
+    round_to
 )
 from apilot.datafeed import get_database
-from apilot.core.object import OrderData, TradeData, BarData, TickData
-from apilot.core.utility import round_to, extract_vt_symbol
 from apilot.optimizer import (
     OptimizationSetting,
-    run_optimization,
     run_ga_optimization
 )
 from apilot.strategy.template import CtaTemplate

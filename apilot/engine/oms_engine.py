@@ -1,27 +1,41 @@
+"""
+订单管理系统引擎模块
+
+负责订单全生命周期管理、仓位跟踪和交易事件处理
+"""
+
 from typing import Dict, List, Optional
 
-from apilot.core.event import (
-    Event, 
+from apilot.core import (
+    # 引擎类
+    BaseEngine,
     EventEngine,
-    EVENT_TICK,
-    EVENT_ORDER,
-    EVENT_TRADE,
-    EVENT_POSITION,
-    EVENT_ACCOUNT,
-    EVENT_CONTRACT,
-    EVENT_QUOTE
-)
-from apilot.core.engine import BaseEngine, MainEngine
-from apilot.core.converter import OffsetConverter
-from apilot.core.object import (
-    OrderData,
-    OrderRequest,
-    TickData,
-    TradeData,
-    PositionData,
+    MainEngine,
+
+    # 数据类
     AccountData,
     ContractData,
-    QuoteData
+    OrderData,
+    OrderRequest,
+    PositionData,
+    QuoteData,
+    TickData,
+    TradeData,
+
+    # 组件类
+    OffsetConverter,
+
+    # 事件常量
+    EVENT_ACCOUNT,
+    EVENT_CONTRACT,
+    EVENT_ORDER,
+    EVENT_POSITION,
+    EVENT_QUOTE,
+    EVENT_TICK,
+    EVENT_TRADE,
+
+    # 事件类
+    Event
 )
 
 

@@ -1,12 +1,21 @@
+"""
+邮件引擎模块
+
+提供系统邮件发送功能，支持异步发送和错误处理
+"""
+
 import smtplib
 import traceback
+from email.message import EmailMessage
 from queue import Empty, Queue
 from threading import Thread
-from email.message import EmailMessage
 
-from apilot.core.engine import BaseEngine, MainEngine
-from apilot.core.event import EventEngine
-from apilot.core.setting import SETTINGS
+from apilot.core import (
+    BaseEngine,
+    EventEngine,
+    MainEngine,
+    SETTINGS
+)
 
 
 class EmailEngine(BaseEngine):

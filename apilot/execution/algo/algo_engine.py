@@ -4,9 +4,9 @@ from typing import Optional, Type
 from apilot.core.event import EventEngine, Event
 from apilot.core.engine import BaseEngine, MainEngine
 from apilot.core.constant import (
-    Direction, 
-    Offset, 
-    OrderType, 
+    Direction,
+    Offset,
+    OrderType,
     Exchange
 )
 from apilot.core.event import (
@@ -29,8 +29,8 @@ from apilot.core.object import (
 )
 from apilot.core.utility import round_to
 
-from .template import AlgoTemplate
-from .base import (
+from .algo_template import AlgoTemplate
+from .algo_base import (
     APP_NAME,
     AlgoStatus
 )

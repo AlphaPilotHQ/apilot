@@ -2,7 +2,33 @@
 引擎模块
 
 包含回测引擎、实盘引擎及其他交易核心引擎。
+
+主要组件:
+- BacktestingEngine: 回测引擎，用于策略历史表现回测
+- LogEngine: 日志引擎，用于日志记录和管理
+- OmsEngine: 订单管理系统引擎，处理订单生命周期
+- EmailEngine: 邮件引擎，用于发送通知和报告
+
+推荐用法:
+    from apilot.engine import BacktestingEngine
+    engine = BacktestingEngine()
 """
+
+# 定义公共API
+__all__ = [
+    # 回测相关
+    "BacktestingEngine",
+    "optimize",
+
+    # 核心引擎组件
+    "LogEngine",
+    "OmsEngine",
+    "EmailEngine",
+
+    # 策略模板 (为保持向后兼容)
+    "CtaTemplate",
+    "TargetPosTemplate"
+]
 
 # 导入回测相关引擎
 from .backtest import BacktestingEngine, optimize

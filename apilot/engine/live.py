@@ -1,55 +1,66 @@
-import traceback
-import importlib
-import os
-import sys
-import glob
-import csv
+"""
+实时交易引擎模块
+
+实现交易策略的实时运行与管理，包括信号处理、订单执行与风控
+"""
+
 import copy
+import csv
+import glob
+import importlib
 import logging
+import os
 import re
-from datetime import datetime, timedelta
+import sys
+import traceback
 from collections import defaultdict, OrderedDict
+from concurrent.futures import Future, ThreadPoolExecutor
+from datetime import datetime, timedelta
 from pathlib import Path
-from concurrent.futures import ThreadPoolExecutor, Future
-from typing import Any, Type, Dict, List, Set, Tuple, Optional, Callable
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Type
 
 import numpy as np
-import apilot
-from apilot.core.event import EventEngine, Event
-from apilot.core.engine import MainEngine, BaseEngine
-from apilot.core.object import (
-    OrderRequest,
-    SubscribeRequest,
-    HistoryRequest,
-    LogData,
-    TickData,
+
+from apilot.core import (
+    # 核心类
+    BaseEngine,
+    Event,
+    EventEngine,
+    MainEngine,
+
+    # 数据类和常量
     BarData,
     ContractData,
+    Direction,
+    Exchange,
+    Interval,
+    LogData,
+    Offset,
     OrderData,
-    TradeData,
-)
-from apilot.core.constant import (
-    Direction, 
-    Offset, 
-    Exchange, 
-    Interval, 
-    Status, 
+    OrderRequest,
     OrderType,
+    Status,
+    SubscribeRequest,
+    TickData,
+    TradeData,
+
+    # 常量和工具函数
     APP_NAME,
     EngineType,
-)
-from apilot.core.event import (
+    extract_vt_symbol,
+    load_json,
+    round_to,
+    save_json,
+
+    # 事件常量
     EVENT_CTA_LOG,
     EVENT_CTA_STRATEGY,
-    EVENT_TICK,
     EVENT_ORDER,
-    EVENT_TRADE
+    EVENT_TICK,
+    EVENT_TRADE,
 )
-from apilot.core.utility import load_json, save_json, extract_vt_symbol, round_to
-from apilot.core.database import BaseDatabase, get_database
-
-from apilot.strategy.template import CtaTemplate, TargetPosTemplate
-
+from apilot.datafeed import BaseDatabase, get_database
+from apilot.strategy import CtaTemplate, TargetPosTemplate
 
 class CtaEngine(BaseEngine):
     engine_type: EngineType = EngineType.LIVE
