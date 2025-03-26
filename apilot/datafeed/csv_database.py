@@ -12,7 +12,7 @@ from typing import Dict, List, Optional
 
 import pandas as pd
 
-from apilot.core import BarData, Exchange, Interval, TickData, SETTINGS
+from apilot.core import BarData, Exchange, Interval, TickData
 
 from .database import BaseDatabase, register_database
 
@@ -30,6 +30,25 @@ class CsvDatabase(BaseDatabase):
         # 如果是目录，确保存在
         if not self.is_direct_file:
             os.makedirs(self.data_path, exist_ok=True)
+            
+        # 从JSON配置加载CSV字段映射（只加载一次）
+        from apilot.core.utility import load_json
+        
+        # 配置文件名
+        self.setting_filename = "apilot_setting.json"
+        
+        # 加载配置
+        config = load_json(self.setting_filename)
+        
+        # CSV字段映射默认值
+        self.csv_field_mapping = {
+            "datetime_field": config.get("csv_datetime_field", "datetime"),
+            "open_field": config.get("csv_open_field", "open"),
+            "high_field": config.get("csv_high_field", "high"),
+            "low_field": config.get("csv_low_field", "low"),
+            "close_field": config.get("csv_close_field", "close"),
+            "volume_field": config.get("csv_volume_field", "volume")
+        }
 
     def load_bar_data(
         self,
@@ -54,14 +73,13 @@ class CsvDatabase(BaseDatabase):
                 data = pd.read_csv(self.data_path)
                 print(f"CSV文件已加载，行数: {len(data)}")
 
-                # 尝试使用配置中的字段映射
-                from apilot.core.setting import SETTINGS
-                datetime_field = SETTINGS.get("csv_datetime_field", "datetime")
-                open_field = SETTINGS.get("csv_open_field", "open")
-                high_field = SETTINGS.get("csv_high_field", "high")
-                low_field = SETTINGS.get("csv_low_field", "low")
-                close_field = SETTINGS.get("csv_close_field", "close")
-                volume_field = SETTINGS.get("csv_volume_field", "volume")
+                # 使用实例变量中已经加载的字段映射
+                datetime_field = self.csv_field_mapping["datetime_field"]
+                open_field = self.csv_field_mapping["open_field"]
+                high_field = self.csv_field_mapping["high_field"]
+                low_field = self.csv_field_mapping["low_field"]
+                close_field = self.csv_field_mapping["close_field"]
+                volume_field = self.csv_field_mapping["volume_field"]
 
                 print(f"字段映射: datetime={datetime_field}, open={open_field}, high={high_field}, low={low_field}, close={close_field}, volume={volume_field}")
 
