@@ -9,13 +9,11 @@
 """
 
 import unittest
-from datetime import datetime
-import time
 import logging
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from apilot.utils.logger import get_logger, CustomLogger
-from apilot.core.event import Event, EventEngine
+from apilot.core.event import EventEngine
 
 
 class TestLogging(unittest.TestCase):

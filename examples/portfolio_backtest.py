@@ -5,11 +5,10 @@
 from init_env import *
 from datetime import datetime
 import os
-import shutil
 import pandas as pd
 
 # 导入所需模块和图形库
-from apilot.core.constant import Interval, Exchange
+from apilot.core.constant import Interval
 
 from apilot.portfolio_strategy.backtesting import BacktestingEngine
 

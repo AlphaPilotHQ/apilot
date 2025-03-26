@@ -2,12 +2,10 @@
 Test script for backtesting functionality using local data.
 """
 
-import os
 from datetime import datetime
-import pandas as pd
-from typing import Any, List
+from typing import Any
 
-from apilot.trader.constant import Interval, Direction, Exchange
+from apilot.trader.constant import Interval, Direction
 from apilot.trader.object import BarData, TickData
 from apilot.trader.utility import BarGenerator
 from apilot.cta_strategy.template import CtaTemplate
