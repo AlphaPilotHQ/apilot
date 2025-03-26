@@ -54,3 +54,13 @@ Issues = "https://github.com/AlphaPilotHQ/apilot/issues"
 
 [tool.setuptools]
 packages = ["apilot"]
+
+[tool.ruff]
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]  # 选择要检查的规则类别
+ignore = ["E501"]          # 忽略特定规则（比如行长度）
+
+[tool.ruff.format]
+quote-style = "double"
