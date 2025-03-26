@@ -5,8 +5,12 @@ from apilot.core import (
     ContractData, OrderType, Offset, Direction
 )
 from apilot.core.utility import virtual
+from apilot.utils.logger import get_logger
 
 from .algo_base import AlgoStatus
+
+# 模块级初始化日志器
+logger = get_logger("AlgoTrading")
 
 if TYPE_CHECKING:
     from .engine import AlgoEngine
@@ -100,7 +104,7 @@ class AlgoTemplate:
         self.status = AlgoStatus.RUNNING
         self.put_event()
 
-        self.algo_engine.main_engine.log_info("算法启动", source=f"Algo:{self.algo_name}")
+        logger.info(f"[Algo:{self.algo_name}] 算法启动")
 
     def stop(self) -> None:
         """停止"""
@@ -108,7 +112,7 @@ class AlgoTemplate:
         self.cancel_all()
         self.put_event()
 
-        self.algo_engine.main_engine.log_info("算法停止", source=f"Algo:{self.algo_name}")
+        logger.info(f"[Algo:{self.algo_name}] 算法停止")
 
     def finish(self) -> None:
         """结束"""
@@ -116,21 +120,21 @@ class AlgoTemplate:
         self.cancel_all()
         self.put_event()
 
-        self.algo_engine.main_engine.log_info("算法结束", source=f"Algo:{self.algo_name}")
+        logger.info(f"[Algo:{self.algo_name}] 算法结束")
 
     def pause(self) -> None:
         """暂停"""
         self.status = AlgoStatus.PAUSED
         self.put_event()
 
-        self.algo_engine.main_engine.log_info("算法暂停", source=f"Algo:{self.algo_name}")
+        logger.info(f"[Algo:{self.algo_name}] 算法暂停")
 
     def resume(self) -> None:
         """恢复"""
         self.status = AlgoStatus.RUNNING
         self.put_event()
 
-        self.algo_engine.main_engine.log_info("算法恢复", source=f"Algo:{self.algo_name}")
+        logger.info(f"[Algo:{self.algo_name}] 算法恢复")
 
     def buy(
         self,
@@ -144,7 +148,7 @@ class AlgoTemplate:
             return
 
         msg: str = f"{self.vt_symbol}，委托买入{order_type.value}，{volume}@{price}"
-        self.algo_engine.main_engine.log_info(msg, source=f"Algo:{self.algo_name}")
+        logger.info(f"[Algo:{self.algo_name}] {msg}")
 
         return self.algo_engine.send_order(
             self,
@@ -167,7 +171,7 @@ class AlgoTemplate:
             return
 
         msg: str = f"{self.vt_symbol}委托卖出{order_type.value}，{volume}@{price}"
-        self.algo_engine.main_engine.log_info(msg, source=f"Algo:{self.algo_name}")
+        logger.info(f"[Algo:{self.algo_name}] {msg}")
 
         return self.algo_engine.send_order(
             self,

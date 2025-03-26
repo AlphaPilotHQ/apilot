@@ -13,7 +13,10 @@ from apilot.core.object import (
 )
 from apilot.core.constant import Direction, Offset, Status, OrderType, Interval, EngineType
 from apilot.core.utility import BarGenerator, ArrayManager, virtual
+from apilot.utils.logger import get_logger
 
+# 模块级别初始化日志器
+logger = get_logger("CtaStrategy")
 
 class CtaTemplate(ABC):
     """
@@ -210,10 +213,10 @@ class CtaTemplate(ABC):
 
                 return vt_orderids
             else:
-                self.cta_engine.main_engine.log_warning("策略未启动交易，订单未发送", source="CTA_STRATEGY")
+                logger.warning(f"[{self.strategy_name}] 策略未启动交易，订单未发送")
                 return []
         except Exception as e:
-            self.cta_engine.main_engine.log_error(f"发送订单异常: {str(e)}", source="CTA_STRATEGY")
+            logger.error(f"[{self.strategy_name}] 发送订单异常: {str(e)}")
             return []
 
     def cancel_order(self, vt_orderid: str) -> None:

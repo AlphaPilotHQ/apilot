@@ -61,6 +61,10 @@ from apilot.core import (
 )
 from apilot.datafeed import BaseDatabase, get_database
 from apilot.strategy import CtaTemplate, TargetPosTemplate
+from apilot.utils.logger import get_logger
+
+# 模块级初始化日志器
+logger = get_logger("LiveTrading")
 
 class CtaEngine(BaseEngine):
     engine_type: EngineType = EngineType.LIVE
@@ -90,7 +94,7 @@ class CtaEngine(BaseEngine):
         # 脚本环境中不需要动态加载策略类
         # self.load_strategy_class()
         self.register_event()
-        self.main_engine.log_info("CTA策略引擎初始化成功", source=APP_NAME)
+        logger.info("CTA策略引擎初始化成功")
 
     def close(self) -> None:
         self.stop_all_strategies()
@@ -251,10 +255,9 @@ class CtaEngine(BaseEngine):
         order: Optional[OrderData] = self.main_engine.get_order(vt_orderid)
         if not order:
             if strategy:
-                msg = f"[{strategy.strategy_name}] 撤单失败，找不到委托{vt_orderid}"
+                logger.error(f"[{strategy.strategy_name}] 撤单失败，找不到委托{vt_orderid}")
             else:
-                msg = f"撤单失败，找不到委托{vt_orderid}"
-            self.main_engine.log_error(msg, source=APP_NAME)
+                logger.error(f"撤单失败，找不到委托{vt_orderid}")
             return
 
         req: CancelRequest = order.create_cancel_request()

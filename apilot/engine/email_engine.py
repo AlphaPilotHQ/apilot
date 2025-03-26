@@ -16,6 +16,10 @@ from apilot.core import (
     MainEngine,
     SETTINGS
 )
+from apilot.utils.logger import get_logger
+
+# 模块级初始化日志器
+logger = get_logger("EmailEngine")
 
 
 class EmailEngine(BaseEngine):
@@ -68,7 +72,7 @@ class EmailEngine(BaseEngine):
                         smtp.send_message(msg)
                 except Exception:
                     msg: str = f"邮件发送失败: {traceback.format_exc()}"
-                    self.main_engine.log_error(msg, "EMAIL")
+                    logger.error(msg)
             except Empty:
                 pass
 

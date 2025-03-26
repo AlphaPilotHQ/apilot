@@ -1,39 +1,51 @@
-from collections import defaultdict
-from typing import Optional, Type
+"""
+执行算法引擎
 
-from apilot.core.event import EventEngine, Event
-from apilot.core.engine import BaseEngine, MainEngine
-from apilot.core.constant import (
-    Direction,
-    Offset,
-    OrderType,
-    Exchange
+管理算法实例的执行和监控，处理市场数据和分发执行结果。
+"""
+
+import copy
+import csv
+import importlib
+import os
+import traceback
+from collections import defaultdict
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Callable, Type
+
+from apilot.core.engine import (
+    BaseEngine,
+    MainEngine,
+    EventEngine,
+)
+from apilot.core.object import (
+    AlgoTemplate,
+    OrderRequest,
+    CancelRequest,
+    LogData,
+    SubscribeRequest,
+    OrderData,
+    TradeData,
+    TickData,
+    BarData,
+    ContractData,
 )
 from apilot.core.event import (
     EVENT_TICK,
-    EVENT_TIMER,
+    EVENT_BAR,
     EVENT_ORDER,
     EVENT_TRADE,
-    EVENT_ALGO_LOG,
-    EVENT_ALGO_UPDATE
+    EVENT_TIMER,
+    Event,
 )
-from apilot.core.object import (
-    SubscribeRequest,
-    OrderRequest,
-    LogData,
-    ContractData,
-    OrderData,
-    TickData,
-    TradeData,
-    CancelRequest
-)
-from apilot.core.utility import round_to
+from apilot.core.constant import Direction, Offset, OrderType, Status, Interval, Exchange
+from apilot.utils.logger import get_logger
 
-from .algo_template import AlgoTemplate
-from .algo_base import (
-    APP_NAME,
-    AlgoStatus
-)
+from .algo_base import APP_NAME
+
+# 模块级初始化日志器
+logger = get_logger("AlgoEngine")
 
 
 class AlgoEngine(BaseEngine):
@@ -54,7 +66,7 @@ class AlgoEngine(BaseEngine):
 
     def init_engine(self) -> None:
         """初始化引擎"""
-        self.main_engine.log_info("算法交易引擎启动", source=APP_NAME)
+        logger.info("算法交易引擎启动")
 
     def close(self) -> None:
         """关闭引擎"""
@@ -136,7 +148,7 @@ class AlgoEngine(BaseEngine):
         """启动算法"""
         contract: Optional[ContractData] = self.main_engine.get_contract(vt_symbol)
         if not contract:
-            self.main_engine.log_warning(f'算法启动失败，找不到合约：{vt_symbol}', source=APP_NAME)
+            logger.warning(f'算法启动失败，找不到合约：{vt_symbol}')
             return ""
 
         algo_template: AlgoTemplate = self.algo_templates[template_name]
@@ -233,7 +245,7 @@ class AlgoEngine(BaseEngine):
         order: Optional[OrderData] = self.main_engine.get_order(vt_orderid)
 
         if not order:
-            self.main_engine.log_warning(f"委托撤单失败，找不到委托：{vt_orderid}", source=f"{APP_NAME}:{algo.algo_name}")
+            logger.warning(f"[{APP_NAME}:{algo.algo_name}] 委托撤单失败，找不到委托：{vt_orderid}")
             return
 
         req: CancelRequest = order.create_cancel_request()
@@ -244,7 +256,7 @@ class AlgoEngine(BaseEngine):
         tick: Optional[TickData] = self.main_engine.get_tick(algo.vt_symbol)
 
         if not tick:
-            self.main_engine.log_warning(f"查询行情失败，找不到行情：{algo.vt_symbol}", source=f"{APP_NAME}:{algo.algo_name}")
+            logger.warning(f"[{APP_NAME}:{algo.algo_name}] 查询行情失败，找不到行情：{algo.vt_symbol}")
 
         return tick
 
@@ -253,8 +265,8 @@ class AlgoEngine(BaseEngine):
         contract: Optional[ContractData] = self.main_engine.get_contract(algo.vt_symbol)
 
         if not contract:
-            source = f"{APP_NAME}:{algo.algo_name}" if algo else APP_NAME
-            self.main_engine.log_warning(f"查询合约失败，找不到合约：{algo.vt_symbol}", source=source)
+            source = f"{APP_NAME}:{algo.algo_name}" if algo.algo_name else APP_NAME
+            logger.warning(f"[{source}] 查询合约失败，找不到合约：{algo.vt_symbol}")
 
         return contract
 
