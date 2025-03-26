@@ -42,7 +42,6 @@ from . import core
 from . import engine
 from . import execution
 from . import optimizer
-from . import risk
 from . import strategy
 from . import utils
 from . import datafeed

@@ -4,50 +4,24 @@
 包含交易平台主引擎和基础引擎类，负责管理事件、网关和应用程序。
 """
 
-import logging
 import os
-import smtplib
-import traceback
 from abc import ABC
-from datetime import datetime
-from email.message import EmailMessage
-from logging import Logger
-from pathlib import Path
-from queue import Empty, Queue
-from threading import Thread
-from typing import Any, Dict, List, Optional, Type, Callable
+from typing import Any, Dict, List, Optional, Type
 
 from .event import (
-    EVENT_ACCOUNT,
-    EVENT_CONTRACT,
-    EVENT_ORDER,
-    EVENT_POSITION,
-    EVENT_QUOTE,
-    EVENT_TICK,
-    EVENT_TRADE,
-    EVENT_TIMER,
-    Event,
     EventEngine,
 )
 from .gateway import BaseGateway
 from .object import (
-    AccountData,
     BarData,
     CancelRequest,
-    ContractData,
     Exchange,
     HistoryRequest,
-    LogData,
-    OrderData,
     OrderRequest,
-    PositionData,
-    QuoteData,
     QuoteRequest,
     SubscribeRequest,
-    TickData,
-    TradeData,
 )
-from .utility import TRADER_DIR, get_folder_path
+from .utility import TRADER_DIR
 from apilot.utils.logger import get_logger
 
 class MainEngine:

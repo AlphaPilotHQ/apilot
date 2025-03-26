@@ -5,14 +5,11 @@ General utility functions.
 import json
 import logging
 import sys
-import random
 from datetime import datetime, time
 from pathlib import Path
-from typing import Callable, Dict, Tuple, Union, Optional, Any, TypeVar
+from typing import Callable, Tuple, Union, Optional, TypeVar
 from decimal import Decimal
 from math import floor, ceil
-from functools import wraps
-from time import sleep
 
 import numpy as np
 from .object import BarData, TickData
@@ -62,7 +59,6 @@ def _get_trader_dir(temp_name: str) -> Tuple[Path, Path]:
     return home_path, temp_path
 
 
-# 使用.apilot作为临时目录名，替代原先的.vntrader
 TRADER_DIR, TEMP_DIR = _get_trader_dir(".apilot")
 sys.path.append(str(TRADER_DIR))
 
@@ -165,14 +161,14 @@ class BarGenerator:
 
     def __init__(
         self,
-        on_bars: Callable,
+        on_bar: Callable,
         window: int = 0,
-        on_window_bars: Callable = None,
+        on_window_bar: Callable = None,
         interval: Interval = Interval.MINUTE,
         daily_end: time = None
     ) -> None:
         """构造函数"""
-        self.on_bars: Callable = on_bars
+        self.on_bar: Callable = on_bar
 
         self.interval: Interval = interval
         self.interval_count: int = 0
@@ -185,7 +181,7 @@ class BarGenerator:
 
         self.window: int = window
         self.window_bars: dict[str, BarData] = {}
-        self.on_window_bars: Callable = on_window_bars
+        self.on_window_bar: Callable = on_window_bar
 
         self.last_dt: datetime = None
 
@@ -202,7 +198,7 @@ class BarGenerator:
             for bar in self.bars.values():
                 bar.datetime = bar.datetime.replace(second=0, microsecond=0)
 
-            self.on_bars(self.bars)
+            self.on_bar(self.bars)
             self.bars = {}
 
         bar: Optional[BarData] = self.bars.get(tick.vt_symbol, None)
@@ -280,7 +276,7 @@ class BarGenerator:
 
         # 检查K线是否合成完毕
         if not (bar.datetime.minute + 1) % self.window:
-            self.on_window_bars(self.window_bars)
+            self.on_window_bar(self.window_bars)
             self.window_bars = {}
 
     def update_bar_hour_window(self, bars: dict[str, BarData]) -> None:
@@ -364,13 +360,13 @@ class BarGenerator:
 
         # 推送合成完毕的小时K线
         if self.finished_hour_bars:
-            self.on_hour_bars(self.finished_hour_bars)
+            self.on_hour_bar(self.finished_hour_bars)
             self.finished_hour_bars = {}
 
-    def on_hour_bars(self, bars: dict[str, BarData]) -> None:
+    def on_hour_bar(self, bars: dict[str, BarData]) -> None:
         """推送小时K线"""
         if self.window == 1:
-            self.on_window_bars(bars)
+            self.on_window_bar(bars)
         else:
             for vt_symbol, bar in bars.items():
                 window_bar: Optional[BarData] = self.window_bars.get(vt_symbol, None)
@@ -403,7 +399,7 @@ class BarGenerator:
             self.interval_count += 1
             if not self.interval_count % self.window:
                 self.interval_count = 0
-                self.on_window_bars(self.window_bars)
+                self.on_window_bar(self.window_bars)
                 self.window_bars = {}
 
 

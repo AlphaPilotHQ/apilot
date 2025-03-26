@@ -4,14 +4,10 @@
 定义了行情数据存储的通用接口和工厂方法
 """
 
-import os
-import sys
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
-from importlib import import_module
-from types import ModuleType
-from typing import Any, Dict, List, Optional, Type, TYPE_CHECKING
+from typing import Dict, List, Optional, Type
 
 from apilot.core import Exchange, Interval, BarData, TickData
 
@@ -136,7 +132,7 @@ def get_database() -> BaseDatabase:
     try:
         database = use_database(database_name, **database_params)
         return database
-    except Exception as e:
+    except Exception:
         # 默认使用已注册的数据库，或者抛出异常
         if _DATABASE_REGISTRY:
             first_db_name = next(iter(_DATABASE_REGISTRY))
