@@ -13,8 +13,12 @@ from typing import Dict, List, Optional
 import pandas as pd
 
 from apilot.core import BarData, Exchange, Interval, TickData
+from apilot.utils.logger import get_logger
 
 from .database import BaseDatabase, register_database
+
+# 获取CSV数据库专用日志记录器
+logger = get_logger("csv_database")
 
 
 class CsvDatabase(BaseDatabase):
@@ -59,19 +63,19 @@ class CsvDatabase(BaseDatabase):
         end: datetime
     ) -> List[BarData]:
         """加载K线数据"""
-        print(f"CSV数据库: 请求加载 {symbol}.{exchange} 数据，区间 {interval}，时间 {start} 至 {end}")
+        logger.info(f"CSV数据库: 请求加载 {symbol}.{exchange} 数据，区间 {interval}，时间 {start} 至 {end}")
 
         # 处理直接指定的CSV文件
         if self.is_direct_file:
-            print(f"使用直接CSV文件路径: {self.data_path}")
+            logger.info(f"使用直接CSV文件路径: {self.data_path}")
             if not os.path.exists(self.data_path):
-                print(f"CSV文件不存在: {self.data_path}")
+                logger.info(f"CSV文件不存在: {self.data_path}")
                 return []
 
             try:
                 # 读取CSV文件
                 data = pd.read_csv(self.data_path)
-                print(f"CSV文件已加载，行数: {len(data)}")
+                logger.info(f"CSV文件已加载，行数: {len(data)}")
 
                 # 使用实例变量中已经加载的字段映射
                 datetime_field = self.csv_field_mapping["datetime_field"]
@@ -81,7 +85,7 @@ class CsvDatabase(BaseDatabase):
                 close_field = self.csv_field_mapping["close_field"]
                 volume_field = self.csv_field_mapping["volume_field"]
 
-                print(f"字段映射: datetime={datetime_field}, open={open_field}, high={high_field}, low={low_field}, close={close_field}, volume={volume_field}")
+                logger.info(f"字段映射: datetime={datetime_field}, open={open_field}, high={high_field}, low={low_field}, close={close_field}, volume={volume_field}")
 
                 # 确保所需字段存在
                 missing_fields = []
@@ -112,24 +116,24 @@ class CsvDatabase(BaseDatabase):
                             missing_fields.append(field_name)
 
                 if missing_fields:
-                    print(f"CSV文件缺少必要字段: {', '.join(missing_fields)}")
-                    print(f"可用字段: {', '.join(data.columns)}")
+                    logger.info(f"CSV文件缺少必要字段: {', '.join(missing_fields)}")
+                    logger.info(f"可用字段: {', '.join(data.columns)}")
                     return []
 
                 # 转换日期时间
-                print(f"转换日期时间字段: {datetime_field}")
+                logger.info(f"转换日期时间字段: {datetime_field}")
                 data[datetime_field] = pd.to_datetime(data[datetime_field])
 
                 # 根据起止时间筛选数据
                 data = data[(data[datetime_field] >= start) & (data[datetime_field] <= end)]
-                print(f"筛选后数据行数: {len(data)}")
+                logger.info(f"筛选后数据行数: {len(data)}")
 
                 # 如果CSV中有symbol列，可以进一步筛选
                 if 'symbol' in data.columns:
                     # 允许匹配不带交易所的symbol (比如 "SOL-USDT" 匹配 "SOL-USDT.Exchange.LOCAL")
                     base_symbol = symbol.split('.')[0] if '.' in symbol else symbol
                     data = data[data['symbol'] == base_symbol]
-                    print(f"按symbol={base_symbol}筛选后数据行数: {len(data)}")
+                    logger.info(f"按symbol={base_symbol}筛选后数据行数: {len(data)}")
 
                 # 构建bar数据
                 bars = []
@@ -150,15 +154,15 @@ class CsvDatabase(BaseDatabase):
                     )
                     bars.append(bar)
 
-                print(f"成功创建 {len(bars)} 个Bar对象")
+                logger.info(f"成功创建 {len(bars)} 个Bar对象")
                 if bars:
-                    print(f"第一个Bar: {bars[0]}")
-                    print(f"最后一个Bar: {bars[-1]}")
+                    logger.info(f"第一个Bar: {bars[0]}")
+                    logger.info(f"最后一个Bar: {bars[-1]}")
 
                 return bars
 
             except Exception as e:
-                print(f"加载CSV文件失败: {e}")
+                logger.error(f"加载CSV文件失败: {e}")
                 import traceback
                 traceback.print_exc()
                 return []
