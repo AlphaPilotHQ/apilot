@@ -2,22 +2,12 @@
 VeighNa Binance Gateway using CCXT
 """
 
-import asyncio
-import time
-import hmac
-import hashlib
-import json
-import base64
-from copy import copy
-from datetime import datetime, timedelta
-from threading import Lock
-from urllib.parse import urlencode
-from typing import Any, Dict, List, Set, Optional, Callable
+from datetime import datetime
+from typing import List
 
 import ccxt
-from ccxt.base.errors import NetworkError, ExchangeError, OrderNotFound, InsufficientFunds
 
-from apilot.core.event import Event, EventEngine
+from apilot.core.event import EventEngine
 from apilot.core.constant import (
     Direction,
     Exchange,
@@ -28,10 +18,7 @@ from apilot.core.constant import (
 )
 from apilot.core.gateway import BaseGateway
 from apilot.core.object import (
-    TickData,
     OrderData,
-    TradeData,
-    PositionData,
     AccountData,
     ContractData,
     BarData,
@@ -40,7 +27,6 @@ from apilot.core.object import (
     SubscribeRequest,
     HistoryRequest
 )
-from apilot.core.utility import round_to
 
 # Binance exchange symbols for VeighNa
 EXCHANGE_BINANCE = Exchange.BINANCE
@@ -218,7 +204,7 @@ class BinanceRestApi:
 
         # Create the exchange instance
         try:
-            self.gateway.write_log(f"创建Binance交易所实例")
+            self.gateway.write_log("创建Binance交易所实例")
             self.exchange = exchange_class(self.exchange_kwargs)
         except Exception as e:
             self.gateway.write_log(f"创建Binance交易所实例失败: {e}")

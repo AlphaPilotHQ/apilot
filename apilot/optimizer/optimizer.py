@@ -1,12 +1,8 @@
-from typing import Dict, List, Callable, Tuple, Iterable
+from typing import Dict, List, Callable, Tuple
 from itertools import product
-from concurrent.futures import ProcessPoolExecutor
 from random import random, choice
 from multiprocessing import get_context
-from multiprocessing.context import BaseContext
-from collections.abc import Mapping
 
-from tqdm import tqdm
 try:
     from deap import creator, base, tools, algorithms
 except ImportError:

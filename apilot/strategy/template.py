@@ -2,17 +2,15 @@ from abc import ABC
 from copy import copy
 from typing import Any, Callable, List, Dict, Optional, Set, Union
 from collections import defaultdict
-from datetime import datetime, timedelta
 
 from apilot.core.object import (
     TickData,
     BarData,
     TradeData,
-    OrderData,
-    ContractData
+    OrderData
 )
-from apilot.core.constant import Direction, Offset, Status, OrderType, Interval, EngineType
-from apilot.core.utility import BarGenerator, ArrayManager, virtual
+from apilot.core.constant import Direction, Offset, Interval, EngineType
+from apilot.core.utility import virtual
 from apilot.utils.logger import get_logger
 
 # 模块级别初始化日志器
