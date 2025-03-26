@@ -19,7 +19,7 @@ __all__ = [
     "BarData", "TickData", "OrderData", "TradeData", "AccountData", "PositionData", "ContractData",
 
     # 工具类
-    "BarGenerator", "ArrayManager",
+    "BarGenerator", "ArrayManager", "LocalOrderManager",
 
     # 策略模板
     "CtaTemplate", "TargetPosTemplate",
@@ -71,6 +71,7 @@ from .core.object import (
 
 # 导出工具类
 from .core.utility import BarGenerator, ArrayManager
+from .utils.order_manager import LocalOrderManager
 
 # 导出策略模板
 from .strategy.template import CtaTemplate, TargetPosTemplate

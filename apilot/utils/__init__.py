@@ -8,6 +8,7 @@
 - 日期处理工具: 时间转换、回测区间划分等
 - 数据处理工具: 数据格式转换、滤波等
 - 可视化工具: 绘制K线、收益曲线等
+- 订单管理工具: 本地订单ID管理等
 
 推荐用法:
     from apilot.utils import 特定工具函数
@@ -15,11 +16,11 @@
 
 # 定义公共API
 __all__ = [
-    # 目前没有导出的工具函数
-    # 随着项目发展会逐步添加
+    # 订单管理
+    "LocalOrderManager",
+    
+    # 其他工具函数会逐步添加
 ]
 
-# 未来添加工具函数时在此导出
-# 例如:
-# from .math_utils import calculate_sharpe, calculate_drawdown
-# from .date_utils import convert_datetime, split_date_range
+# 订单管理工具
+from .order_manager import LocalOrderManager
