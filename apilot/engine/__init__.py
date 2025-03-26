@@ -5,7 +5,6 @@
 
 主要组件:
 - BacktestingEngine: 回测引擎，用于策略历史表现回测
-- LogEngine: 日志引擎，用于日志记录和管理
 - OmsEngine: 订单管理系统引擎，处理订单生命周期
 - EmailEngine: 邮件引擎，用于发送通知和报告
 
@@ -21,7 +20,6 @@ __all__ = [
     "optimize",
 
     # 核心引擎组件
-    "LogEngine",
     "OmsEngine",
     "EmailEngine",
 
@@ -34,7 +32,6 @@ __all__ = [
 from .backtest import BacktestingEngine, optimize
 
 # 导入核心引擎组件
-from .log_engine import LogEngine
 from .oms_engine import OmsEngine
 from .email_engine import EmailEngine
 

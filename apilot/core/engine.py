@@ -15,18 +15,18 @@ from logging import Logger
 from pathlib import Path
 from queue import Empty, Queue
 from threading import Thread
-from typing import Any, Dict, List, Optional, Type
+from typing import Any, Dict, List, Optional, Type, Callable
 
 from .app import BaseApp
 from .event import (
     EVENT_ACCOUNT,
     EVENT_CONTRACT,
-    EVENT_LOG,
     EVENT_ORDER,
     EVENT_POSITION,
     EVENT_QUOTE,
     EVENT_TICK,
     EVENT_TRADE,
+    EVENT_TIMER,
     Event,
     EventEngine,
 )
@@ -50,7 +50,7 @@ from .object import (
 )
 from .setting import SETTINGS
 from .utility import TRADER_DIR, get_folder_path
-
+from apilot.utils.logger import get_logger
 
 class MainEngine:
     """
@@ -114,59 +114,10 @@ class MainEngine:
         Init all engines.
         """
         # Import from engine package instead of individual modules
-        from apilot.engine import LogEngine, OmsEngine, EmailEngine
+        from apilot.engine import OmsEngine, EmailEngine
 
-        self.add_engine(LogEngine)
         self.add_engine(OmsEngine)
         self.add_engine(EmailEngine)
-
-    def _write_log(self, msg: str, source: str = "", gateway_name: str = "", level: int = logging.INFO, **kwargs) -> None:
-        """
-        内部方法：创建并发送日志事件
-
-        参数:
-            msg: 日志消息
-            source: 日志来源
-            gateway_name: 网关名称
-            level: 日志级别
-            **kwargs: 额外参数
-        """
-        extra = kwargs.pop("extra", {})
-        extra.update(kwargs)  # 添加所有额外的关键字参数到extra字典
-
-        # 创建LogData对象并确保所有必要字段都有值
-        log = LogData(
-            msg=msg,
-            level=level,
-            source=source,
-            gateway_name=gateway_name,
-            extra=extra
-        )
-
-        # 创建并发送事件
-        event = Event(EVENT_LOG, log)
-        self.event_engine.put(event)
-
-
-    def log_debug(self, msg: str, source: str = "") -> None:
-        """记录调试级别日志"""
-        self._write_log(msg, source, level=logging.DEBUG)
-
-    def log_info(self, msg: str, source: str = "") -> None:
-        """记录信息级别日志"""
-        self._write_log(msg, source, level=logging.INFO)
-
-    def log_warning(self, msg: str, source: str = "") -> None:
-        """记录警告级别日志"""
-        self._write_log(msg, source, level=logging.WARNING)
-
-    def log_error(self, msg: str, source: str = "") -> None:
-        """记录错误级别日志"""
-        self._write_log(msg, source, level=logging.ERROR)
-
-    def log_critical(self, msg: str, source: str = "") -> None:
-        """记录严重错误级别日志"""
-        self._write_log(msg, source, level=logging.CRITICAL)
 
     def get_gateway(self, gateway_name: str) -> BaseGateway:
         """
@@ -174,7 +125,7 @@ class MainEngine:
         """
         gateway: BaseGateway = self.gateways.get(gateway_name, None)
         if not gateway:
-            self.log_error(f"找不到底层接口：{gateway_name}")
+            get_logger().error(f"找不到底层接口：{gateway_name}")
         return gateway
 
     def get_engine(self, engine_name: str) -> "BaseEngine":
@@ -183,7 +134,7 @@ class MainEngine:
         """
         engine: BaseEngine = self.engines.get(engine_name, None)
         if not engine:
-            self.log_error(f"找不到引擎：{engine_name}")
+            get_logger().error(f"找不到引擎：{engine_name}")
         return engine
 
     def get_default_setting(self, gateway_name: str) -> Optional[Dict[str, Any]]:

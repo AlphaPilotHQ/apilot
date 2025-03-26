@@ -17,7 +17,7 @@ __all__ = [
     # 事件相关组件
     "Event", "EventEngine",
     "EVENT_TICK", "EVENT_ORDER", "EVENT_TRADE", "EVENT_POSITION",
-    "EVENT_ACCOUNT", "EVENT_CONTRACT", "EVENT_LOG", "EVENT_TIMER",
+    "EVENT_ACCOUNT", "EVENT_CONTRACT", "EVENT_QUOTE", "EVENT_TIMER",
 
     # 核心数据对象
     "OrderData", "TradeData", "AccountData", "PositionData",
@@ -62,7 +62,6 @@ from .event import (
     EVENT_ACCOUNT,   # type: str
     EVENT_QUOTE,
     EVENT_CONTRACT,  # type: str
-    EVENT_LOG,       # type: str
     EVENT_TIMER      # type: str
 )
 

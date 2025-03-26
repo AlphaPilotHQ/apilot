@@ -13,7 +13,7 @@ EVENT_POSITION = "ePosition."
 EVENT_ACCOUNT = "eAccount."
 EVENT_QUOTE = "eQuote."
 EVENT_CONTRACT = "eContract."
-EVENT_LOG = "eLog"
+
 
 # CTA策略事件
 EVENT_CTA_LOG: str = "EVENT_CTA_LOG"

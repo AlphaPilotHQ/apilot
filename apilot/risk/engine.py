@@ -4,7 +4,7 @@ from typing import Callable, Dict, Optional
 from apilot.core import (
     # Event related
     Event, EventEngine,
-    EVENT_TRADE, EVENT_ORDER, EVENT_LOG, EVENT_TIMER,
+    EVENT_TRADE, EVENT_ORDER, EVENT_TIMER,
 
     # Engine components
     BaseEngine, MainEngine,

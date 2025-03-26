@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Callable
 from copy import copy
+import logging
+from apilot.utils.logger import get_logger
 
 from .event import Event, EventEngine
 from .event import (
@@ -10,7 +12,6 @@ from .event import (
     EVENT_POSITION,
     EVENT_ACCOUNT,
     EVENT_CONTRACT,
-    EVENT_LOG,
     EVENT_QUOTE,
 )
 from .object import (
@@ -58,7 +59,7 @@ class BaseGateway(ABC):
 
     exchanges: List[Exchange] = []
 
-    def __init__(self, event_engine: EventEngine, gateway_name: str) -> None:
+    def __init__(self, event_engine: EventEngine, gateway_name: str = "") -> None:
         """"""
         self.event_engine = event_engine
         self.gateway_name = gateway_name
@@ -118,18 +119,11 @@ class BaseGateway(ABC):
         self.on_event(EVENT_QUOTE, quote)
         self.on_event(EVENT_QUOTE + quote.vt_symbol, quote)
 
-    def on_log(self, log: LogData) -> None:
-        """
-        Log event push.
-        """
-        self.on_event(EVENT_LOG, log)
-
     def on_contract(self, contract: ContractData) -> None:
         """
         Contract event push.
         """
         self.on_event(EVENT_CONTRACT, contract)
-
 
     @abstractmethod
     def connect(self, setting: dict) -> None:
@@ -171,17 +165,11 @@ class BaseGateway(ABC):
     def send_order(self, req: OrderRequest) -> str:
         """
         Send a new order to server.
-
         implementation should finish the tasks blow:
-        * create an OrderData from req using OrderRequest.create_order_data
-        * assign a unique(gateway instance scope) id to OrderData.orderid
+        * create an OrderData object from req using OrderData.create_from_request
+        * assign a unique id to OrderData.orderid
         * send request to server
-            * if request is sent, OrderData.status should be set to Status.SUBMITTING
-            * if request is failed to sent, OrderData.status should be set to Status.REJECTED
-        * response on_order:
-        * return vt_orderid
-
-        :return str vt_orderid for created OrderData
+        * return orderid
         """
         pass
 
