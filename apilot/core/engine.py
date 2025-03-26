@@ -123,7 +123,7 @@ class MainEngine:
     def _write_log(self, msg: str, source: str = "", gateway_name: str = "", level: int = logging.INFO, **kwargs) -> None:
         """
         内部方法：创建并发送日志事件
-        
+
         参数:
             msg: 日志消息
             source: 日志来源
@@ -133,25 +133,20 @@ class MainEngine:
         """
         extra = kwargs.pop("extra", {})
         extra.update(kwargs)  # 添加所有额外的关键字参数到extra字典
-        
+
         # 创建LogData对象并确保所有必要字段都有值
         log = LogData(
-            msg=msg, 
-            level=level, 
-            source=source, 
+            msg=msg,
+            level=level,
+            source=source,
             gateway_name=gateway_name,
             extra=extra
         )
-        
+
         # 创建并发送事件
         event = Event(EVENT_LOG, log)
         self.event_engine.put(event)
 
-    def write_log(self, msg: str, source: str = "", level: int = logging.INFO) -> None:
-        """记录日志消息（已弃用，请使用log_debug/log_info等方法）"""
-        import warnings
-        warnings.warn("write_log方法已弃用，请使用log_debug/log_info等专用方法", DeprecationWarning, stacklevel=2)
-        self._write_log(msg, source, level=level)
 
     def log_debug(self, msg: str, source: str = "") -> None:
         """记录调试级别日志"""

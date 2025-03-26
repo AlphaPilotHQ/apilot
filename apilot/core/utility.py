@@ -15,7 +15,7 @@ from functools import wraps
 from time import sleep
 
 import numpy as np
-import talib
+# import talib TODO：计划删除
 from .object import BarData, TickData
 from .constant import Exchange, Interval
 
@@ -691,9 +691,20 @@ class ArrayManager(object):
 
     def std(self, n: int, nbdev: int = 1, array: bool = False) -> Union[float, np.ndarray]:
         """
-        Standard deviation.
+        计算标准差 - 高效NumPy实现
         """
-        result: np.ndarray = talib.STDDEV(self.close, n, nbdev)
+        # 确保数据足够计算
+        if not self.inited:
+            return 0 if not array else np.zeros(len(self.close))
+        
+        # 创建结果数组
+        result = np.full_like(self.close, 0.0)
+        
+        # 计算有效位置的标准差 (使用纯NumPy操作)
+        for i in range(n-1, len(self.close)):
+            # 使用NumPy的std函数直接计算窗口的标准差
+            result[i] = np.std(self.close[i-n+1:i+1]) * nbdev
+        
         if array:
             return result
         return result[-1]

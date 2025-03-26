@@ -135,17 +135,6 @@ class MainEngine:
         """关键错误日志"""
         self._write_log(msg, source, gateway_name, logging.CRITICAL, **kwargs)
 
-    def write_log(self, msg, level=logging.INFO, source="", gateway_name="", **kwargs):
-        """兼容老版本的日志方法，已弃用"""
-        import warnings
-
-        warnings.warn(
-            "write_log方法已弃用，请使用log_xxx方法代替",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        self._write_log(msg, source, gateway_name, level, **kwargs)
-
     def close(self):
         """关闭引擎"""
         # 关闭日志引擎
@@ -208,7 +197,7 @@ def test_logging_methods(setup_logging_system):
 
     # 验证日志内容
     assert captured_logs[0].msg == "Debug消息"
-    assert captured_logs[1].msg == "Info消息" 
+    assert captured_logs[1].msg == "Info消息"
     assert captured_logs[2].msg == "Warning消息"
     assert captured_logs[3].msg == "Error消息"
     assert captured_logs[4].msg == "Critical消息"
@@ -245,18 +234,3 @@ def test_log_with_extra(setup_logging_system):
     assert captured_logs[0].extra["price"] == 50000
 
 
-def test_deprecated_write_log(setup_logging_system):
-    """测试已弃用的write_log方法"""
-    main_engine, captured_logs = setup_logging_system
-
-    # 使用已弃用的方法
-    with patch("warnings.warn") as mock_warn:
-        main_engine.write_log("已弃用的方法")
-
-        # 验证发出了警告
-        assert mock_warn.called
-
-        # 验证日志仍然被记录
-        assert len(captured_logs) == 1
-        assert captured_logs[0].msg == "已弃用的方法"
-        assert captured_logs[0].level == logging.INFO

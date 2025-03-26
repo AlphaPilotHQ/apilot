@@ -592,15 +592,6 @@ class CtaEngine(BaseEngine):
         # 在无GUI环境下不需要此方法
         pass
 
-    def write_log(self, msg: str, strategy: CtaTemplate = None, level: int = logging.INFO) -> None:
-        """
-        记录日志消息（已弃用，请使用主引擎的日志方法）
-        """
-        if strategy:
-            msg = f"[{strategy.strategy_name}] {msg}"
-
-        self.main_engine._write_log(msg, source=APP_NAME, gateway_name="", level=level)
-
     def send_email(self, msg: str, strategy: CtaTemplate = None) -> None:
         """发送邮件通知（可以删除）"""
         # 在脚本环境中可以直接使用主引擎的邮件功能

@@ -31,10 +31,7 @@ class CtaTemplate(ABC):
         vt_symbols: Union[str, List[str]],
         setting: dict
     ) -> None:
-        """
-        构造函数
-        vt_symbols可以是单个字符串或字符串列表
-        """
+
         self.cta_engine = cta_engine
         self.strategy_name = strategy_name
 

@@ -19,8 +19,7 @@ class BaseData:
     and should inherit base data.
     """
 
-    gateway_name: str
-
+    gateway_name: str = ""
     extra: Optional[dict] = field(default=None, init=False)
 
 
@@ -33,9 +32,9 @@ class TickData(BaseData):
         * intraday market statistics.
     """
 
-    symbol: str
-    exchange: Exchange
-    datetime: datetime
+    symbol: str = ""
+    exchange: Exchange = None
+    datetime: datetime = None
 
     name: str = ""
     volume: float = 0
@@ -133,9 +132,9 @@ class BarData(BaseData):
     Candlestick bar data of a certain trading period.
     """
 
-    symbol: str
-    exchange: Exchange
-    datetime: datetime
+    symbol: str = ""
+    exchange: Exchange = None
+    datetime: datetime = None
 
     interval: Interval = None
     volume: float = 0
@@ -178,11 +177,11 @@ class OrderData(BaseData):
     Order data contains information for tracking lastest status
     of a specific order.
     """
-
-    symbol: str
-    exchange: Exchange
-    orderid: str
     gateway_name: str = ""
+
+    symbol: str = ""
+    exchange: Exchange = None
+    orderid: str = ""
 
     type: OrderType = OrderType.LIMIT
     direction: Direction = None
@@ -222,10 +221,10 @@ class TradeData(BaseData):
     can have several trade fills.
     """
 
-    symbol: str
-    exchange: Exchange
-    orderid: str
-    tradeid: str
+    symbol: str = ""
+    exchange: Exchange = None
+    orderid: str = ""
+    tradeid: str = ""
     direction: Direction = None
 
     offset: Offset = Offset.NONE
@@ -246,9 +245,9 @@ class PositionData(BaseData):
     Position data is used for tracking each individual position holding.
     """
 
-    symbol: str
-    exchange: Exchange
-    direction: Direction
+    symbol: str = ""
+    exchange: Exchange = None
+    direction: Direction = None
 
     volume: float = 0
     frozen: float = 0
@@ -269,7 +268,7 @@ class AccountData(BaseData):
     available.
     """
 
-    accountid: str
+    accountid: str = ""
 
     balance: float = 0
     frozen: float = 0
@@ -286,7 +285,7 @@ class LogData(BaseData):
 
     包含日志消息、级别、来源和时间戳等信息，用于事件驱动的日志系统
     """
-    msg: str  # 日志消息
+    msg: str = ""  # 日志消息
     level: int = INFO  # 日志级别
     source: str = ""  # 日志来源
     timestamp: datetime = field(default_factory=datetime.now)  # 日志记录时间
@@ -305,12 +304,12 @@ class ContractData(BaseData):
     Contract data contains basic information about each contract traded.
     """
 
-    symbol: str
-    exchange: Exchange
-    name: str
-    product: Product
-    size: float
-    pricetick: float
+    symbol: str = ""
+    exchange: Exchange = None
+    name: str = ""
+    product: Product = None
+    size: float = 0
+    pricetick: float = 0
 
     min_volume: float = 1           # minimum order volume
     max_volume: float = None        # maximum order volume
@@ -338,9 +337,9 @@ class QuoteData(BaseData):
     of a specific quote.
     """
 
-    symbol: str
-    exchange: Exchange
-    quoteid: str
+    symbol: str = ""
+    exchange: Exchange = None
+    quoteid: str = ""
 
     bid_price: float = 0.0
     bid_volume: int = 0
@@ -379,8 +378,8 @@ class SubscribeRequest:
     Request sending to specific gateway for subscribing tick data update.
     """
 
-    symbol: str
-    exchange: Exchange
+    symbol: str = ""
+    exchange: Exchange = None
 
     def __post_init__(self) -> None:
         """"""
@@ -393,11 +392,11 @@ class OrderRequest:
     Request sending to specific gateway for creating a new order.
     """
 
-    symbol: str
-    exchange: Exchange
-    direction: Direction
-    type: OrderType
-    volume: float
+    symbol: str = ""
+    exchange: Exchange = None
+    direction: Direction = None
+    type: OrderType = None
+    volume: float = 0
     price: float = 0
     offset: Offset = Offset.NONE
     reference: str = ""
@@ -430,9 +429,9 @@ class CancelRequest:
     Request sending to specific gateway for canceling an existing order.
     """
 
-    orderid: str
-    symbol: str
-    exchange: Exchange
+    orderid: str = ""
+    symbol: str = ""
+    exchange: Exchange = None
 
     def __post_init__(self) -> None:
         """"""
@@ -445,9 +444,9 @@ class HistoryRequest:
     Request sending to specific gateway for querying history data.
     """
 
-    symbol: str
-    exchange: Exchange
-    start: datetime
+    symbol: str = ""
+    exchange: Exchange = None
+    start: datetime = None
     end: datetime = None
     interval: Interval = None
 
@@ -462,12 +461,12 @@ class QuoteRequest:
     Request sending to specific gateway for creating a new quote.
     """
 
-    symbol: str
-    exchange: Exchange
-    bid_price: float
-    bid_volume: int
-    ask_price: float
-    ask_volume: int
+    symbol: str = ""
+    exchange: Exchange = None
+    bid_price: float = 0
+    bid_volume: int = 0
+    ask_price: float = 0
+    ask_volume: int = 0
     bid_offset: Offset = Offset.NONE
     ask_offset: Offset = Offset.NONE
     reference: str = ""

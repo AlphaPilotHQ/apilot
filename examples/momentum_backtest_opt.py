@@ -65,32 +65,19 @@ class StdMomentumStrategy(ap.CtaTemplate):
         策略初始化
         """
         self.load_bar(self.std_period * 2)  # 加载足够的历史数据确保指标计算准确
-        self.write_log(f"加载历史数据: {self.std_period * 2}根K线")
-
-
-    def on_start(self):
-        """策略启动"""
-        self.write_log("策略启动")
-
-    def on_stop(self):
-        """策略停止"""
-        self.write_log("策略停止")
-
-    def on_tick(self, tick: ap.TickData):
-        """Tick数据更新"""
-        self.bg.update_tick(tick)
 
     def on_bar(self, bar: ap.BarData):
         """1分钟K线数据更新"""
-        self.write_log(
+        self.cta_engine.write_log(
             f"收到1分钟K线: {bar.datetime} O:{bar.open_price} "
-            f"H:{bar.high_price} L:{bar.low_price} C:{bar.close_price} V:{bar.volume}"
+            f"H:{bar.high_price} L:{bar.low_price} C:{bar.close_price} V:{bar.volume}",
+            self
         )
         self.bg.update_bar(bar)
 
     def on_5min_bar(self, bar: ap.BarData):
         """5分钟K线数据更新，包含交易逻辑"""
-        self.write_log(
+        self.cta_engine.write_log(
             f"生成5分钟K线: {bar.datetime} O:{bar.open_price} "
             f"H:{bar.high_price} L:{bar.low_price} C:{bar.close_price} V:{bar.volume}"
         )
@@ -98,9 +85,6 @@ class StdMomentumStrategy(ap.CtaTemplate):
 
         am = self.am
         am.update_bar(bar)
-        if not am.inited:
-            self.write_log(f"ArrayManager未初始化，当前数据量: {len(am.close_array)}")
-            return
 
         # 计算标准差
         # 使用ArrayManager的内置std函数计算标准差
@@ -114,10 +98,6 @@ class StdMomentumStrategy(ap.CtaTemplate):
         else:
             self.momentum = 0.0
 
-        self.write_log(
-            f"指标计算: std={self.std_value:.6f}, momentum={self.momentum:.6f}, "
-            f"threshold={self.mom_threshold}"
-        )
 
         # 持仓状态下更新跟踪止损价格
         if self.pos > 0:
@@ -135,16 +115,10 @@ class StdMomentumStrategy(ap.CtaTemplate):
             size = max(1, int(self.cta_engine.capital / bar.close_price))
 
             if self.momentum > self.mom_threshold:
-                self.write_log(
-                    f"多头开仓信号: momentum={self.momentum:.6f} > "
-                    f"threshold={self.mom_threshold}"
-                )
+
                 self.buy(bar.close_price, size)
             elif self.momentum < -self.mom_threshold:
-                self.write_log(
-                    f"空头开仓信号: momentum={self.momentum:.6f} < "
-                    f"-threshold={-self.mom_threshold}"
-                )
+
                 self.short(bar.close_price, size)
 
         elif self.pos > 0:  # 多头持仓 → 标准差追踪止损
@@ -153,10 +127,6 @@ class StdMomentumStrategy(ap.CtaTemplate):
 
             # 当价格跌破止损线时平仓
             if bar.close_price < long_stop:
-                self.write_log(
-                    f"触发多头止损: 当前价={bar.close_price:.4f}, "
-                    f"止损线={long_stop:.4f}"
-                )
                 self.sell(bar.close_price, abs(self.pos))
 
         elif self.pos < 0:  # 空头持仓 → 标准差追踪止损
@@ -165,10 +135,6 @@ class StdMomentumStrategy(ap.CtaTemplate):
 
             # 当价格突破止损线时平仓
             if bar.close_price > short_stop:
-                self.write_log(
-                    f"触发空头止损: 当前价={bar.close_price:.4f}, "
-                    f"止损线={short_stop:.4f}"
-                )
                 self.cover(bar.close_price, abs(self.pos))
 
     def on_order(self, order: ap.OrderData):
@@ -177,9 +143,6 @@ class StdMomentumStrategy(ap.CtaTemplate):
 
     def on_trade(self, trade: ap.TradeData):
         """成交回调"""
-        self.write_log(
-            f"成交: {trade.direction} {trade.offset} {trade.volume}@{trade.price}"
-        )
 
 
 def run_backtesting(
@@ -193,39 +156,46 @@ def run_backtesting(
 ):
     print("运行回测 - 参数:", std_period, mom_threshold, trailing_std_scale)
 
-    # 验证CSV文件是否存在
-    csv_path = "/Users/bobbyding/Documents/GitHub/apilot/data/SOL-USDT_LOCAL_1m.csv"
-    if not os.path.exists(csv_path):
-        print(f"错误: CSV文件不存在: {csv_path}")
-        return None, None
-
-    # 检查CSV文件内容
-    try:
-        df = pd.read_csv(csv_path)
-        print(f"CSV文件行数: {len(df)} 文件列名: {df.columns.tolist()}")
-    except Exception as e:
-        print(f"读取CSV文件失败: {e}")
-        import traceback
-
-        traceback.print_exc()
-        return None, None
-
     # 创建回测引擎
     engine = ap.BacktestingEngine()
+    engine.log_info("步骤1: 创建回测引擎实例")
 
     # 设置引擎参数
+    engine.log_info(
+        f"步骤2: 设置引擎参数 - 初始资金:{init_cash}, 时间范围:{start} 至 {end}"
+    )
     engine.set_parameters(
         vt_symbols=["SOL-USDT.LOCAL"],
         interval="1m",
         start=start,
         end=end,
-        rates={"SOL-USDT.LOCAL": 0.00075},  # 万7.5手续费
+        rates={"SOL-USDT.LOCAL": 0.00075},
         sizes={"SOL-USDT.LOCAL": 1},
         priceticks={"SOL-USDT.LOCAL": 0.001},
         capital=init_cash,
     )
 
-    # 3 添加策略
+    # 验证CSV文件是否存在
+    csv_path = "/Users/bobbyding/Documents/GitHub/apilot/data/SOL-USDT_LOCAL_1m.csv"
+    if not os.path.exists(csv_path):
+        engine.log_error(f"CSV文件不存在: {csv_path}")
+        return None, None
+
+    # 检查CSV文件内容
+    try:
+        df = pd.read_csv(csv_path)
+        engine.log_info(f"CSV文件行数: {len(df)} 文件列名: {df.columns.tolist()}")
+    except Exception as e:
+        engine.log_error(f"读取CSV文件失败: {e}")
+        import traceback
+        traceback.print_exc()
+        return None, None
+
+    # 添加策略
+    engine.log_info(
+        f"步骤3: 添加策略 - {strategy_class.__name__} 参数: std_period={std_period}, "
+        f"mom_threshold={mom_threshold}, trailing_std_scale={trailing_std_scale}"
+    )
     engine.add_strategy(
         strategy_class,
         {
@@ -235,7 +205,8 @@ def run_backtesting(
         },
     )
 
-    # 3 添加CSV数据
+    # 添加CSV数据
+    engine.log_info(f"步骤4: 添加数据源 - CSV数据路径: {csv_path}")
     engine.add_data(
         database_type="csv",
         data_path=csv_path,
@@ -247,111 +218,25 @@ def run_backtesting(
         volume="volume",
     )
 
-    # 4 运行回测
+    # 运行回测
+    engine.log_info("步骤5: 开始执行回测")
     engine.run_backtesting()
 
-    # 5 计算结果和统计指标
+    # 计算结果和统计指标
+    engine.log_info("步骤6: 计算回测结果和绩效统计")
     df = engine.calculate_result()
     stats = engine.calculate_statistics()
 
+    # 打印关键绩效指标
+    if stats:
+        engine.log_info(
+            f"回测结果 - 收益率: {stats['return']:,.2%}, 夏普比率: {stats['sharpe_ratio']:.2f}, "
+            f"最大回撤: {stats['max_drawdown']:,.2%}, 交易次数: {stats['total_trades']}"
+        )
+    else:
+        engine.log_warning("未能生成回测统计数据")
+
     return df, stats
-
-
-def evaluate_with_parameters(params: Dict) -> Tuple[Dict, Dict]:
-    """
-    用于遗传算法优化
-    """
-    # 确保参数为正确类型
-    std_period = int(params.get("std_period", 20))
-    mom_threshold = float(params.get("mom_threshold", 0.02))
-    trailing_std_scale = float(params.get("trailing_std_scale", 2.0))
-
-    # 运行回测
-    df, stats = run_backtesting(
-        StdMomentumStrategy,
-        init_cash=100000,
-        start=datetime(2023, 1, 1),
-        end=datetime(2023, 6, 30),
-        std_period=std_period,
-        mom_threshold=mom_threshold,
-        trailing_std_scale=trailing_std_scale,
-    )
-
-    # 处理空结果
-    if df is None or df.empty:
-        metrics = {
-            "sharpe_ratio": -999,
-            "total_return": -999,
-            "max_drawdown": 1,
-        }
-        return params, metrics
-
-    # 调用回测引擎获取统计数据
-    statistics = stats
-
-    # 提取关键指标
-    metrics = {
-        "sharpe_ratio": statistics["sharpe_ratio"],
-        "total_return": statistics["total_return"],
-        "max_drawdown": abs(statistics["max_ddpercent"]),  # 使用正数便于排序
-        "total_trade_count": statistics["total_trade_count"],
-    }
-
-    return params, metrics
-
-
-def get_sharpe_ratio(result):
-    """提取夏普比率作为优化排序依据"""
-    try:
-        return result[1]["sharpe_ratio"]
-    except (TypeError, KeyError, IndexError):
-        return -999
-
-
-def run_optimization_ga():
-    """使用遗传算法优化策略参数"""
-    # 设置优化参数范围
-    setting = ap.OptimizationSetting()
-    setting.add_parameter("std_period", 10, 100, 5)
-    setting.add_parameter("mom_threshold", 0.01, 0.15, 0.01)
-    setting.add_parameter("trailing_std_scale", 1, 10, 1)
-
-    # 运行遗传算法优化
-    results = ap.run_ga_optimization(
-        evaluate_func=evaluate_with_parameters,
-        optimization_setting=setting,
-        key_func=get_sharpe_ratio,
-        max_workers=8,
-        population_size=16,
-        ngen_size=5,
-    )
-
-    # 获取并打印最佳结果
-    if not results:
-        return {}
-
-    best_result = results[0]
-    best_params, best_metrics = best_result
-
-    # 打印最佳参数和性能指标
-    print("\n最佳参数组合:")
-    for name, value in best_params.items():
-        if name == "std_period":
-            print(f"{name}: {int(value)}")
-        else:
-            print(f"{name}: {float(value):.4f}")
-
-    print("\n关键性能指标:")
-    metrics_names = {
-        "sharpe_ratio": "夏普比率",
-        "total_return": "总收益率",
-        "max_drawdown": "最大回撤",
-    }
-    for key, label in metrics_names.items():
-        if key in best_metrics:
-            print(f"{label}: {best_metrics[key]:.4f}")
-
-    return best_params
 
 
 if __name__ == "__main__":
@@ -365,8 +250,3 @@ if __name__ == "__main__":
         mom_threshold=0.01,
         trailing_std_scale=10,
     )
-
-    # 输出结果
-    if df is not None:
-        print(df)
-        print(stats)

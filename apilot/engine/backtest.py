@@ -49,10 +49,11 @@ class BacktestingEngine:
     engine_type: EngineType = EngineType.BACKTESTING
     gateway_name: str = "BACKTESTING"
 
-    def __init__(self) -> None:
+    def __init__(self, main_engine=None) -> None:
         """
         初始化回测引擎
         """
+        self.main_engine = main_engine
         self.vt_symbols: List[str] = []
         self.symbols: Dict[str, str] = {}
         self.exchanges: Dict[str, Exchange] = {}
@@ -148,9 +149,7 @@ class BacktestingEngine:
         self.end = end.replace(hour=23, minute=59, second=59)
 
         if self.start >= self.end:
-            raise ValueError(
-                f"错误：起始日期({self.start})必须小于结束日期({self.end})"
-            )
+            self.log_warning(f"错误：起始日期({self.start})必须小于结束日期({self.end})")
 
         self.annual_days = annual_days
 
@@ -204,15 +203,15 @@ class BacktestingEngine:
         """
         加载历史数据
         """
-        self.output("开始加载历史数据")
-        self.output(f"数据库类型: {self.database_type}")
-        self.output(f"数据库配置: {self.database_config}")
+        self.log_info("开始加载历史数据")
+        self.log_info(f"数据库类型: {self.database_type}")
+        self.log_info(f"数据库配置: {self.database_config}")
 
         if not self.end:
             self.end = datetime.now()
 
         if self.start >= self.end:
-            self.output("起始日期必须小于结束日期")
+            self.log_warning("起始日期必须小于结束日期")
             return
 
         # 清理上次加载的历史数据
@@ -252,7 +251,7 @@ class BacktestingEngine:
                     progress += progress_delta / total_delta
                     progress = min(progress, 1)
                     progress_bar = "#" * int(progress * 10)
-                    self.output(f"{vt_symbol}加载进度：{progress_bar} [{progress:.0%}]")
+                    self.log_info(f"{vt_symbol}加载进度：{progress_bar} [{progress:.0%}]")
 
                     start = end + interval_delta
                     end += progress_delta + interval_delta
@@ -273,13 +272,13 @@ class BacktestingEngine:
 
                 data_count = len(data)
 
-            self.output(f"{vt_symbol}历史数据加载完成，数据量：{data_count}")
+            self.log_info(f"{vt_symbol}历史数据加载完成，数据量：{data_count}")
 
         # 对时间序列进行排序，去重
         self.dts = list(set(self.dts))
         self.dts.sort()
 
-        self.output("所有历史数据加载完成")
+        self.log_info("所有历史数据加载完成")
 
     def run_backtesting(self) -> None:
         """
@@ -300,27 +299,27 @@ class BacktestingEngine:
             try:
                 self.new_bars(dt)
             except Exception as e:
-                self.output(f"触发异常，回测终止: {e}")
-                self.output(traceback.format_exc())
+                self.log_error(f"触发异常，回测终止: {e}")
+                self.log_error(traceback.format_exc())
                 return
 
         self.strategy.inited = True
-        self.output("策略初始化完成")
+        self.log_info("策略初始化完成")
 
         self.strategy.on_start()
         self.strategy.trading = True
-        self.output("开始回放历史数据")
+        self.log_info("开始回放历史数据")
 
         # 使用剩余历史数据进行策略回测
         for dt in self.dts[ix:]:
             try:
                 self.new_bars(dt)
             except Exception as e:
-                self.output(f"触发异常，回测终止: {e}")
-                self.output(traceback.format_exc())
+                self.log_error(f"触发异常，回测终止: {e}")
+                self.log_error(traceback.format_exc())
                 return
 
-        self.output("历史数据回放结束")
+        self.log_info("历史数据回放结束")
 
     def new_bars(self, dt: datetime) -> None:
         """
@@ -353,7 +352,7 @@ class BacktestingEngine:
         计算回测结果
         """
         if not self.trades:
-            self.output("回测成交记录为空")
+            self.log_info("回测成交记录为空")
             return DataFrame()
 
         # 将成交数据添加到每日结果中
@@ -384,7 +383,7 @@ class BacktestingEngine:
         }
 
         self.daily_df = DataFrame.from_dict(results).set_index("date")
-        self.output("逐日盯市盈亏计算完成")
+        self.log_info("逐日盯市盈亏计算完成")
         return self.daily_df
 
     def calculate_statistics(self, df: DataFrame = None, output=True) -> dict:
@@ -414,7 +413,7 @@ class BacktestingEngine:
 
         # Return early if no data
         if df is None or df.empty:
-            self.output("No trading data available")
+            self.log_warning("No trading data available")
             return stats
 
         # Make a copy to avoid modifying original data
@@ -438,7 +437,7 @@ class BacktestingEngine:
 
         # Check for bankruptcy
         if not (df["balance"] > 0).all():
-            self.output("Bankruptcy detected during backtest")
+            self.log_warning("Bankruptcy detected during backtest")
             return stats
 
         # Calculate basic statistics
@@ -484,19 +483,19 @@ class BacktestingEngine:
         }
 
         if output:
-            self.output(f"Trade day:\t{stats['start_date']} - {stats['end_date']}")
-            self.output(f"Profit days:\t{stats['profit_days']}")
-            self.output(f"Loss days:\t{stats['loss_days']}")
-            self.output(f"Initial capital:\t{self.capital:.2f}")
-            self.output(f"Final capital:\t{stats['end_balance']:.2f}")
-            self.output(f"Total return:\t{stats['total_return']:.2f}%")
-            self.output(f"Annual return:\t{stats['annual_return']:.2f}%")
-            self.output(f"Max drawdown:\t{stats['max_ddpercent']:.2f}%")
-            self.output(f"Total commission:\t{stats['total_commission']:.2f}")
-            self.output(f"Total turnover:\t{stats['total_turnover']:.2f}")
-            self.output(f"Total trades:\t{stats['total_trade_count']}")
-            self.output(f"Sharpe ratio:\t{stats['sharpe_ratio']:.2f}")
-            self.output(f"Return/Drawdown:\t{stats['return_drawdown_ratio']:.2f}")
+            self.log_info(f"Trade day:\t{stats['start_date']} - {stats['end_date']}")
+            self.log_info(f"Profit days:\t{stats['profit_days']}")
+            self.log_info(f"Loss days:\t{stats['loss_days']}")
+            self.log_info(f"Initial capital:\t{self.capital:.2f}")
+            self.log_info(f"Final capital:\t{stats['end_balance']:.2f}")
+            self.log_info(f"Total return:\t{stats['total_return']:.2f}%")
+            self.log_info(f"Annual return:\t{stats['annual_return']:.2f}%")
+            self.log_info(f"Max drawdown:\t{stats['max_ddpercent']:.2f}%")
+            self.log_info(f"Total commission:\t{stats['total_commission']:.2f}")
+            self.log_info(f"Total turnover:\t{stats['total_turnover']:.2f}")
+            self.log_info(f"Total trades:\t{stats['total_trade_count']}")
+            self.log_info(f"Sharpe ratio:\t{stats['sharpe_ratio']:.2f}")
+            self.log_info(f"Return/Drawdown:\t{stats['return_drawdown_ratio']:.2f}")
         return stats
 
     def show_chart(self, df: DataFrame = None) -> None:
@@ -776,13 +775,6 @@ class BacktestingEngine:
         for vt_orderid in vt_orderids:
             self.cancel_order(strategy, vt_orderid)
 
-    def write_log(self, msg: str, strategy: CtaTemplate = None) -> None:
-        """
-        写入日志
-        """
-        msg: str = f"{self.datetime}\t{msg}"
-        self.logs.append(msg)
-
     def send_email(self, msg: str, strategy: CtaTemplate = None) -> None:
         """
         发送邮件
@@ -812,12 +804,6 @@ class BacktestingEngine:
         获取合约大小
         """
         return self.sizes[vt_symbol]
-
-    def output(self, msg) -> None:
-        """
-        输出信息
-        """
-        print(f"{datetime.now()}\t{msg}")
 
     def get_all_trades(self) -> list:
         """
@@ -881,6 +867,24 @@ class BacktestingEngine:
         df = self.daily_df.copy()
 
         return df, statistics
+
+    def log_info(self, msg: str) -> None:
+        """
+        记录信息日志
+        """
+        self.main_engine.log_info(msg, source="BACKTEST")
+
+    def log_warning(self, msg: str) -> None:
+        """
+        记录警告日志
+        """
+        self.main_engine.log_warning(msg, source="BACKTEST")
+
+    def log_error(self, msg: str) -> None:
+        """
+        记录错误日志
+        """
+        self.main_engine.log_error(msg, source="BACKTEST")
 
 
 class DailyResult:
@@ -1099,19 +1103,11 @@ def optimize(
 
     engine.add_strategy(strategy_class, setting)
 
-    if use_ga:
-        result = run_ga_optimization(
-            target_name=target_name,
-            evaluator=engine,
-            optimization_setting=optimization_setting,
-            max_workers=max_workers,
-        )
-    else:
-        result = run_optimization(
-            target_name=target_name,
-            evaluator=engine,
-            optimization_setting=optimization_setting,
-            max_workers=max_workers,
-        )
 
+    result = run_ga_optimization(
+        target_name=target_name,
+        evaluator=engine,
+        optimization_setting=optimization_setting,
+        max_workers=max_workers,
+    )
     return result

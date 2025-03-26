@@ -3,7 +3,7 @@ tzlocal==5.2
 numpy==1.26.4
 matplotlib==3.8.3
 seaborn==0.13.2
-ta-lib==0.4.24  # 需先安装 C 库: brew install ta-lib
+# ta-lib==0.4.24  # 已安装 C 库: brew install ta-lib，但与Python 3.12存在兼容性问题
 deap==1.4.1
 pyzmq==25.1.2
 plotly==5.20.0
@@ -15,3 +15,6 @@ ccxt==4.2.5  # 加密货币交易所API
 
 # 其他可选工具依赖
 requests==2.31.0
+
+colorama==0.4.6
+

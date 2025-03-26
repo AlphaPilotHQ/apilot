@@ -145,7 +145,6 @@ class StdMomentumStrategy(StrategyTemplate):
             if bar.close_price > short_stop:
                 self.write_log(f"触发空头止损: 当前价={bar.close_price:.4f}, 止损线={short_stop:.4f}")
                 self.cover(bar.close_price, abs(self.pos))
-                # self.write_log(f"触发空头止损: 当前价={bar.close_price:.4f}, 止损线={short_stop:.4f}")
 
     def on_order(self, order: OrderData):
         """委托回调"""
