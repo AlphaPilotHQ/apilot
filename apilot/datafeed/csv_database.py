@@ -55,7 +55,7 @@ class CsvDatabase(BaseDatabase):
                 print(f"CSV文件已加载，行数: {len(data)}")
 
                 # 尝试使用配置中的字段映射
-                from apilot.trader.setting import SETTINGS
+                from apilot.core.setting import SETTINGS
                 datetime_field = SETTINGS.get("csv_datetime_field", "datetime")
                 open_field = SETTINGS.get("csv_open_field", "open")
                 high_field = SETTINGS.get("csv_high_field", "high")
@@ -105,6 +105,13 @@ class CsvDatabase(BaseDatabase):
                 # 根据起止时间筛选数据
                 data = data[(data[datetime_field] >= start) & (data[datetime_field] <= end)]
                 print(f"筛选后数据行数: {len(data)}")
+
+                # 如果CSV中有symbol列，可以进一步筛选
+                if 'symbol' in data.columns:
+                    # 允许匹配不带交易所的symbol (比如 "SOL-USDT" 匹配 "SOL-USDT.Exchange.LOCAL")
+                    base_symbol = symbol.split('.')[0] if '.' in symbol else symbol
+                    data = data[data['symbol'] == base_symbol]
+                    print(f"按symbol={base_symbol}筛选后数据行数: {len(data)}")
 
                 # 构建bar数据
                 bars = []

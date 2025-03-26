@@ -38,7 +38,7 @@ class CustomLogger:
 
     def _initialize_logger(self, name):
         self.logger = logging.getLogger(name)
-        self.logger.setLevel(logging.DEBUG)
+        self.logger.setLevel(logging.INFO)
 
         # 防止重复handler
         for handler in self.logger.handlers[:]:

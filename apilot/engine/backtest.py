@@ -42,6 +42,13 @@ from apilot.optimizer import (
     run_ga_optimization
 )
 from apilot.strategy.template import CtaTemplate
+from apilot.utils.logger import get_logger, set_level
+from apilot.core.setting import SETTINGS
+
+# 获取回测专用日志器
+logger = get_logger("backtest")
+# 设置为DEBUG级别以获取更多日志
+set_level("debug", "backtest")
 
 
 class BacktestingEngine:
@@ -149,7 +156,7 @@ class BacktestingEngine:
         self.end = end.replace(hour=23, minute=59, second=59)
 
         if self.start >= self.end:
-            self.log_warning(f"错误：起始日期({self.start})必须小于结束日期({self.end})")
+            logger.warning(f"错误：起始日期({self.start})必须小于结束日期({self.end})")
 
         self.annual_days = annual_days
 
@@ -203,20 +210,35 @@ class BacktestingEngine:
         """
         加载历史数据
         """
-        self.log_info("开始加载历史数据")
-        self.log_info(f"数据库类型: {self.database_type}")
-        self.log_info(f"数据库配置: {self.database_config}")
+        logger.info("开始加载历史数据")
+        logger.info(f"数据库类型: {self.database_type}")
+        logger.info(f"数据库配置: {self.database_config}")
 
         if not self.end:
             self.end = datetime.now()
 
         if self.start >= self.end:
-            self.log_warning("起始日期必须小于结束日期")
+            logger.warning("起始日期必须小于结束日期")
             return
 
         # 清理上次加载的历史数据
         self.history_data.clear()
         self.dts.clear()
+
+        # 设置数据库配置到系统设置
+        if self.database_type == "csv":
+            for key, value in self.database_config.items():
+                setting_key = f"csv_{key}_field" if key in ["datetime", "open", "high", "low", "close", "volume"] else key
+                SETTINGS[setting_key] = value
+            
+            # 确保使用的是正确的数据库实例
+            load_bar_data.cache_clear()  # 清除缓存，确保使用新的配置
+            
+            # 创建一个直接的CsvDatabase实例用于测试
+            from apilot.datafeed.csv_database import CsvDatabase
+            test_db = CsvDatabase(self.database_config.get("data_path"))
+            test_db.is_direct_file = True
+            logger.info(f"配置了直接的CSV数据库，路径: {test_db.data_path}")
 
         # 每次加载30天历史数据
         progress_delta: timedelta = timedelta(days=30)
@@ -233,14 +255,30 @@ class BacktestingEngine:
                 while start < self.end:
                     end = min(end, self.end)
 
-                    data: list[BarData] = load_bar_data(
-                        self.symbols[vt_symbol],
-                        self.exchanges[vt_symbol],
-                        self.interval,
-                        start,
-                        end,
-                        database_settings=getattr(self, "database_settings", None),
-                    )
+                    # 如果是直接CSV文件加载，使用我们的测试实例
+                    if self.database_type == "csv" and "data_path" in self.database_config and self.database_config["data_path"].endswith(".csv"):
+                        # 从vt_symbol中提取基本符号名（不含交易所信息）
+                        symbol_parts = self.symbols[vt_symbol].split('.')
+                        symbol = symbol_parts[0] if len(symbol_parts) > 0 else self.symbols[vt_symbol]
+                        
+                        logger.info(f"从CSV直接加载 {symbol} 数据，时间: {start} - {end}")
+                        data = test_db.load_bar_data(
+                            symbol,
+                            self.exchanges[vt_symbol],
+                            self.interval,
+                            start,
+                            end
+                        )
+                    else:
+                        # 使用标准数据加载流程
+                        data: list[BarData] = load_bar_data(
+                            self.symbols[vt_symbol],
+                            self.exchanges[vt_symbol],
+                            self.interval,
+                            start,
+                            end,
+                            database_settings=self.database_config if self.database_type else None,
+                        )
 
                     for bar in data:
                         bar.vt_symbol = vt_symbol
@@ -251,45 +289,62 @@ class BacktestingEngine:
                     progress += progress_delta / total_delta
                     progress = min(progress, 1)
                     progress_bar = "#" * int(progress * 10)
-                    self.log_info(f"{vt_symbol}加载进度：{progress_bar} [{progress:.0%}]")
+                    logger.info(f"{vt_symbol}加载进度：{progress_bar} [{progress:.0%}]")
 
                     start = end + interval_delta
                     end += progress_delta + interval_delta
+                
+                logger.info(f"{vt_symbol}历史数据加载完成，数据量：{data_count}")
             else:
-                data: list[BarData] = load_bar_data(
-                    self.symbols[vt_symbol],
-                    self.exchanges[vt_symbol],
-                    self.interval,
-                    self.start,
-                    self.end,
-                    database_settings=getattr(self, "database_settings", None),
-                )
+                # 日线等其他周期的加载
+                if self.database_type == "csv" and "data_path" in self.database_config and self.database_config["data_path"].endswith(".csv"):
+                    # 从vt_symbol中提取基本符号名（不含交易所信息）
+                    symbol_parts = self.symbols[vt_symbol].split('.')
+                    symbol = symbol_parts[0] if len(symbol_parts) > 0 else self.symbols[vt_symbol]
+                    
+                    logger.info(f"从CSV直接加载 {symbol} 数据，时间: {self.start} - {self.end}")
+                    data = test_db.load_bar_data(
+                        symbol,
+                        self.exchanges[vt_symbol],
+                        self.interval,
+                        self.start,
+                        self.end
+                    )
+                else:
+                    data: list[BarData] = load_bar_data(
+                        self.symbols[vt_symbol],
+                        self.exchanges[vt_symbol],
+                        self.interval,
+                        self.start,
+                        self.end,
+                        database_settings=self.database_config if self.database_type else None,
+                    )
 
                 for bar in data:
                     bar.vt_symbol = vt_symbol
                     self.dts.append(bar.datetime)
                     self.history_data[(bar.datetime, vt_symbol)] = bar
 
-                data_count = len(data)
+                logger.info(f"{vt_symbol}历史数据加载完成，数据量：{len(data)}")
 
-            self.log_info(f"{vt_symbol}历史数据加载完成，数据量：{data_count}")
+        # 对时间点从小到大排序
+        self.dts = sorted(self.dts)
 
-        # 对时间序列进行排序，去重
-        self.dts = list(set(self.dts))
-        self.dts.sort()
-
-        self.log_info("所有历史数据加载完成")
+        logger.info("所有历史数据加载完成")
 
     def run_backtesting(self) -> None:
         """
         开始回测
         """
+        logger.debug("=== 开始回测过程 ===")
         self.strategy.on_init()
+        logger.debug("策略on_init()调用完成")
 
         # 使用指定时间的历史数据初始化策略
         day_count: int = 0
         ix: int = 0
 
+        logger.debug(f"准备初始化，时间点数量: {len(self.dts)}")
         for ix, dt in enumerate(self.dts):
             if self.datetime and dt.day != self.datetime.day:
                 day_count += 1
@@ -297,29 +352,36 @@ class BacktestingEngine:
                     break
 
             try:
+                logger.debug(f"初始化阶段处理时间点: {dt}")
                 self.new_bars(dt)
             except Exception as e:
-                self.log_error(f"触发异常，回测终止: {e}")
-                self.log_error(traceback.format_exc())
+                logger.error(f"触发异常，回测终止: {e}")
+                logger.error(traceback.format_exc())
                 return
 
         self.strategy.inited = True
-        self.log_info("策略初始化完成")
+        logger.info("策略初始化结束，处理了 {ix} 个时间点")
 
         self.strategy.on_start()
         self.strategy.trading = True
-        self.log_info("开始回放历史数据")
+        logger.info("开始回放历史数据")
 
         # 使用剩余历史数据进行策略回测
+        logger.debug(f"开始回测阶段，起始索引: {ix}, 结束索引: {len(self.dts)}")
+        tick_count = 0
         for dt in self.dts[ix:]:
             try:
+                tick_count += 1
+                if tick_count % 1000 == 0:
+                    logger.debug(f"回测进度: 已处理 {tick_count} 个时间点, 当前时间: {dt}")
                 self.new_bars(dt)
             except Exception as e:
-                self.log_error(f"触发异常，回测终止: {e}")
-                self.log_error(traceback.format_exc())
+                logger.error(f"触发异常，回测终止: {e}")
+                logger.error(traceback.format_exc())
                 return
 
-        self.log_info("历史数据回放结束")
+        logger.info("历史数据回放结束")
+        logger.debug(f"回测完成统计: 总交易笔数={self.trade_count}, 活跃订单数={len(self.active_limit_orders)}, 总订单数={len(self.limit_orders)}")
 
     def new_bars(self, dt: datetime) -> None:
         """
@@ -334,13 +396,18 @@ class BacktestingEngine:
             if bar:
                 bars[vt_symbol] = bar
 
-        if not bars:
+        if bars:
+            logger.debug(f"时间点 {dt} 获取到K线数据: {list(bars.keys())}")
+        else:
+            logger.debug(f"时间点 {dt} 没有可用的K线数据")
             return
 
         # 更新策略的多个bar数据
         self.bars = bars
 
+        logger.debug(f"开始撮合订单，活跃订单数: {len(self.active_limit_orders)}")
         self.cross_limit_order()
+        logger.debug("调用策略on_bars处理K线数据")
         self.strategy.on_bars(bars)
 
         # 更新每个品种的收盘价
@@ -352,7 +419,7 @@ class BacktestingEngine:
         计算回测结果
         """
         if not self.trades:
-            self.log_info("回测成交记录为空")
+            logger.info("回测成交记录为空")
             return DataFrame()
 
         # 将成交数据添加到每日结果中
@@ -383,7 +450,7 @@ class BacktestingEngine:
         }
 
         self.daily_df = DataFrame.from_dict(results).set_index("date")
-        self.log_info("逐日盯市盈亏计算完成")
+        logger.info("逐日盯市盈亏计算完成")
         return self.daily_df
 
     def calculate_statistics(self, df: DataFrame = None, output=True) -> dict:
@@ -413,7 +480,7 @@ class BacktestingEngine:
 
         # Return early if no data
         if df is None or df.empty:
-            self.log_warning("No trading data available")
+            logger.warning("No trading data available")
             return stats
 
         # Make a copy to avoid modifying original data
@@ -437,7 +504,7 @@ class BacktestingEngine:
 
         # Check for bankruptcy
         if not (df["balance"] > 0).all():
-            self.log_warning("Bankruptcy detected during backtest")
+            logger.warning("Bankruptcy detected during backtest")
             return stats
 
         # Calculate basic statistics
@@ -483,19 +550,19 @@ class BacktestingEngine:
         }
 
         if output:
-            self.log_info(f"Trade day:\t{stats['start_date']} - {stats['end_date']}")
-            self.log_info(f"Profit days:\t{stats['profit_days']}")
-            self.log_info(f"Loss days:\t{stats['loss_days']}")
-            self.log_info(f"Initial capital:\t{self.capital:.2f}")
-            self.log_info(f"Final capital:\t{stats['end_balance']:.2f}")
-            self.log_info(f"Total return:\t{stats['total_return']:.2f}%")
-            self.log_info(f"Annual return:\t{stats['annual_return']:.2f}%")
-            self.log_info(f"Max drawdown:\t{stats['max_ddpercent']:.2f}%")
-            self.log_info(f"Total commission:\t{stats['total_commission']:.2f}")
-            self.log_info(f"Total turnover:\t{stats['total_turnover']:.2f}")
-            self.log_info(f"Total trades:\t{stats['total_trade_count']}")
-            self.log_info(f"Sharpe ratio:\t{stats['sharpe_ratio']:.2f}")
-            self.log_info(f"Return/Drawdown:\t{stats['return_drawdown_ratio']:.2f}")
+            logger.info(f"Trade day:\t{stats['start_date']} - {stats['end_date']}")
+            logger.info(f"Profit days:\t{stats['profit_days']}")
+            logger.info(f"Loss days:\t{stats['loss_days']}")
+            logger.info(f"Initial capital:\t{self.capital:.2f}")
+            logger.info(f"Final capital:\t{stats['end_balance']:.2f}")
+            logger.info(f"Total return:\t{stats['total_return']:.2f}%")
+            logger.info(f"Annual return:\t{stats['annual_return']:.2f}%")
+            logger.info(f"Max drawdown:\t{stats['max_ddpercent']:.2f}%")
+            logger.info(f"Total commission:\t{stats['total_commission']:.2f}")
+            logger.info(f"Total turnover:\t{stats['total_turnover']:.2f}")
+            logger.info(f"Total trades:\t{stats['total_trade_count']}")
+            logger.info(f"Sharpe ratio:\t{stats['sharpe_ratio']:.2f}")
+            logger.info(f"Return/Drawdown:\t{stats['return_drawdown_ratio']:.2f}")
         return stats
 
     def show_chart(self, df: DataFrame = None) -> None:
@@ -579,6 +646,8 @@ class BacktestingEngine:
         撮合限价单
         """
         for order in list(self.active_limit_orders.values()):
+            logger.debug(f"检查订单: {order.vt_orderid}, 方向: {order.direction}, 价格: {order.price}")
+
             # 更新订单状态
             if order.status == Status.SUBMITTING:
                 order.status = Status.NOTTRADED
@@ -591,14 +660,17 @@ class BacktestingEngine:
             if self.mode == BacktestingMode.BAR:
                 bar = self.bars.get(vt_symbol)
                 if not bar:
+                    logger.debug(f"找不到订单对应的K线数据: {vt_symbol}")
                     continue
                 buy_price = bar.low_price
                 sell_price = bar.high_price
+                logger.debug(f"Bar模式下的价格 - 买入价: {buy_price}, 卖出价: {sell_price}")
             else:
                 if self.tick.vt_symbol != vt_symbol:
                     continue
                 buy_price = self.tick.ask_price_1
                 sell_price = self.tick.bid_price_1
+                logger.debug(f"Tick模式下的价格 - 买入价: {buy_price}, 卖出价: {sell_price}")
 
             # 判断是否满足成交条件
             buy_cross = (
@@ -651,6 +723,8 @@ class BacktestingEngine:
             trade.vt_tradeid = f"{self.gateway_name}.{trade.tradeid}"
 
             self.trades[trade.vt_tradeid] = trade
+            logger.debug(f"成交记录创建: {trade.vt_tradeid}, 方向: {trade.direction}, 价格: {trade.price}, 数量: {trade.volume}")
+
             self.strategy.on_trade(trade)
 
     def load_bar(
@@ -738,6 +812,8 @@ class BacktestingEngine:
         """
         self.limit_order_count += 1
 
+        logger.debug(f"创建订单 - 合约: {vt_symbol}, 方向: {direction}, 价格: {price}, 数量: {volume}")
+
         order: OrderData = OrderData(
             symbol=self.symbols[vt_symbol],
             exchange=self.exchanges[vt_symbol],
@@ -754,6 +830,7 @@ class BacktestingEngine:
         self.active_limit_orders[order.vt_orderid] = order
         self.limit_orders[order.vt_orderid] = order
 
+        logger.debug(f"订单已创建: {order.vt_orderid}")
         return order.vt_orderid
 
     def cancel_order(self, strategy: CtaTemplate, vt_orderid: str) -> None:
@@ -867,24 +944,6 @@ class BacktestingEngine:
         df = self.daily_df.copy()
 
         return df, statistics
-
-    def log_info(self, msg: str) -> None:
-        """
-        记录信息日志
-        """
-        self.main_engine.log_info(msg, source="BACKTEST")
-
-    def log_warning(self, msg: str) -> None:
-        """
-        记录警告日志
-        """
-        self.main_engine.log_warning(msg, source="BACKTEST")
-
-    def log_error(self, msg: str) -> None:
-        """
-        记录错误日志
-        """
-        self.main_engine.log_error(msg, source="BACKTEST")
 
 
 class DailyResult:

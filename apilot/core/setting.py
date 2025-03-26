@@ -9,11 +9,7 @@ from .utility import load_json
 
 
 SETTINGS: Dict[str, Any] = {
-    # 日志设置
-    "log.active": True,
-    "log.level": INFO,
-    "log.console": True,
-    "log.file": True,
+
     # 通知设置
     "email.active": False,  # 默认关闭邮件通知
     "email.server": "smtp.gmail.com",
@@ -23,7 +19,6 @@ SETTINGS: Dict[str, Any] = {
     "email.sender": "",
     "email.receiver": "",
     # 数据库设置
-    # "database.timezone": get_localzone_name(),
     "database.name": "csv",  # 默认使用CSV数据库，直接从CSV文件读取数据
     "database.data_path": "data",  # CSV数据文件存储路径
     # 回测设置

@@ -30,6 +30,9 @@ __all__ = [
     # 常量
     "Direction", "Offset", "Exchange", "Interval", "Status", "Product", "OrderType",
 
+    # 日志系统
+    "get_logger", "set_level", "log_exceptions",
+
     # 模块包
     "core", "engine", "execution", "optimizer", "risk", "strategy", "utils", "datafeed"
 ]
@@ -75,3 +78,6 @@ from .strategy.template import CtaTemplate, TargetPosTemplate
 # 导出回测和优化组件
 from .engine.backtest import BacktestingEngine
 from .optimizer import OptimizationSetting, run_ga_optimization
+
+# 导出日志系统 (直接从utils.logger导入)
+from .utils.logger import get_logger, set_level, log_exceptions
