@@ -4,11 +4,10 @@ CSV文件数据库
 基于CSV文件的数据存储实现，支持K线和Tick数据的读写
 """
 
-import csv
 import os
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 import pandas as pd
 

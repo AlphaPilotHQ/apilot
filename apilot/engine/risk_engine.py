@@ -10,7 +10,7 @@ from apilot.core import (
     BaseEngine, MainEngine,
 
     # Data objects
-    OrderData, OrderRequest, LogData, TradeData,
+    OrderData, OrderRequest, TradeData,
 
     # Constants
     Direction, Status,

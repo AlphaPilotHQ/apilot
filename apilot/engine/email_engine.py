@@ -5,8 +5,6 @@
 """
 
 import smtplib
-import ssl
-import threading
 import traceback
 from email.message import EmailMessage
 from queue import Empty, Queue

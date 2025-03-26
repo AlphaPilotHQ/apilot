@@ -5,21 +5,13 @@
 """
 
 import copy
-import csv
-import glob
-import importlib
-import logging
-import os
-import re
-import sys
 import traceback
-from collections import defaultdict, OrderedDict
+from collections import defaultdict
 from concurrent.futures import Future, ThreadPoolExecutor
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Type
+from typing import Any, Callable, Dict, List, Optional, Type
 
-import numpy as np
 
 from apilot.core import (
     # 核心类
@@ -34,12 +26,10 @@ from apilot.core import (
     Direction,
     Exchange,
     Interval,
-    LogData,
     Offset,
     OrderData,
     OrderRequest,
     OrderType,
-    Status,
     SubscribeRequest,
     TickData,
     TradeData,
@@ -53,14 +43,12 @@ from apilot.core import (
     save_json,
 
     # 事件常量
-    EVENT_CTA_LOG,
-    EVENT_CTA_STRATEGY,
     EVENT_ORDER,
     EVENT_TICK,
     EVENT_TRADE,
 )
 from apilot.core.database import BaseDatabase, get_database
-from apilot.strategy import CtaTemplate, TargetPosTemplate
+from apilot.strategy import CtaTemplate
 from apilot.utils.logger import get_logger
 
 # 模块级初始化日志器
