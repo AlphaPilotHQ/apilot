@@ -69,7 +69,7 @@ class CsvDatabase(BaseDatabase):
         if self.is_direct_file:
             logger.info(f"使用直接CSV文件路径: {self.data_path}")
             if not os.path.exists(self.data_path):
-                logger.info(f"CSV文件不存在: {self.data_path}")
+                logger.error(f"CSV文件不存在: {self.data_path}")
                 return []
 
             try:
@@ -77,7 +77,7 @@ class CsvDatabase(BaseDatabase):
                 data = pd.read_csv(self.data_path)
                 logger.info(f"CSV文件已加载，行数: {len(data)}")
 
-                # 使用实例变量中已经加载的字段映射
+                # 获取字段映射（不在循环中重复访问）
                 datetime_field = self.csv_field_mapping["datetime_field"]
                 open_field = self.csv_field_mapping["open_field"]
                 high_field = self.csv_field_mapping["high_field"]
@@ -87,70 +87,55 @@ class CsvDatabase(BaseDatabase):
 
                 logger.info(f"字段映射: datetime={datetime_field}, open={open_field}, high={high_field}, low={low_field}, close={close_field}, volume={volume_field}")
 
-                # 确保所需字段存在
-                missing_fields = []
-                for field_name, default in [
-                    (datetime_field, "datetime"),
-                    (open_field, "open"),
-                    (high_field, "high"),
-                    (low_field, "low"),
-                    (close_field, "close"),
-                    (volume_field, "volume")
-                ]:
-                    if field_name not in data.columns:
-                        # 尝试使用默认字段名
-                        if default != field_name and default in data.columns:
-                            if field_name == datetime_field:
-                                datetime_field = default
-                            elif field_name == open_field:
-                                open_field = default
-                            elif field_name == high_field:
-                                high_field = default
-                            elif field_name == low_field:
-                                low_field = default
-                            elif field_name == close_field:
-                                close_field = default
-                            elif field_name == volume_field:
-                                volume_field = default
-                        else:
-                            missing_fields.append(field_name)
+                # 检查所有必要字段是否同时存在（单次检查）
+                required_fields = [datetime_field, open_field, high_field, low_field, close_field, volume_field]
+                missing_fields = [field for field in required_fields if field not in data.columns]
 
                 if missing_fields:
-                    logger.info(f"CSV文件缺少必要字段: {', '.join(missing_fields)}")
-                    logger.info(f"可用字段: {', '.join(data.columns)}")
+                    logger.error(f"CSV文件缺少必要字段: {', '.join(missing_fields)}")
+                    logger.error(f"可用字段: {', '.join(data.columns)}")
                     return []
 
                 # 转换日期时间
                 logger.info(f"转换日期时间字段: {datetime_field}")
                 data[datetime_field] = pd.to_datetime(data[datetime_field])
 
-                # 根据起止时间筛选数据
-                data = data[(data[datetime_field] >= start) & (data[datetime_field] <= end)]
+                # 根据起止时间筛选数据（单次操作）
+                mask = (data[datetime_field] >= start)
+                if end:
+                    mask &= (data[datetime_field] <= end)
+                data = data[mask]
                 logger.info(f"筛选后数据行数: {len(data)}")
 
                 # 如果CSV中有symbol列，可以进一步筛选
                 if 'symbol' in data.columns:
-                    # 允许匹配不带交易所的symbol (比如 "SOL-USDT" 匹配 "SOL-USDT.Exchange.LOCAL")
                     base_symbol = symbol.split('.')[0] if '.' in symbol else symbol
                     data = data[data['symbol'] == base_symbol]
                     logger.info(f"按symbol={base_symbol}筛选后数据行数: {len(data)}")
 
-                # 构建bar数据
+                # 优化创建bar对象的过程，减少循环内的字典访问
                 bars = []
                 for _, row in data.iterrows():
-                    dt = row[datetime_field].to_pydatetime()
-
+                    dt = row[datetime_field]
+                    
+                    # 提前获取所有字段值，减少循环内访问
+                    open_price = row[open_field]
+                    high_price = row[high_field]
+                    low_price = row[low_field]
+                    close_price = row[close_field]
+                    volume = row[volume_field]
+                    
                     bar = BarData(
                         symbol=symbol,
                         exchange=exchange,
-                        interval=interval,
                         datetime=dt,
-                        open_price=row[open_field],
-                        high_price=row[high_field],
-                        low_price=row[low_field],
-                        close_price=row[close_field],
-                        volume=row[volume_field],
-                        gateway_name="CSV"
+                        interval=interval,
+                        volume=volume,
+                        open_price=open_price,
+                        high_price=high_price,
+                        low_price=low_price,
+                        close_price=close_price,
+                        gateway_name="CSV",
                     )
                     bars.append(bar)
 
