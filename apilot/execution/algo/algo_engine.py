@@ -42,7 +42,9 @@ from apilot.core.event import (
 from apilot.core.constant import Direction, Offset, OrderType, Status, Interval, Exchange
 from apilot.utils.logger import get_logger
 
-from .algo_base import APP_NAME
+from .algo_base import AlgoStatus, EVENT_ALGO_UPDATE
+
+ENGINE_NAME = "AlgoTrading"
 
 # 模块级初始化日志器
 logger = get_logger("AlgoEngine")
@@ -53,7 +55,7 @@ class AlgoEngine(BaseEngine):
 
     def __init__(self, main_engine: MainEngine, event_engine: EventEngine) -> None:
         """构造函数"""
-        super().__init__(main_engine, event_engine, APP_NAME)
+        super().__init__(main_engine, event_engine, ENGINE_NAME)
 
         self.algo_templates: dict[str, Type[AlgoTemplate]] = {}
 
@@ -233,7 +235,7 @@ class AlgoEngine(BaseEngine):
             volume=volume,
             price=price,
             offset=offset,
-            reference=f"{APP_NAME}_{algo.algo_name}"
+            reference=f"{ENGINE_NAME}_{algo.algo_name}"
         )
         vt_orderid: str = self.main_engine.send_order(req, contract.gateway_name)
 
@@ -245,7 +247,7 @@ class AlgoEngine(BaseEngine):
         order: Optional[OrderData] = self.main_engine.get_order(vt_orderid)
 
         if not order:
-            logger.warning(f"[{APP_NAME}:{algo.algo_name}] 委托撤单失败，找不到委托：{vt_orderid}")
+            logger.warning(f"[{ENGINE_NAME}:{algo.algo_name}] 委托撤单失败，找不到委托：{vt_orderid}")
             return
 
         req: CancelRequest = order.create_cancel_request()
@@ -256,7 +258,7 @@ class AlgoEngine(BaseEngine):
         tick: Optional[TickData] = self.main_engine.get_tick(algo.vt_symbol)
 
         if not tick:
-            logger.warning(f"[{APP_NAME}:{algo.algo_name}] 查询行情失败，找不到行情：{algo.vt_symbol}")
+            logger.warning(f"[{ENGINE_NAME}:{algo.algo_name}] 查询行情失败，找不到行情：{algo.vt_symbol}")
 
         return tick
 
@@ -265,7 +267,7 @@ class AlgoEngine(BaseEngine):
         contract: Optional[ContractData] = self.main_engine.get_contract(algo.vt_symbol)
 
         if not contract:
-            source = f"{APP_NAME}:{algo.algo_name}" if algo.algo_name else APP_NAME
+            source = f"{ENGINE_NAME}:{algo.algo_name}" if algo.algo_name else ENGINE_NAME
             logger.warning(f"[{source}] 查询合约失败，找不到合约：{algo.vt_symbol}")
 
         return contract

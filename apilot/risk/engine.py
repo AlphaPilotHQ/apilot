@@ -19,7 +19,7 @@ from apilot.core import (
     load_json, save_json
 )
 
-APP_NAME = "RiskManager"
+ENGINE_NAME = "RiskManager"
 
 
 class RiskEngine(BaseEngine):
@@ -29,7 +29,7 @@ class RiskEngine(BaseEngine):
 
     def __init__(self, main_engine: MainEngine, event_engine: EventEngine) -> None:
         """"""
-        super().__init__(main_engine, event_engine, APP_NAME)
+        super().__init__(main_engine, event_engine, ENGINE_NAME)
 
         self.active: bool = False
 

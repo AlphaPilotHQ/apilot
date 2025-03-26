@@ -5,9 +5,6 @@ EVENT_ALGO_LOG = "eAlgoLog"
 EVENT_ALGO_UPDATE = "eAlgoUpdate"
 
 
-APP_NAME = "AlgoTrading"
-
-
 class AlgoStatus(Enum):
     """算法状态"""
 

@@ -17,7 +17,6 @@ from queue import Empty, Queue
 from threading import Thread
 from typing import Any, Dict, List, Optional, Type, Callable
 
-from .app import BaseApp
 from .event import (
     EVENT_ACCOUNT,
     EVENT_CONTRACT,
@@ -67,7 +66,6 @@ class MainEngine:
 
         self.gateways: Dict[str, BaseGateway] = {}
         self.engines: Dict[str, BaseEngine] = {}
-        self.apps: Dict[str, BaseApp] = {}
         self.exchanges: List[Exchange] = []
 
         os.chdir(TRADER_DIR)    # Change working directory
@@ -98,16 +96,6 @@ class MainEngine:
                 self.exchanges.append(exchange)
 
         return gateway
-
-    def add_app(self, app_class: Type[BaseApp]) -> "BaseEngine":
-        """
-        Add app.
-        """
-        app: BaseApp = app_class()
-        self.apps[app.app_name] = app
-
-        engine: BaseEngine = self.add_engine(app.engine_class)
-        return engine
 
     def init_engines(self) -> None:
         """
@@ -151,12 +139,6 @@ class MainEngine:
         Get all names of gateway added in main engine.
         """
         return list(self.gateways.keys())
-
-    def get_all_apps(self) -> List[BaseApp]:
-        """
-        Get all app objects.
-        """
-        return list(self.apps.values())
 
     def get_all_exchanges(self) -> List[Exchange]:
         """
@@ -228,7 +210,7 @@ class MainEngine:
 
     def close(self) -> None:
         """
-        Make sure every gateway and app is closed properly before
+        Make sure every gateway and engine is closed properly before
         programme exit.
         """
         # Stop event engine first to prevent new timer event.

@@ -94,7 +94,7 @@ class CtaEngine(BaseEngine):
         # 脚本环境中不需要动态加载策略类
         # self.load_strategy_class()
         self.register_event()
-        logger.info("CTA策略引擎初始化成功")
+        logger.info(f"[{APP_NAME}] CTA策略引擎初始化成功")
 
     def close(self) -> None:
         self.stop_all_strategies()
@@ -236,8 +236,8 @@ class CtaEngine(BaseEngine):
     ) -> list:
         contract: Optional[ContractData] = self.main_engine.get_contract(strategy.vt_symbol)
         if not contract:
-            msg = f"[{strategy.strategy_name}] 委托失败，找不到合约：{strategy.vt_symbol}"
-            self.main_engine.log_error(msg, source=APP_NAME)
+            error_msg = f"[{strategy.strategy_name}] 委托失败，找不到合约：{strategy.vt_symbol}"
+            logger.error(f"[{APP_NAME}] {error_msg}")
             return ""
 
         # Round order price and volume to nearest incremental value
@@ -255,9 +255,11 @@ class CtaEngine(BaseEngine):
         order: Optional[OrderData] = self.main_engine.get_order(vt_orderid)
         if not order:
             if strategy:
-                logger.error(f"[{strategy.strategy_name}] 撤单失败，找不到委托{vt_orderid}")
+                error_msg = f"[{strategy.strategy_name}] 撤单失败，找不到委托{vt_orderid}"
+                logger.error(f"[{APP_NAME}] {error_msg}")
             else:
-                logger.error(f"撤单失败，找不到委托{vt_orderid}")
+                error_msg = f"撤单失败，找不到委托{vt_orderid}"
+                logger.error(f"[{APP_NAME}] {error_msg}")
             return
 
         req: CancelRequest = order.create_cancel_request()
@@ -334,28 +336,32 @@ class CtaEngine(BaseEngine):
             func(params) if params is not None else func()
         except Exception:
             strategy.trading = strategy.inited = False
-            msg = f"[{strategy.strategy_name}] 触发异常已停止\n{traceback.format_exc()}"
-            self.main_engine.log_critical(msg, source=APP_NAME)
+            error_msg = f"[{strategy.strategy_name}] 触发异常已停止\n{traceback.format_exc()}"
+            logger.critical(f"[{APP_NAME}] {error_msg}")
 
     def add_strategy(
         self, class_name: str, strategy_name: str, vt_symbol: str, setting: dict
     ) -> None:
         if strategy_name in self.strategies:
-            self.main_engine.log_error(f"创建策略失败，存在重名{strategy_name}", source=APP_NAME)
+            error_msg = f"创建策略失败，存在重名{strategy_name}"
+            logger.error(f"[{APP_NAME}] {error_msg}")
             return
 
         strategy_class: Optional[Type[CtaTemplate]] = self.classes.get(class_name, None)
         if not strategy_class:
-            self.main_engine.log_error(f"创建策略失败，找不到策略类{class_name}", source=APP_NAME)
+            error_msg = f"创建策略失败，找不到策略类{class_name}"
+            logger.error(f"[{APP_NAME}] {error_msg}")
             return
 
         if "." not in vt_symbol:
-            self.main_engine.log_error("创建策略失败，本地代码缺失交易所后缀", source=APP_NAME)
+            error_msg = "创建策略失败，本地代码缺失交易所后缀"
+            logger.error(f"[{APP_NAME}] {error_msg}")
             return
 
         __, exchange_str = vt_symbol.split(".")
         if exchange_str not in Exchange.__members__:
-            self.main_engine.log_error("创建策略失败，本地代码的交易所后缀不正确", source=APP_NAME)
+            error_msg = "创建策略失败，本地代码的交易所后缀不正确"
+            logger.error(f"[{APP_NAME}] {error_msg}")
             return
 
         strategy: CtaTemplate = strategy_class(self, strategy_name, vt_symbol, setting)
@@ -378,10 +384,11 @@ class CtaEngine(BaseEngine):
         strategy: CtaTemplate = self.strategies[strategy_name]
 
         if strategy.inited:
-            self.main_engine.log_error(f"{strategy_name}已经完成初始化，禁止重复操作", source=APP_NAME)
+            error_msg = f"{strategy_name}已经完成初始化，禁止重复操作"
+            logger.error(f"[{APP_NAME}] {error_msg}")
             return
 
-        self.main_engine.log_info(f"{strategy_name}开始执行初始化", source=APP_NAME)
+        logger.info(f"[{APP_NAME}] {strategy_name}开始执行初始化")
 
         # Call on_init function of strategy
         self.call_strategy_func(strategy, strategy.on_init)
@@ -401,20 +408,23 @@ class CtaEngine(BaseEngine):
                 symbol=contract.symbol, exchange=contract.exchange)
             self.main_engine.subscribe(req, contract.gateway_name)
         else:
-            self.main_engine.log_error(f"行情订阅失败，找不到合约{strategy.vt_symbol}", source=APP_NAME)
+            error_msg = f"行情订阅失败，找不到合约{strategy.vt_symbol}"
+            logger.error(f"[{APP_NAME}] {error_msg}")
 
         # Put event to update init completed status.
         strategy.inited = True
-        self.main_engine.log_info(f"{strategy_name}初始化完成", source=APP_NAME)
+        logger.info(f"[{APP_NAME}] {strategy_name}初始化完成")
 
     def start_strategy(self, strategy_name: str) -> None:
         strategy: CtaTemplate = self.strategies[strategy_name]
         if not strategy.inited:
-            self.main_engine.log_error(f"策略{strategy_name}启动失败，请先初始化", source=APP_NAME)
+            error_msg = f"策略{strategy_name}启动失败，请先初始化"
+            logger.error(f"[{APP_NAME}] {error_msg}")
             return
 
         if strategy.trading:
-            self.main_engine.log_error(f"{strategy_name}已经启动，请勿重复操作", source=APP_NAME)
+            error_msg = f"{strategy_name}已经启动，请勿重复操作"
+            logger.error(f"[{APP_NAME}] {error_msg}")
             return
         self.call_strategy_func(strategy, strategy.on_start)
         strategy.trading = True
@@ -445,7 +455,8 @@ class CtaEngine(BaseEngine):
     def remove_strategy(self, strategy_name: str) -> bool:
         strategy: CtaTemplate = self.strategies[strategy_name]
         if strategy.trading:
-            self.main_engine.log_error(f"策略{strategy_name}移除失败，请先停止", source=APP_NAME)
+            error_msg = f"策略{strategy_name}移除失败，请先停止"
+            logger.error(f"[{APP_NAME}] {error_msg}")
             return
 
         # Remove setting
@@ -467,7 +478,7 @@ class CtaEngine(BaseEngine):
         # Remove from strategies
         self.strategies.pop(strategy_name)
 
-        self.main_engine.log_info(f"策略{strategy_name}移除成功", source=APP_NAME)
+        logger.info(f"[{APP_NAME}] 策略{strategy_name}移除成功")
         return True
 
     def load_strategy_class(self) -> None:

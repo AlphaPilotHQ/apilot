@@ -152,7 +152,3 @@ INTERVAL_DELTA_MAP: Dict[Interval, timedelta] = {
     Interval.HOUR: timedelta(hours=1),
     Interval.DAILY: timedelta(days=1),
 }
-
-
-# 常量名称
-APP_NAME = "CtaStrategy"
