@@ -32,7 +32,7 @@ __all__ = [
     "BaseGateway",
 
     # 配置和工具函数
-    "SETTINGS", "get_settings", "load_json", "save_json",
+    "load_json", "save_json",
     "extract_vt_symbol", "BarGenerator", "ArrayManager"
 ]
 
@@ -85,7 +85,6 @@ from .engine import BaseEngine, MainEngine  # type: class, class
 from .gateway import BaseGateway  # type: class
 
 # 导入配置和工具函数
-from .setting import SETTINGS, get_settings  # type: dict, function
 from .utility import load_json, save_json, extract_vt_symbol, BarGenerator, ArrayManager  # type: function, function, function, class, class
 
 from .converter import OffsetConverter

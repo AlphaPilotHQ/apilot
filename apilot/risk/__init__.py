@@ -14,7 +14,7 @@
 # 定义公共API
 __all__ = [
     "RiskEngine",
-    "APP_NAME"
+    "ENGINE_NAME"
 ]
 
-from .engine import RiskEngine, APP_NAME
+from .engine import RiskEngine, ENGINE_NAME

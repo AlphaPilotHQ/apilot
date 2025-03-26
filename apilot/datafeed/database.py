@@ -13,7 +13,13 @@ from importlib import import_module
 from types import ModuleType
 from typing import Any, Dict, List, Optional, Type, TYPE_CHECKING
 
-from apilot.core import Exchange, Interval, BarData, TickData, SETTINGS
+from apilot.core import Exchange, Interval, BarData, TickData
+
+# Database default configuration
+DATABASE_CONFIG = {
+    "name": "csv",  # Default to CSV database for direct file reading
+    "data_path": "data",  # CSV data file storage path
+}
 
 
 @dataclass
@@ -120,15 +126,12 @@ def get_database() -> BaseDatabase:
         return database
 
     # 从设置中读取数据库类型
-    database_name = SETTINGS.get("database.name", "")
+    database_name = DATABASE_CONFIG.get("name", "")
 
     # 提取对应数据库类型的参数
     database_params = {}
-    prefix = f"database.{database_name}."
-    for key, value in SETTINGS.items():
-        if key.startswith(prefix):
-            param_name = key[len(prefix):]
-            database_params[param_name] = value
+    if database_name == "csv":
+        database_params["data_path"] = DATABASE_CONFIG.get("data_path", "data")
 
     try:
         database = use_database(database_name, **database_params)

@@ -79,5 +79,5 @@ from .strategy.template import CtaTemplate, TargetPosTemplate
 from .engine.backtest import BacktestingEngine
 from .optimizer import OptimizationSetting, run_ga_optimization
 
-# 导出日志系统 (直接从utils.logger导入)
+# 导出日志系统
 from .utils.logger import get_logger, set_level, log_exceptions

@@ -5,18 +5,31 @@
 """
 
 import smtplib
+import ssl
+import threading
 import traceback
 from email.message import EmailMessage
 from queue import Empty, Queue
 from threading import Thread
+from typing import Dict, Any
 
 from apilot.core import (
     BaseEngine,
     EventEngine,
-    MainEngine,
-    SETTINGS
+    MainEngine
 )
 from apilot.utils.logger import get_logger
+
+# Email default configuration
+EMAIL_CONFIG: Dict[str, Any] = {
+    "active": False,  # Default: email notification disabled
+    "server": "smtp.gmail.com",
+    "port": 587,
+    "username": "",
+    "password": "",  # Use app-specific password
+    "sender": "",
+    "receiver": ""
+}
 
 # 模块级初始化日志器
 logger = get_logger("EmailEngine")
@@ -45,10 +58,10 @@ class EmailEngine(BaseEngine):
 
         # Use default receiver if not specified.
         if not receiver:
-            receiver: str = SETTINGS["email.receiver"]
+            receiver: str = EMAIL_CONFIG["receiver"]
 
         msg: EmailMessage = EmailMessage()
-        msg["From"] = SETTINGS["email.sender"]
+        msg["From"] = EMAIL_CONFIG["sender"]
         msg["To"] = receiver
         msg["Subject"] = subject
         msg.set_content(content)
@@ -57,10 +70,10 @@ class EmailEngine(BaseEngine):
 
     def run(self) -> None:
         """Main thread function to process email queue."""
-        server: str = SETTINGS["email.server"]
-        port: int = SETTINGS["email.port"]
-        username: str = SETTINGS["email.username"]
-        password: str = SETTINGS["email.password"]
+        server: str = EMAIL_CONFIG["server"]
+        port: int = EMAIL_CONFIG["port"]
+        username: str = EMAIL_CONFIG["username"]
+        password: str = EMAIL_CONFIG["password"]
 
         while self.active:
             try:

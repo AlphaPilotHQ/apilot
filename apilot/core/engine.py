@@ -47,7 +47,6 @@ from .object import (
     TickData,
     TradeData,
 )
-from .setting import SETTINGS
 from .utility import TRADER_DIR, get_folder_path
 from apilot.utils.logger import get_logger
 

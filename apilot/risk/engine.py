@@ -21,7 +21,6 @@ from apilot.core import (
 
 ENGINE_NAME = "RiskManager"
 
-
 class RiskEngine(BaseEngine):
     """风控引擎"""
 

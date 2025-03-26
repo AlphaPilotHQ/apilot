@@ -16,7 +16,6 @@ from apilot.core.event import EventEngine
 from apilot.trader.engine import MainEngine
 from apilot.trader.constant import Direction, Offset, OrderType, Exchange
 from apilot.trader.object import OrderRequest
-from apilot.trader.setting import SETTINGS
 from apilot.gateway.binance_gateway import BinanceGateway
 
 # 加载API密钥

@@ -275,7 +275,7 @@ def run_backtesting(
     engine.add_data(
         database_type="csv",
         data_path=csv_path,
-        datetime="candle_begin_time",
+        datetime="candle_begin_time",  # 更新为实际CSV文件中的列名
         open="open",
         high="high",
         low="low",
