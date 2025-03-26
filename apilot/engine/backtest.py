@@ -38,7 +38,7 @@ from apilot.core.utility import (
     load_json,
     save_json
 )
-from apilot.datafeed import get_database
+from apilot.core.database import get_database
 from apilot.optimizer import (
     OptimizationSetting,
     run_ga_optimization

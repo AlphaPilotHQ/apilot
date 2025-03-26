@@ -13,9 +13,8 @@ from typing import Dict, List, Optional
 import pandas as pd
 
 from apilot.core import BarData, Exchange, Interval, TickData
+from apilot.core.database import BaseDatabase, register_database
 from apilot.utils.logger import get_logger
-
-from .database import BaseDatabase, register_database
 
 # 获取CSV数据库专用日志记录器
 logger = get_logger("csv_database")

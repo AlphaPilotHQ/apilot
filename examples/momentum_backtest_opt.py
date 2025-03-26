@@ -292,7 +292,7 @@ def run_backtesting(
         logger.error("历史数据加载失败，dts列表为空")
         
         # 调试CSV解析
-        from apilot.datafeed import CsvDatabase
+        from apilot.datafeed.csv_database import CsvDatabase
         # 直接使用CSV数据库类尝试加载数据
         csv_db = CsvDatabase()
         csv_db.data_path = csv_path 

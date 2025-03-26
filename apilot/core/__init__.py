@@ -31,6 +31,9 @@ __all__ = [
     # 网关接口
     "BaseGateway",
 
+    # 数据库接口
+    "BaseDatabase", "get_database", "use_database", "BarOverview", "TickOverview",
+
     # 配置和工具函数
     "load_json", "save_json",
     "extract_vt_symbol", "BarGenerator", "ArrayManager"
@@ -83,6 +86,15 @@ from .engine import BaseEngine, MainEngine  # type: class, class
 
 # 导入网关接口
 from .gateway import BaseGateway  # type: class
+
+# 导入数据库接口
+from .database import (
+    BaseDatabase,     # type: class
+    get_database,     # type: function
+    use_database,     # type: function
+    BarOverview,      # type: class
+    TickOverview      # type: class
+)
 
 # 导入配置和工具函数
 from .utility import load_json, save_json, extract_vt_symbol, BarGenerator, ArrayManager  # type: function, function, function, class, class

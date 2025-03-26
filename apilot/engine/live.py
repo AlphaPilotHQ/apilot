@@ -59,7 +59,7 @@ from apilot.core import (
     EVENT_TICK,
     EVENT_TRADE,
 )
-from apilot.datafeed import BaseDatabase, get_database
+from apilot.core.database import BaseDatabase, get_database
 from apilot.strategy import CtaTemplate, TargetPosTemplate
 from apilot.utils.logger import get_logger
 
