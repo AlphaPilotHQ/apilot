@@ -34,7 +34,9 @@ from apilot.core.object import (
 )
 from apilot.core.utility import (
     extract_vt_symbol,
-    round_to
+    round_to,
+    load_json,
+    save_json
 )
 from apilot.datafeed import get_database
 from apilot.optimizer import (
@@ -43,12 +45,25 @@ from apilot.optimizer import (
 )
 from apilot.strategy.template import CtaTemplate
 from apilot.utils.logger import get_logger, set_level
-from apilot.core.setting import SETTINGS
+
+# 回测默认设置
+BACKTEST_CONFIG = {
+    "risk_free": 0.0,
+    "size": 1,
+    "pricetick": 0.0,
+    "capital": 1000000,
+}
+
+# 设置文件名
+SETTING_FILENAME: str = "apilot_setting.json"
+
+# 从JSON文件加载配置
+json_config = load_json(SETTING_FILENAME)
 
 # 获取回测专用日志器
 logger = get_logger("backtest")
-# 设置为DEBUG级别以获取更多日志
-set_level("debug", "backtest")
+# 设置为INFO级别，减少调试信息输出
+set_level("info", "backtest")
 
 
 class BacktestingEngine:
@@ -184,22 +199,26 @@ class BacktestingEngine:
             and os.path.isfile(data_path)
         ):
             # 如果是直接指定的CSV文件，我们需要保存字段映射信息
-            # 将字段映射信息直接添加到kwargs中，后续CSV数据库会使用
-            from apilot.core.setting import SETTINGS
-
-            # 将字段映射添加到SETTINGS字典
+            # 保存字段映射到配置中，后续CSV数据库会从json配置中加载
+            csv_settings = {}
             if "datetime" in kwargs:
-                SETTINGS["csv_datetime_field"] = kwargs["datetime"]
+                csv_settings["csv_datetime_field"] = kwargs["datetime"]
             if "open" in kwargs:
-                SETTINGS["csv_open_field"] = kwargs["open"]
+                csv_settings["csv_open_field"] = kwargs["open"]
             if "high" in kwargs:
-                SETTINGS["csv_high_field"] = kwargs["high"]
+                csv_settings["csv_high_field"] = kwargs["high"]
             if "low" in kwargs:
-                SETTINGS["csv_low_field"] = kwargs["low"]
+                csv_settings["csv_low_field"] = kwargs["low"]
             if "close" in kwargs:
-                SETTINGS["csv_close_field"] = kwargs["close"]
+                csv_settings["csv_close_field"] = kwargs["close"]
             if "volume" in kwargs:
-                SETTINGS["csv_volume_field"] = kwargs["volume"]
+                csv_settings["csv_volume_field"] = kwargs["volume"]
+                
+            # 保存CSV字段映射到JSON配置
+            if csv_settings:
+                current_config = load_json(SETTING_FILENAME)
+                current_config.update(csv_settings)
+                save_json(SETTING_FILENAME, current_config)
 
         self.database_type = database_type
         self.database_config = kwargs
@@ -227,13 +246,27 @@ class BacktestingEngine:
 
         # 设置数据库配置到系统设置
         if self.database_type == "csv":
+            available_settings = {
+                "csv_data_path": "data_path",
+                "csv_datetime_field": "datetime",
+                "csv_open_field": "open",
+                "csv_high_field": "high",
+                "csv_low_field": "low",
+                "csv_close_field": "close",
+                "csv_volume_field": "volume",
+            }
+            old_settings = {}
+
+            # 暂存原始设置
             for key, value in self.database_config.items():
-                setting_key = f"csv_{key}_field" if key in ["datetime", "open", "high", "low", "close", "volume"] else key
-                SETTINGS[setting_key] = value
-            
+                setting_key = available_settings.get(key, key)
+                if setting_key in BACKTEST_CONFIG:
+                    old_settings[setting_key] = BACKTEST_CONFIG[setting_key]
+                    BACKTEST_CONFIG[setting_key] = value
+
             # 确保使用的是正确的数据库实例
             load_bar_data.cache_clear()  # 清除缓存，确保使用新的配置
-            
+
             # 创建一个直接的CsvDatabase实例用于测试
             from apilot.datafeed.csv_database import CsvDatabase
             test_db = CsvDatabase(self.database_config.get("data_path"))
@@ -260,7 +293,7 @@ class BacktestingEngine:
                         # 从vt_symbol中提取基本符号名（不含交易所信息）
                         symbol_parts = self.symbols[vt_symbol].split('.')
                         symbol = symbol_parts[0] if len(symbol_parts) > 0 else self.symbols[vt_symbol]
-                        
+
                         logger.info(f"从CSV直接加载 {symbol} 数据，时间: {start} - {end}")
                         data = test_db.load_bar_data(
                             symbol,
@@ -293,7 +326,7 @@ class BacktestingEngine:
 
                     start = end + interval_delta
                     end += progress_delta + interval_delta
-                
+
                 logger.info(f"{vt_symbol}历史数据加载完成，数据量：{data_count}")
             else:
                 # 日线等其他周期的加载
@@ -301,7 +334,7 @@ class BacktestingEngine:
                     # 从vt_symbol中提取基本符号名（不含交易所信息）
                     symbol_parts = self.symbols[vt_symbol].split('.')
                     symbol = symbol_parts[0] if len(symbol_parts) > 0 else self.symbols[vt_symbol]
-                    
+
                     logger.info(f"从CSV直接加载 {symbol} 数据，时间: {self.start} - {self.end}")
                     data = test_db.load_bar_data(
                         symbol,
@@ -1059,15 +1092,23 @@ def load_bar_data(
     if database_settings:
         # 用于支持MongoDB等特殊数据库的实现
         # 注意：实际的MongoDB数据库处理应该在具体的数据库实现类中处理
-        from apilot.core.setting import SETTINGS
-
+        available_settings = {
+            "csv_data_path": "data_path",
+            "csv_datetime_field": "datetime",
+            "csv_open_field": "open",
+            "csv_high_field": "high",
+            "csv_low_field": "low",
+            "csv_close_field": "close",
+            "csv_volume_field": "volume",
+        }
         old_settings = {}
 
         # 暂存原始设置
         for key, value in database_settings.items():
-            if key in SETTINGS:
-                old_settings[key] = SETTINGS[key]
-                SETTINGS[key] = value
+            setting_key = available_settings.get(key, key)
+            if setting_key in BACKTEST_CONFIG:
+                old_settings[setting_key] = BACKTEST_CONFIG[setting_key]
+                BACKTEST_CONFIG[setting_key] = value
 
         # 获取数据库连接
         database = get_database()
@@ -1077,7 +1118,7 @@ def load_bar_data(
 
         # 恢复原始设置
         for key, value in old_settings.items():
-            SETTINGS[key] = value
+            BACKTEST_CONFIG[key] = value
 
         return bars
     else:
@@ -1101,15 +1142,23 @@ def load_tick_data(
     if database_settings:
         # 用于支持MongoDB等特殊数据库的实现
         # 注意：实际的MongoDB数据库处理应该在具体的数据库实现类中处理
-        from apilot.core.setting import SETTINGS
-
+        available_settings = {
+            "csv_data_path": "data_path",
+            "csv_datetime_field": "datetime",
+            "csv_open_field": "open",
+            "csv_high_field": "high",
+            "csv_low_field": "low",
+            "csv_close_field": "close",
+            "csv_volume_field": "volume",
+        }
         old_settings = {}
 
         # 暂存原始设置
         for key, value in database_settings.items():
-            if key in SETTINGS:
-                old_settings[key] = SETTINGS[key]
-                SETTINGS[key] = value
+            setting_key = available_settings.get(key, key)
+            if setting_key in BACKTEST_CONFIG:
+                old_settings[setting_key] = BACKTEST_CONFIG[setting_key]
+                BACKTEST_CONFIG[setting_key] = value
 
         # 获取数据库连接
         database = get_database()
@@ -1119,7 +1168,7 @@ def load_tick_data(
 
         # 恢复原始设置
         for key, value in old_settings.items():
-            SETTINGS[key] = value
+            BACKTEST_CONFIG[key] = value
 
         return ticks
     else:
