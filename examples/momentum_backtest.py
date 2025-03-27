@@ -43,14 +43,14 @@ class StdMomentumStrategy(ap.CtaTemplate):
     parameters = ["std_period", "mom_threshold", "trailing_std_scale"]
     variables = ["momentum", "intra_trade_high", "intra_trade_low", "pos"]
 
-    def __init__(self, cta_engine, strategy_name, vt_symbols, setting):
-        super().__init__(cta_engine, strategy_name, vt_symbols, setting)
+    def __init__(self, cta_engine, strategy_name, symbols, setting):
+        super().__init__(cta_engine, strategy_name, symbols, setting)
 
         # 为每个交易对创建数据生成器和管理器
         self.bgs = {}
         self.ams = {}
 
-        for vt_symbol in self.vt_symbols:
+        for vt_symbol in self.symbols:
             self.bgs[vt_symbol] = ap.BarGenerator(self.on_bar, 5, self.on_5min_bar)
             self.ams[vt_symbol] = ap.ArrayManager(size=200)
 
@@ -62,7 +62,7 @@ class StdMomentumStrategy(ap.CtaTemplate):
         self.pos = {}
 
         # 初始化每个交易对的状态
-        for vt_symbol in self.vt_symbols:
+        for vt_symbol in self.symbols:
             self.momentum[vt_symbol] = 0.0
             self.std_value[vt_symbol] = 0.0
             self.intra_trade_high[vt_symbol] = 0
@@ -224,9 +224,9 @@ def run_backtesting(
     engine = ap.BacktestingEngine()
 
     # 2 设置引擎参数
-    vt_symbols = ["SOL-USDT.LOCAL", "BTC-USDT.LOCAL"]
+    symbols = ["SOL-USDT.LOCAL", "BTC-USDT.LOCAL"]
     engine.set_parameters(
-        vt_symbols=vt_symbols,
+        symbols=symbols,
         interval="1m",
         start=start,
         end=end
@@ -242,47 +242,26 @@ def run_backtesting(
     )
 
     # 4 添加数据
-    # 数据路径
-    data_dir = "/Users/bobbyding/Documents/GitHub/apilot/data"
     # 为SOL-USDT添加数据
-    sol_data_path = f"{data_dir}/SOL-USDT_LOCAL_1m.csv"
-    engine.add_data(
-        database_type="csv",
-        data_path=sol_data_path,
-        specific_symbol="SOL-USDT",
-        datetime="candle_begin_time",
-        open="open",
-        high="high",
-        low="low",
-        close="close",
-        volume="volume"
+    engine.add_data.csv(
+        data_path="data/SOL-USDT_LOCAL_1m.csv",
+        symbol_name="SOL-USDT",  
     )
 
     # 为BTC-USDT添加数据
-    btc_data_path = f"{data_dir}/BTC-USDT_LOCAL_1m.csv"
-    engine.add_data(
-        database_type="csv",
-        data_path=btc_data_path,
-        specific_symbol="BTC-USDT",
-        datetime="candle_begin_time",
-        open="open",
-        high="high",
-        low="low",
-        close="close",
-        volume="volume"
+    engine.add_data.csv(
+        data_path="data/BTC-USDT_LOCAL_1m.csv",
+        symbol_name="BTC-USDT",  
     )
-
-    engine.load_data()
 
     # 5 运行回测
     engine.run_backtesting()
 
-
     # 6 计算和输出结果
-    df = engine.calculate_result()
+    engine.calculate_result()
     engine.calculate_statistics()
-    logger.info("步骤7: 计算回测结果和绩效统计")
 
+    # 7 显示图表
     engine.show_chart()
 
 
