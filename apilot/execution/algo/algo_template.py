@@ -1,8 +1,14 @@
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from apilot.core import (
-    BaseEngine, TickData, OrderData, TradeData,
-    ContractData, OrderType, Offset, Direction
+    BaseEngine,
+    ContractData,
+    Direction,
+    Offset,
+    OrderData,
+    OrderType,
+    TickData,
+    TradeData,
 )
 from apilot.core.utility import virtual
 from apilot.utils.logger import get_logger

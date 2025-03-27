@@ -7,32 +7,32 @@
 from collections import defaultdict
 from typing import Optional, Type
 
+from apilot.core.constant import Direction, Exchange, Offset, OrderType
 from apilot.core.engine import (
     BaseEngine,
-    MainEngine,
     EventEngine,
+    MainEngine,
 )
 from apilot.core.event import (
-    EVENT_TICK,
     EVENT_ORDER,
-    EVENT_TRADE,
+    EVENT_TICK,
     EVENT_TIMER,
+    EVENT_TRADE,
     Event,
 )
 from apilot.core.object import (
-    OrderRequest,
     CancelRequest,
-    SubscribeRequest,
-    OrderData,
-    TradeData,
-    TickData,
     ContractData,
+    OrderData,
+    OrderRequest,
+    SubscribeRequest,
+    TickData,
+    TradeData,
 )
-from apilot.core.constant import Direction, Offset, OrderType, Exchange
 from apilot.utils.logger import get_logger
 
+from .algo_base import EVENT_ALGO_UPDATE, AlgoStatus
 from .algo_template import AlgoTemplate
-from .algo_base import AlgoStatus, EVENT_ALGO_UPDATE
 
 ENGINE_NAME = "AlgoTrading"
 
@@ -66,11 +66,11 @@ class AlgoEngine(BaseEngine):
 
     def load_algo_template(self) -> None:
         """载入算法类"""
-        from .twap_algo import TwapAlgo
+        from .best_limit_algo import BestLimitAlgo
         from .iceberg_algo import IcebergAlgo
         from .sniper_algo import SniperAlgo
         from .stop_algo import StopAlgo
-        from .best_limit_algo import BestLimitAlgo
+        from .twap_algo import TwapAlgo
 
         self.add_algo_template(TwapAlgo)
         self.add_algo_template(IcebergAlgo)

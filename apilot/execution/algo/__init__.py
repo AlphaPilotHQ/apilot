@@ -5,9 +5,9 @@
 """
 
 # 首先导入apilot.core中需要的组件，以解决算法文件中的导入问题
-from apilot.core.constant import Direction, Offset, OrderType, Exchange
-from apilot.core.object import TradeData, OrderData, TickData, OrderRequest
+from apilot.core.constant import Direction, Exchange, Offset, OrderType
 from apilot.core.engine import BaseEngine
+from apilot.core.object import OrderData, OrderRequest, TickData, TradeData
 
 # 然后导出算法引擎和算法模板
 from .algo_engine import AlgoEngine

@@ -1,7 +1,4 @@
-from apilot.core import (
-    Direction, TradeData, TickData,
-    ContractData, BaseEngine
-)
+from apilot.core import BaseEngine, ContractData, Direction, TickData, TradeData
 from apilot.core.utility import round_to
 
 from .algo_template import AlgoTemplate

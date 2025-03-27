@@ -1,4 +1,4 @@
-from apilot.core import Direction, OrderData, TickData, TradeData, BaseEngine
+from apilot.core import BaseEngine, Direction, OrderData, TickData, TradeData
 
 from .algo_template import AlgoTemplate
 

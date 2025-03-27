@@ -7,25 +7,25 @@ from typing import List
 
 import ccxt
 
-from apilot.core.event import EventEngine
 from apilot.core.constant import (
     Direction,
     Exchange,
+    Interval,
     OrderType,
     Product,
     Status,
-    Interval
 )
+from apilot.core.event import EventEngine
 from apilot.core.gateway import BaseGateway
 from apilot.core.object import (
-    OrderData,
     AccountData,
-    ContractData,
     BarData,
-    OrderRequest,
     CancelRequest,
+    ContractData,
+    HistoryRequest,
+    OrderData,
+    OrderRequest,
     SubscribeRequest,
-    HistoryRequest
 )
 
 # Binance exchange symbols for VeighNa
