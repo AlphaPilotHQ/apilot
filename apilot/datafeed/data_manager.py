@@ -4,15 +4,10 @@
 负责加载和管理回测数据，将数据加载逻辑从回测引擎中分离。
 """
 
-from typing import Dict, List, Optional
-from datetime import datetime
-import os
-import logging
 
-from apilot.core import BarData, Interval, Exchange
 from apilot.core.utility import extract_vt_symbol
-from apilot.utils.logger import get_logger
 from apilot.datafeed.csv_database import CsvDatabase
+from apilot.utils.logger import get_logger
 
 # 获取日志记录器
 logger = get_logger("DataManager")
