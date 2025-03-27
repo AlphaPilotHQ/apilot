@@ -82,10 +82,6 @@ Core 目录 - 包含系统的所有抽象接口和核心数据结构
 - test algotrading & websocket
 - test optimizer
 
-- tzlocal库的删除
-- OffsetConverter类删除
-
-
 
 ## 未来TODO
 - 修改email成telegram
