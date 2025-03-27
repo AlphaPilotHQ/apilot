@@ -9,16 +9,13 @@
 from datetime import datetime
 
 import setup_path
+import apilot as ap
 
-# 从apilot导入必要的组件
-from apilot.core.constant import Direction, Interval
-from apilot.core.object import BarData, TickData, OrderData, TradeData
-from apilot.engine import CtaTemplate
-from apilot.core.utility import BarGenerator, ArrayManager
-from apilot.engine.backtest import BacktestingEngine
+# 获取日志记录器
+from apilot.utils.logger import get_logger
+logger = get_logger(__name__)
 
-
-class TurtleSignalStrategy(CtaTemplate):
+class TurtleSignalStrategy(ap.CtaTemplate):
     """
     海龟交易信号策略
 
@@ -53,8 +50,8 @@ class TurtleSignalStrategy(CtaTemplate):
         super().__init__(cta_engine, strategy_name, vt_symbol, setting)
 
         # 创建K线生成器和数据管理器
-        self.bg = BarGenerator(self.on_bar)
-        self.am = ArrayManager()
+        self.bg = ap.BarGenerator(self.on_bar)
+        self.am = ap.ArrayManager()
 
     def on_init(self):
         """
@@ -73,14 +70,14 @@ class TurtleSignalStrategy(CtaTemplate):
         策略停止回调函数
         """
 
-    def on_tick(self, tick: TickData):
+    def on_tick(self, tick: ap.TickData):
         """
         Tick数据更新回调函数
         """
         # 将TICK数据更新至K线生成器
         self.bg.update_tick(tick)
 
-    def on_bar(self, bar: BarData):
+    def on_bar(self, bar: ap.BarData):
         """
         K线数据更新回调函数 - 策略的核心交易逻辑
         """
@@ -134,11 +131,11 @@ class TurtleSignalStrategy(CtaTemplate):
         # 移除对put_event的调用，该方法在回测环境下不可用
         # self.put_event()
 
-    def on_trade(self, trade: TradeData):
+    def on_trade(self, trade: ap.TradeData):
         """
         成交回调函数：记录成交价并设置止损价
         """
-        if trade.direction == Direction.LONG:  # 多头成交
+        if trade.direction == ap.Direction.LONG:  # 多头成交
             # 记录多头入场价
             self.long_entry = trade.price
             # 设置多头止损价为入场价减去2倍ATR
@@ -149,7 +146,7 @@ class TurtleSignalStrategy(CtaTemplate):
             # 设置空头止损价为入场价加上2倍ATR
             self.short_stop = self.short_entry + 2 * self.atr_value
 
-    def on_order(self, order: OrderData):
+    def on_order(self, order: ap.OrderData):
         """
         委托回调函数
         """
@@ -211,12 +208,12 @@ def run_backtesting(show_chart=True):
     运行海龟信号策略回测
     """
     # 初始化回测引擎
-    bt_engine = BacktestingEngine()
+    bt_engine = ap.BacktestingEngine()
 
     # 设置回测参数
     bt_engine.set_parameters(
         symbols=["SOL-USDT.LOCAL"],  # 需要使用列表形式
-        interval=Interval.MINUTE,
+        interval=ap.Interval.MINUTE,
         start=datetime(2023, 1, 1),
         end=datetime(2023, 12, 31),
         sizes={"SOL-USDT.LOCAL": 1},  # 每个交易对对应的合约数量
