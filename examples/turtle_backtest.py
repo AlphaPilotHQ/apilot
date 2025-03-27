@@ -215,7 +215,7 @@ def run_backtesting(show_chart=True):
 
     # 设置回测参数
     bt_engine.set_parameters(
-        vt_symbols=["SOL-USDT.LOCAL"],  # 需要使用列表形式
+        symbols=["SOL-USDT.LOCAL"],  # 需要使用列表形式
         interval=Interval.MINUTE,
         start=datetime(2023, 1, 1),
         end=datetime(2023, 12, 31),

@@ -49,17 +49,17 @@ class PcpArbitrageStrategy(StrategyTemplate):
         self,
         strategy_engine: StrategyEngine,
         strategy_name: str,
-        vt_symbols: list[str],
+        symbols: list[str],
         setting: dict
     ) -> None:
         """构造函数"""
-        super().__init__(strategy_engine, strategy_name, vt_symbols, setting)
+        super().__init__(strategy_engine, strategy_name, symbols, setting)
 
         self.bgs: dict[str, BarGenerator] = {}
         self.last_tick_time: datetime = None
 
         # 绑定合约代码
-        for vt_symbol in self.vt_symbols:
+        for vt_symbol in self.symbols:
             symbol, _ = extract_vt_symbol(vt_symbol)
 
             if "C" in symbol:

@@ -8,6 +8,7 @@ import os
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List
+import glob
 
 import pandas as pd
 
@@ -22,36 +23,92 @@ logger = get_logger("csv_database")
 class CsvDatabase(BaseDatabase):
     """CSV文件数据库"""
 
-    def __init__(self, data_path: str = "csv_database") -> None:
-        """构造函数"""
-        self.data_path = data_path
-
-        # 检查data_path是否是直接指向CSV文件
-        self.is_direct_file = data_path.endswith(".csv") if isinstance(data_path, str) else False
-
-        # 如果是目录，确保存在
-        if not self.is_direct_file:
-            os.makedirs(self.data_path, exist_ok=True)
-            
-        # 从JSON配置加载CSV字段映射（只加载一次）
-        from apilot.core.utility import load_json
+    def __init__(self, csv_path: str = None):
+        """
+        初始化CSV数据库
         
-        # 配置文件名
-        self.setting_filename = "apilot_setting.json"
+        Args:
+            csv_path: CSV文件的路径，如果不提供则需要在运行时指定
+        """
+        self.csv_path = csv_path
         
-        # 加载配置
-        config = load_json(self.setting_filename)
+        # 默认使用列名方式
+        self.use_column_index = False
         
-        # CSV字段映射默认值
-        self.csv_field_mapping = {
-            "datetime_field": config.get("csv_datetime_field", "datetime"),
-            "open_field": config.get("csv_open_field", "open"),
-            "high_field": config.get("csv_high_field", "high"),
-            "low_field": config.get("csv_low_field", "low"),
-            "close_field": config.get("csv_close_field", "close"),
-            "volume_field": config.get("csv_volume_field", "volume")
-        }
+        # 列名映射
+        self.datetime_field = "datetime"  
+        self.open_field = "open"
+        self.high_field = "high"
+        self.low_field = "low"
+        self.close_field = "close"
+        self.volume_field = "volume"
+        
+        # 列索引映射
+        self.datetime_index = 0
+        self.open_index = 1
+        self.high_index = 2
+        self.low_index = 3
+        self.close_index = 4
+        self.volume_index = 5
+        self.openinterest_index = -1  # 默认不使用
+        
+        # 日期格式
+        self.dtformat = '%Y-%m-%d %H:%M:%S'
+    
+    def set_column_mode(self, use_index: bool = False):
+        """设置使用列索引还是列名模式"""
+        self.use_column_index = use_index
+    
+    def set_index_mapping(self, **kwargs):
+        """
+        设置列索引映射
+        
+        Args:
+            **kwargs: 包含datetime, open, high, low, close, volume, 
+                     openinterest, dtformat等字段的列索引
+        """
+        self.use_column_index = True
+        
+        if 'datetime' in kwargs:
+            self.datetime_index = kwargs['datetime']
+        if 'open' in kwargs:
+            self.open_index = kwargs['open']
+        if 'high' in kwargs:
+            self.high_index = kwargs['high']
+        if 'low' in kwargs:
+            self.low_index = kwargs['low']
+        if 'close' in kwargs:
+            self.close_index = kwargs['close']
+        if 'volume' in kwargs:
+            self.volume_index = kwargs['volume']
+        if 'openinterest' in kwargs:
+            self.openinterest_index = kwargs['openinterest']
+        if 'dtformat' in kwargs:
+            self.dtformat = kwargs['dtformat']
 
+    def _get_file_path(self, symbol: str, exchange: Exchange, interval: Interval) -> str:
+        """获取文件路径"""
+        if self.csv_path:
+            # 如果设置了直接文件路径，则直接返回
+            logger.info(f"使用直接CSV文件路径: {self.csv_path}")
+            return self.csv_path
+        
+        # 否则尝试从数据目录查找文件
+        file_pattern = f"{symbol}_{exchange.value}_{interval.value}*.csv"
+        data_dir = "./data"  # 默认数据目录
+        pattern_path = os.path.join(data_dir, file_pattern)
+        
+        matching_files = glob.glob(pattern_path)
+        if matching_files:
+            path = matching_files[0]
+            logger.info(f"找到匹配的CSV文件: {path}")
+            return path
+        
+        # 如果找不到匹配的文件，创建一个标准文件名
+        path = os.path.join(data_dir, f"{symbol}_{exchange.value}_{interval.value}.csv")
+        logger.warning(f"未找到匹配的CSV文件，将使用: {path}")
+        return path
+    
     def load_bar_data(
         self,
         symbol: str,
@@ -60,124 +117,142 @@ class CsvDatabase(BaseDatabase):
         start: datetime,
         end: datetime
     ) -> List[BarData]:
-        """加载K线数据"""
+        """
+        加载K线数据
+        
+        参数:
+            symbol: 交易对名称
+            exchange: 交易所
+            interval: K线周期
+            start: 开始时间
+            end: 结束时间
+            
+        返回:
+            List[BarData]: K线数据列表
+        """
         logger.info(f"CSV数据库: 请求加载 {symbol}.{exchange} 数据，区间 {interval}，时间 {start} 至 {end}")
-
-        # 处理直接指定的CSV文件
-        if self.is_direct_file:
-            logger.info(f"使用直接CSV文件路径: {self.data_path}")
-            if not os.path.exists(self.data_path):
-                logger.error(f"CSV文件不存在: {self.data_path}")
-                return []
-
-            try:
-                # 读取CSV文件
-                data = pd.read_csv(self.data_path)
-                logger.info(f"CSV文件已加载，行数: {len(data)}")
-
-                # 获取字段映射（不在循环中重复访问）
-                datetime_field = self.csv_field_mapping["datetime_field"]
-                open_field = self.csv_field_mapping["open_field"]
-                high_field = self.csv_field_mapping["high_field"]
-                low_field = self.csv_field_mapping["low_field"]
-                close_field = self.csv_field_mapping["close_field"]
-                volume_field = self.csv_field_mapping["volume_field"]
-
-                logger.info(f"字段映射: datetime={datetime_field}, open={open_field}, high={high_field}, low={low_field}, close={close_field}, volume={volume_field}")
-
-                # 检查所有必要字段是否同时存在（单次检查）
-                required_fields = [datetime_field, open_field, high_field, low_field, close_field, volume_field]
-                missing_fields = [field for field in required_fields if field not in data.columns]
-
-                if missing_fields:
-                    logger.error(f"CSV文件缺少必要字段: {', '.join(missing_fields)}")
-                    logger.error(f"可用字段: {', '.join(data.columns)}")
+        
+        # 获取文件路径
+        file_path = self._get_file_path(symbol, exchange, interval)
+        
+        # 如果文件不存在，返回空列表
+        if not os.path.exists(file_path):
+            logger.warning(f"CSV文件不存在: {file_path}")
+            return []
+        
+        # 加载CSV文件
+        try:
+            # 读取CSV文件到DataFrame
+            df = pd.read_csv(file_path)
+            logger.info(f"CSV文件已加载，行数: {len(df)}")
+            
+            # 处理数据
+            bars = []
+            
+            if self.use_column_index:
+                # 使用列索引模式
+                if len(df.columns) <= max(
+                    self.datetime_index, 
+                    self.open_index, 
+                    self.high_index, 
+                    self.low_index, 
+                    self.close_index, 
+                    self.volume_index
+                ):
+                    logger.error(f"CSV文件列数不足，需要至少 {max(self.datetime_index, self.open_index, self.high_index, self.low_index, self.close_index, self.volume_index) + 1} 列")
                     return []
-
-                # 转换日期时间
-                logger.info(f"转换日期时间字段: {datetime_field}")
-                data[datetime_field] = pd.to_datetime(data[datetime_field])
-
-                # 根据起止时间筛选数据（单次操作）
-                mask = (data[datetime_field] >= start)
-                if end:
-                    mask &= (data[datetime_field] <= end)
-                data = data[mask]
-                logger.info(f"筛选后数据行数: {len(data)}")
-
-                # 如果CSV中有symbol列，可以进一步筛选
-                if 'symbol' in data.columns:
-                    base_symbol = symbol.split('.')[0] if '.' in symbol else symbol
-                    data = data[data['symbol'] == base_symbol]
-                    logger.info(f"按symbol={base_symbol}筛选后数据行数: {len(data)}")
-
-                # 优化创建bar对象的过程，减少循环内的字典访问
-                bars = []
-                for _, row in data.iterrows():
-                    dt = row[datetime_field]
-                    
-                    # 提前获取所有字段值，减少循环内访问
-                    open_price = row[open_field]
-                    high_price = row[high_field]
-                    low_price = row[low_field]
-                    close_price = row[close_field]
-                    volume = row[volume_field]
-                    
+                
+                # 转换日期时间列
+                dt_col = df.iloc[:, self.datetime_index]
+                logger.info(f"转换日期时间字段: 索引{self.datetime_index}, 格式{self.dtformat}")
+                
+                # 转换日期时间列为datetime格式
+                df.iloc[:, self.datetime_index] = pd.to_datetime(dt_col, format=self.dtformat)
+                
+                # 筛选时间范围内的数据
+                df = df[(df.iloc[:, self.datetime_index] >= pd.Timestamp(start)) & 
+                         (df.iloc[:, self.datetime_index] <= pd.Timestamp(end))]
+                
+                logger.info(f"筛选后数据行数: {len(df)}")
+                
+                # 生成Bar对象
+                for _, row in df.iterrows():
                     bar = BarData(
                         symbol=symbol,
                         exchange=exchange,
-                        datetime=dt,
+                        datetime=row.iloc[self.datetime_index],
                         interval=interval,
-                        volume=volume,
-                        open_price=open_price,
-                        high_price=high_price,
-                        low_price=low_price,
-                        close_price=close_price,
-                        gateway_name="CSV",
+                        volume=float(row.iloc[self.volume_index]),
+                        open_price=float(row.iloc[self.open_index]),
+                        high_price=float(row.iloc[self.high_index]),
+                        low_price=float(row.iloc[self.low_index]),
+                        close_price=float(row.iloc[self.close_index]),
+                        gateway_name="CSV"
+                    )
+                    
+                    # 添加持仓量（如果有）
+                    if self.openinterest_index >= 0:
+                        bar.open_interest = float(row.iloc[self.openinterest_index])
+                        
+                    bars.append(bar)
+            else:
+                # 使用列名模式（向后兼容）
+                # 检查必要的列是否存在
+                required_fields = [
+                    self.datetime_field,
+                    self.open_field,
+                    self.high_field,
+                    self.low_field,
+                    self.close_field,
+                    self.volume_field
+                ]
+                
+                for field in required_fields:
+                    if field not in df.columns:
+                        logger.error(f"CSV文件缺少必要的列: {field}")
+                        return []
+                
+                logger.info(f"字段映射: datetime={self.datetime_field}, open={self.open_field}, high={self.high_field}, low={self.low_field}, close={self.close_field}, volume={self.volume_field}")
+                
+                # 转换日期时间列为datetime格式
+                if df[self.datetime_field].dtype == 'object':
+                    logger.info(f"转换日期时间字段: {self.datetime_field}")
+                    df[self.datetime_field] = pd.to_datetime(df[self.datetime_field])
+                
+                # 筛选时间范围内的数据
+                df = df[(df[self.datetime_field] >= pd.Timestamp(start)) & 
+                         (df[self.datetime_field] <= pd.Timestamp(end))]
+                
+                logger.info(f"筛选后数据行数: {len(df)}")
+                
+                # 生成Bar对象
+                for _, row in df.iterrows():
+                    bar = BarData(
+                        symbol=symbol,
+                        exchange=exchange,
+                        datetime=row[self.datetime_field],
+                        interval=interval,
+                        volume=float(row[self.volume_field]),
+                        open_price=float(row[self.open_field]),
+                        high_price=float(row[self.high_field]),
+                        low_price=float(row[self.low_field]),
+                        close_price=float(row[self.close_field]),
+                        gateway_name="CSV"
                     )
                     bars.append(bar)
-
-                logger.info(f"成功创建 {len(bars)} 个Bar对象")
-                if bars:
-                    logger.info(f"第一个Bar: {bars[0]}")
-                    logger.info(f"最后一个Bar: {bars[-1]}")
-
-                return bars
-
-            except Exception as e:
-                logger.error(f"加载CSV文件失败: {e}")
-                import traceback
-                traceback.print_exc()
-                return []
-
-        # 原有的目录结构处理逻辑
-        path = self._get_bar_path(symbol, exchange, interval)
-        if not os.path.exists(path):
+            
+            logger.info(f"成功创建 {len(bars)} 个Bar对象")
+            if bars:
+                logger.info(f"第一个Bar: {bars[0]}")
+                logger.info(f"最后一个Bar: {bars[-1]}")
+            
+            return bars
+        
+        except Exception as e:
+            logger.error(f"加载CSV数据时出错: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
             return []
-
-        data = pd.read_csv(path)
-        data["datetime"] = pd.to_datetime(data["datetime"])
-        data = data[(data["datetime"] >= start) & (data["datetime"] <= end)]
-
-        bars = []
-        for _, row in data.iterrows():
-            dt = row["datetime"].to_pydatetime()
-
-            bar = BarData(
-                symbol=symbol,
-                exchange=exchange,
-                interval=interval,
-                datetime=dt,
-                open_price=row["open"],
-                high_price=row["high"],
-                low_price=row["low"],
-                close_price=row["close"],
-                volume=row["volume"],
-                gateway_name="CSV"
-            )
-            bars.append(bar)
-
-        return bars
 
     def load_tick_data(
         self,
@@ -187,33 +262,8 @@ class CsvDatabase(BaseDatabase):
         end: datetime
     ) -> List[TickData]:
         """加载Tick数据"""
-        path = self._get_tick_path(symbol, exchange)
-        if not os.path.exists(path):
-            return []
-
-        data = pd.read_csv(path)
-        data["datetime"] = pd.to_datetime(data["datetime"])
-        data = data[(data["datetime"] >= start) & (data["datetime"] <= end)]
-
-        ticks = []
-        for _, row in data.iterrows():
-            dt = row["datetime"].to_pydatetime()
-
-            tick = TickData(
-                symbol=symbol,
-                exchange=exchange,
-                datetime=dt,
-                last_price=row["last_price"],
-                volume=row["volume"],
-                bid_price_1=row["bid_price_1"],
-                ask_price_1=row["ask_price_1"],
-                bid_volume_1=row["bid_volume_1"],
-                ask_volume_1=row["ask_volume_1"],
-                gateway_name="CSV"
-            )
-            ticks.append(tick)
-
-        return ticks
+        # 暂不实现
+        return []
 
     def delete_bar_data(
         self,
@@ -222,10 +272,7 @@ class CsvDatabase(BaseDatabase):
         interval: Interval
     ) -> int:
         """删除K线数据"""
-        path = self._get_bar_path(symbol, exchange, interval)
-        if os.path.exists(path):
-            os.remove(path)
-            return 1
+        # 当前实现不支持删除操作
         return 0
 
     def delete_tick_data(
@@ -234,92 +281,18 @@ class CsvDatabase(BaseDatabase):
         exchange: Exchange
     ) -> int:
         """删除Tick数据"""
-        path = self._get_tick_path(symbol, exchange)
-        if os.path.exists(path):
-            os.remove(path)
-            return 1
+        # 当前实现不支持删除操作
         return 0
 
     def get_bar_overview(self) -> List[Dict]:
         """获取K线数据概览"""
-        result = []
-
-        for root, dirs, files in os.walk(Path(self.data_path) / "bar"):
-            for file_name in files:
-                if file_name.endswith(".csv"):
-                    path = os.path.join(root, file_name)
-                    parts = path.split(os.sep)
-
-                    # 从路径中提取信息
-                    symbol = parts[-3]
-                    exchange_name = parts[-2]
-                    interval_name = parts[-1].split(".")[0]
-
-                    try:
-                        exchange = Exchange(exchange_name)
-                        interval = Interval(interval_name)
-                    except ValueError:
-                        continue
-
-                    # 读取CSV获取统计信息
-                    data = pd.read_csv(path)
-
-                    # 添加到概览
-                    overview = {
-                        "symbol": symbol,
-                        "exchange": exchange.value,
-                        "interval": interval.value,
-                        "count": len(data),
-                        "start": data["datetime"].iloc[0] if not data.empty else "",
-                        "end": data["datetime"].iloc[-1] if not data.empty else ""
-                    }
-                    result.append(overview)
-
-        return result
+        # 简单实现，仅返回空列表
+        return []
 
     def get_tick_overview(self) -> List[Dict]:
         """获取Tick数据概览"""
-        result = []
-
-        for root, dirs, files in os.walk(Path(self.data_path) / "tick"):
-            for file_name in files:
-                if file_name.endswith(".csv"):
-                    path = os.path.join(root, file_name)
-                    parts = path.split(os.sep)
-
-                    # 从路径中提取信息
-                    symbol = parts[-2]
-                    exchange_name = parts[-1].split(".")[0]
-
-                    try:
-                        exchange = Exchange(exchange_name)
-                    except ValueError:
-                        continue
-
-                    # 读取CSV获取统计信息
-                    data = pd.read_csv(path)
-
-                    # 添加到概览
-                    overview = {
-                        "symbol": symbol,
-                        "exchange": exchange.value,
-                        "count": len(data),
-                        "start": data["datetime"].iloc[0] if not data.empty else "",
-                        "end": data["datetime"].iloc[-1] if not data.empty else ""
-                    }
-                    result.append(overview)
-
-        return result
-
-    def _get_bar_path(self, symbol: str, exchange: Exchange, interval: Interval) -> str:
-        """获取K线数据文件路径"""
-        path = Path(self.data_path) / "bar" / symbol / exchange.value / f"{interval.value}.csv"
-        return str(path)
-
-    def _get_tick_path(self, symbol: str, exchange: Exchange) -> str:
-        """获取Tick数据文件路径"""
-        path = Path(self.data_path) / "tick" / symbol / f"{exchange.value}.csv"
-        return str(path)
+        # 简单实现，仅返回空列表
+        return []
 
 
 # 注册CSV数据库

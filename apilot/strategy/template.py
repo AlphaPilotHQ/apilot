@@ -29,7 +29,7 @@ class CtaTemplate(ABC):
         self,
         cta_engine: Any,
         strategy_name: str,
-        vt_symbols: Union[str, List[str]],
+        symbols: Union[str, List[str]],
         setting: dict
     ) -> None:
 
@@ -37,10 +37,10 @@ class CtaTemplate(ABC):
         self.strategy_name = strategy_name
 
         # 统一处理为列表形式
-        if isinstance(vt_symbols, str):
-            self.vt_symbols = [vt_symbols]
+        if isinstance(symbols, str):
+            self.symbols = [symbols]
         else:
-            self.vt_symbols = vt_symbols if vt_symbols else []
+            self.symbols = symbols if symbols else []
 
         self.inited: bool = False
         self.trading: bool = False
@@ -85,7 +85,7 @@ class CtaTemplate(ABC):
             "class_name": self.__class__.__name__,
             "parameters": self.get_parameters(),
             "variables": self.get_variables(),
-            "vt_symbols": self.vt_symbols
+            "symbols": self.symbols
         }
         return data
 
@@ -270,7 +270,7 @@ class CtaTemplate(ABC):
             callback = self.on_bar
 
         bars: List[BarData] = self.cta_engine.load_bar(
-            self.vt_symbols[0],
+            self.symbols[0],
             days,
             interval,
             callback,
@@ -285,7 +285,7 @@ class CtaTemplate(ABC):
         加载多币种历史K线数据
         适用于多币种策略
         """
-        if self.vt_symbols:
+        if self.symbols:
             self.cta_engine.load_bars(self, days, interval)
         else:
             # 无币种模式下，使用传统load_bar
@@ -293,7 +293,7 @@ class CtaTemplate(ABC):
 
     def load_tick(self, days: int) -> None:
         """加载历史Tick数据初始化策略"""
-        ticks: List[TickData] = self.cta_engine.load_tick(self.vt_symbols[0], days, self.on_tick)
+        ticks: List[TickData] = self.cta_engine.load_tick(self.symbols[0], days, self.on_tick)
 
         for tick in ticks:
             self.on_tick(tick)
@@ -391,8 +391,8 @@ class TargetPosTemplate(CtaTemplate):
     last_bar: BarData = None
     target_pos = 0
 
-    def __init__(self, cta_engine, strategy_name, vt_symbols, setting) -> None:
-        super().__init__(cta_engine, strategy_name, vt_symbols, setting)
+    def __init__(self, cta_engine, strategy_name, symbols, setting) -> None:
+        super().__init__(cta_engine, strategy_name, symbols, setting)
 
         self.active_orderids: list = []
         self.cancel_orderids: list = []
@@ -443,7 +443,7 @@ class TargetPosTemplate(CtaTemplate):
     def send_new_order(self) -> None:
         """根据目标仓位和实际仓位计算并委托"""
         # 计算仓位变化
-        pos_change = self.target_pos - self.get_pos(self.vt_symbols[0])
+        pos_change = self.target_pos - self.get_pos(self.symbols[0])
         if not pos_change:
             return
 
@@ -469,7 +469,7 @@ class TargetPosTemplate(CtaTemplate):
         # 回测模式直接发单
         if self.get_engine_type() == EngineType.BACKTESTING:
             func = self.buy if is_long else self.short
-            vt_orderids = func(self.vt_symbols[0], price, abs(pos_change))
+            vt_orderids = func(self.symbols[0], price, abs(pos_change))
             self.active_orderids.extend(vt_orderids)
             return
 
@@ -481,18 +481,18 @@ class TargetPosTemplate(CtaTemplate):
         volume = abs(pos_change)
 
         if is_long:  # 做多
-            if self.get_pos(self.vt_symbols[0]) < 0:  # 持有空仓
+            if self.get_pos(self.symbols[0]) < 0:  # 持有空仓
                 # 计算实际平仓量
-                cover_volume = min(volume, abs(self.get_pos(self.vt_symbols[0])))
-                vt_orderids = self.cover(self.vt_symbols[0], price, cover_volume)
+                cover_volume = min(volume, abs(self.get_pos(self.symbols[0])))
+                vt_orderids = self.cover(self.symbols[0], price, cover_volume)
             else:  # 无仓位或持有多仓
-                vt_orderids = self.buy(self.vt_symbols[0], price, volume)
+                vt_orderids = self.buy(self.symbols[0], price, volume)
         else:  # 做空
-            if self.get_pos(self.vt_symbols[0]) > 0:  # 持有多仓
+            if self.get_pos(self.symbols[0]) > 0:  # 持有多仓
                 # 计算实际平仓量
-                sell_volume = min(volume, self.get_pos(self.vt_symbols[0]))
-                vt_orderids = self.sell(self.vt_symbols[0], price, sell_volume)
+                sell_volume = min(volume, self.get_pos(self.symbols[0]))
+                vt_orderids = self.sell(self.symbols[0], price, sell_volume)
             else:  # 无仓位或持有空仓
-                vt_orderids = self.short(self.vt_symbols[0], price, volume)
+                vt_orderids = self.short(self.symbols[0], price, volume)
 
         self.active_orderids.extend(vt_orderids)

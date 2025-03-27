@@ -49,11 +49,11 @@ class PairTradingStrategy(StrategyTemplate):
         self,
         strategy_engine: StrategyEngine,
         strategy_name: str,
-        vt_symbols: list[str],
+        symbols: list[str],
         setting: dict
     ) -> None:
         """构造函数"""
-        super().__init__(strategy_engine, strategy_name, vt_symbols, setting)
+        super().__init__(strategy_engine, strategy_name, symbols, setting)
 
         self.bgs: dict[str, BarGenerator] = {}
         self.last_tick_time: datetime = None
@@ -62,13 +62,13 @@ class PairTradingStrategy(StrategyTemplate):
         self.spread_data: np.array = np.zeros(100)
 
         # Obtain contract info
-        self.leg1_symbol, self.leg2_symbol = vt_symbols
+        self.leg1_symbol, self.leg2_symbol = symbols
 
         def on_bar(bar: BarData):
             """"""
             pass
 
-        for vt_symbol in self.vt_symbols:
+        for vt_symbol in self.symbols:
             self.bgs[vt_symbol] = BarGenerator(on_bar)
 
     def on_init(self) -> None:

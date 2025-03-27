@@ -38,6 +38,7 @@ from apilot.optimizer import OptimizationSetting, run_ga_optimization
 from apilot.strategy.template import CtaTemplate
 from apilot.utils.logger import get_logger, set_level
 from apilot.datafeed.csv_database import CsvDatabase
+from apilot.datafeed.data_manager import DataManager
 
 # 回测默认设置
 BACKTEST_CONFIG = {
@@ -68,8 +69,8 @@ class BacktestingEngine:
         初始化回测引擎
         """
         self.main_engine = main_engine
-        self.vt_symbols: List[str] = []
-        self.symbols: Dict[str, str] = {}
+        self.symbols: List[str] = []
+        self.symbol_map: Dict[str, str] = {}
         self.exchanges: Dict[str, Exchange] = {}
         self.start: datetime = None
         self.end: datetime = None
@@ -103,10 +104,8 @@ class BacktestingEngine:
         self.daily_results: Dict[date, DailyResult] = {}
         self.daily_df: DataFrame = None
 
-        # 添加数据源配置
-        self.database_type = None
-        self.database_config = None
-        self.specific_data_file = None
+        # 添加数据管理器
+        self.add_data = DataManager(self)
 
     def clear_data(self) -> None:
         """
@@ -129,7 +128,7 @@ class BacktestingEngine:
 
     def set_parameters(
         self,
-        vt_symbols: List[str],
+        symbols: List[str],
         interval: Interval,
         start: datetime,
         sizes: Dict[str, float] = None,
@@ -143,15 +142,15 @@ class BacktestingEngine:
         设置回测参数
         """
         self.mode = mode
-        self.vt_symbols = vt_symbols
+        self.symbols = symbols
         self.interval = Interval(interval)
         self.sizes = sizes
         self.priceticks = priceticks or {}  # 使用空字典作为默认值
         self.start = start
 
-        for vt_symbol in vt_symbols:
+        for vt_symbol in symbols:
             symbol, exchange_str = vt_symbol.split(".")
-            self.symbols[vt_symbol] = symbol
+            self.symbol_map[vt_symbol] = symbol
             self.exchanges[vt_symbol] = Exchange(exchange_str)
 
         self.capital = capital
@@ -173,218 +172,8 @@ class BacktestingEngine:
         """
         self.strategy_class = strategy_class
         self.strategy = strategy_class(
-            self, strategy_class.__name__, self.vt_symbols, setting
+            self, strategy_class.__name__, self.symbols, setting
         )
-
-    def add_data(
-        self, database_type: Optional[str] = None, **kwargs
-    ) -> "BacktestingEngine":
-        """
-        添加数据
-        """
-        # 检查是否指定了特定交易对
-        specific_symbol = kwargs.pop("specific_symbol", None)
-
-        # 检查是否为直接CSV文件路径
-        data_path = kwargs.get("data_path", "")
-        if (
-            database_type == "csv"
-            and data_path
-            and data_path.endswith(".csv")
-            and os.path.isfile(data_path)
-        ):
-            # 记录日志，帮助调试
-            logger.info(f"设置CSV数据源: {data_path}")
-
-            # 如果指定了CSV字段映射，记录到日志
-            if "datetime" in kwargs:
-                dt_field = kwargs["datetime"]
-                open_field = kwargs.get("open", "open")
-                high_field = kwargs.get("high", "high")
-                low_field = kwargs.get("low", "low")
-                close_field = kwargs.get("close", "close")
-                volume_field = kwargs.get("volume", "volume")
-
-                logger.info(
-                    f"字段映射: datetime={dt_field}, open={open_field}, high={high_field}, low={low_field}, close={close_field}, volume={volume_field}"
-                )
-
-            # 如果指定了特定交易对，为该交易对创建单独的数据配置
-            if specific_symbol:
-                # 记录日志
-                logger.info(f"为特定交易对 {specific_symbol} 指定数据源: {data_path}")
-
-                # 找到匹配的vt_symbol
-                matched_symbols = [s for s in self.vt_symbols if specific_symbol in s]
-                if matched_symbols:
-                    # 为该交易对创建特定的数据配置
-                    for vt_symbol in matched_symbols:
-                        if not hasattr(self, "symbol_data_configs"):
-                            self.symbol_data_configs = {}
-                        self.symbol_data_configs[vt_symbol] = {
-                            "database_type": database_type,
-                            "data_path": data_path,
-                            **{
-                                k: v
-                                for k, v in kwargs.items()
-                                if k
-                                in [
-                                    "datetime",
-                                    "open",
-                                    "high",
-                                    "low",
-                                    "close",
-                                    "volume",
-                                ]
-                            },
-                        }
-                else:
-                    logger.warning(f"未找到匹配的交易对: {specific_symbol}")
-
-            # 默认情况下，设置为全局数据源
-            self.database_type = database_type
-            self.database_config = {
-                "data_path": data_path,
-                **{
-                    k: v
-                    for k, v in kwargs.items()
-                    if k in ["datetime", "open", "high", "low", "close", "volume"]
-                },
-            }
-            self.specific_data_file = data_path
-
-            logger.info(f"步骤4: 数据添加完成: {data_path}")
-            return self
-
-        # 设置普通数据库
-        self.database_type = database_type
-        self.database_config = kwargs
-        logger.info("步骤4: 数据添加完成")
-        return self
-
-    def load_data(self) -> None:
-        """
-        加载数据
-        """
-        # 初始化历史数据存储
-        logger.info("开始加载历史数据")
-        self.history_data = {}
-        self.dts = []
-
-        # 检查是否有交易对特定的数据配置
-        if hasattr(self, "symbol_data_configs") and self.symbol_data_configs:
-            # 遍历每个交易对的特定数据配置
-            for vt_symbol, config in self.symbol_data_configs.items():
-                if config["database_type"] == "csv":
-                    # 获取数据路径
-                    data_path = config["data_path"]
-                    if not os.path.isfile(data_path):
-                        logger.error(f"CSV文件不存在: {data_path}")
-                        continue
-
-                    # 从vt_symbol中提取基础交易对名称
-                    base_symbol = vt_symbol.split(".")[
-                        0
-                    ]  # 例如从"SOL-USDT.LOCAL"提取"SOL-USDT"
-
-                    logger.info(
-                        f"从CSV直接加载 {base_symbol} 数据，时间: {self.start} - {self.end}"
-                    )
-
-                    # 创建CsvDatabase实例
-                    database = CsvDatabase(data_path)
-
-                    # 设置数据字段映射
-                    field_config = {
-                        k: v
-                        for k, v in config.items()
-                        if k in ["datetime", "open", "high", "low", "close", "volume"]
-                    }
-                    if field_config:
-                        for field_name, csv_column in field_config.items():
-                            if hasattr(database, f"{field_name}_field"):
-                                setattr(database, f"{field_name}_field", csv_column)
-
-                    # 提取交易对信息
-                    symbol, exchange = extract_vt_symbol(vt_symbol)
-
-                    # 加载数据
-                    bars = database.load_bar_data(
-                        symbol=symbol,
-                        exchange=Exchange.LOCAL,  # 使用枚举类型
-                        interval=self.interval,
-                        start=self.start,
-                        end=self.end,
-                    )
-
-                    # 处理数据
-                    data = []
-                    for bar in bars:
-                        bar.vt_symbol = vt_symbol  # 确保vt_symbol正确
-                        data.append(bar)
-                        self.dts.append(bar.datetime)
-                        self.history_data.setdefault(bar.datetime, {})[vt_symbol] = bar
-
-                    logger.info(f"加载了 {len(data)} 条 {vt_symbol} 的历史数据")
-
-            # 对时间点从小到大排序
-            self.dts = sorted(list(set(self.dts)))
-            logger.info(f"历史数据加载完成，数据量：{len(self.dts)}")
-            return
-
-        # 如果没有特定交易对配置，使用默认方式加载数据
-        logger.info("使用默认数据源加载数据")
-
-        # 处理默认数据源
-        if (
-            self.database_type == "csv"
-            and isinstance(self.database_config, dict)
-            and "data_path" in self.database_config
-        ):
-            data_path = self.database_config["data_path"]
-            field_config = {
-                k: v
-                for k, v in self.database_config.items()
-                if k in ["datetime", "open", "high", "low", "close", "volume"]
-            }
-
-            for vt_symbol in self.vt_symbols:
-                base_symbol = vt_symbol.split(".")[0]
-                symbol, exchange = extract_vt_symbol(vt_symbol)
-
-                logger.info(
-                    f"从默认CSV加载 {symbol} 数据，时间: {self.start} - {self.end}"
-                )
-
-                database = CsvDatabase(data_path)
-
-                # 设置字段映射
-                if field_config:
-                    for field_name, csv_column in field_config.items():
-                        if hasattr(database, f"{field_name}_field"):
-                            setattr(database, f"{field_name}_field", csv_column)
-
-                # 加载数据
-                bars = database.load_bar_data(
-                    symbol=symbol,
-                    exchange=Exchange.LOCAL,
-                    interval=self.interval,
-                    start=self.start,
-                    end=self.end,
-                )
-
-                data = []
-                for bar in bars:
-                    bar.vt_symbol = vt_symbol
-                    data.append(bar)
-                    self.dts.append(bar.datetime)
-                    self.history_data.setdefault(bar.datetime, {})[vt_symbol] = bar
-
-                logger.info(f"加载了 {len(data)} 条 {vt_symbol} 的历史数据")
-
-        # 对时间点从小到大排序
-        self.dts = sorted(list(set(self.dts)))
-        logger.info(f"历史数据加载完成，数据量：{len(self.dts)}")
 
     def run_backtesting(self) -> None:
         """
@@ -809,7 +598,7 @@ class BacktestingEngine:
             interval,
             init_start,
             init_end,
-            database_settings=getattr(self, "database_settings", None),
+            gateway_name=self.gateway_name,
         )
 
         return bars
@@ -875,7 +664,7 @@ class BacktestingEngine:
         )
 
         order: OrderData = OrderData(
-            symbol=self.symbols[vt_symbol],
+            symbol=self.symbol_map[vt_symbol],
             exchange=self.exchanges[vt_symbol],
             orderid=str(self.limit_order_count),
             direction=direction,
@@ -954,50 +743,6 @@ class BacktestingEngine:
         获取所有日结果
         """
         return list(self.daily_results.values())
-
-    def run_single_backtest(
-        self,
-        strategy_class: Type[CtaTemplate],
-        vt_symbols: List[str],
-        interval: str,
-        start: datetime,
-        end: datetime,
-        sizes: Dict[str, float],
-        priceticks: Dict[str, float],
-        capital: int,
-        setting: dict,
-    ) -> Tuple[DataFrame, dict]:
-        """
-        运行单一回测
-        """
-        self.clear_data()
-
-        if interval == Interval.TICK.value:
-            mode = BacktestingMode.TICK
-        else:
-            mode = BacktestingMode.BAR
-
-        self.set_parameters(
-            vt_symbols=vt_symbols,
-            interval=interval,
-            start=start,
-            end=end,
-            sizes=sizes,
-            priceticks=priceticks,
-            capital=capital,
-            mode=mode,
-        )
-
-        self.add_strategy(strategy_class, setting)
-        self.load_data()
-        self.run_backtesting()
-        self.calculate_result()
-
-        statistics = self.calculate_statistics()
-        df = self.daily_df.copy()
-
-        return df, statistics
-
 
 class DailyResult:
     def __init__(self, date: date) -> None:
@@ -1096,61 +841,34 @@ def load_bar_data(
     interval: Interval,
     start: datetime,
     end: datetime,
-    database_settings: dict = None,
+    gateway_name: str = ""
 ) -> List[BarData]:
     """
     加载K线数据
     """
 
-    # 获取数据库实例，如果提供了特殊设置，则使用这些设置
-    if database_settings:
-        # 用于支持MongoDB等特殊数据库的实现
-        # 注意：实际的MongoDB数据库处理应该在具体的数据库实现类中处理
-        available_settings = {
-            "csv_data_path": "data_path",
-            "csv_datetime_field": "datetime",
-            "csv_open_field": "open",
-            "csv_high_field": "high",
-            "csv_low_field": "low",
-            "csv_close_field": "close",
-            "csv_volume_field": "volume",
-        }
-        old_settings = {}
+    # 获取数据库实例
+    database = get_database()
 
-        # 暂存原始设置
-        for key, value in database_settings.items():
-            setting_key = available_settings.get(key, key)
-            if setting_key in BACKTEST_CONFIG:
-                old_settings[setting_key] = BACKTEST_CONFIG[setting_key]
-                BACKTEST_CONFIG[setting_key] = value
-
-        # 获取数据库连接
-        database = get_database()
-
-        # 加载数据
-        bars = database.load_bar_data(
-            symbol=symbol,
-            exchange=exchange,
-            interval=interval,
-            start=start,
-            end=end,
+    # 设置为索引模式并使用默认索引映射
+    if hasattr(database, "set_index_mapping"):
+        database.set_index_mapping(
+            datetime=0,
+            open=1,
+            high=2,
+            low=3,
+            close=4,
+            volume=5
         )
 
-        # 恢复原始设置
-        for key, value in old_settings.items():
-            BACKTEST_CONFIG[key] = value
-
-        return bars
-    else:
-        # 使用默认数据库连接
-        database = get_database()
-        return database.load_bar_data(
-            symbol=symbol,
-            exchange=exchange,
-            interval=interval,
-            start=start,
-            end=end,
-        )
+    # 加载数据
+    return database.load_bar_data(
+        symbol=symbol,
+        exchange=exchange,
+        interval=interval,
+        start=start,
+        end=end
+    )
 
 
 @lru_cache(maxsize=1024)
@@ -1216,7 +934,7 @@ def load_tick_data(
 def optimize(
     target_name: str,
     strategy_class: Type[CtaTemplate],
-    vt_symbols: List[str],
+    symbols: List[str],
     interval: str,
     start: datetime,
     end: datetime,
@@ -1234,7 +952,7 @@ def optimize(
     engine = BacktestingEngine()
 
     engine.set_parameters(
-        vt_symbols=vt_symbols,
+        symbols=symbols,
         interval=interval,
         start=start,
         end=end,

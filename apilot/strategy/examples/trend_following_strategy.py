@@ -43,11 +43,11 @@ class TrendFollowingStrategy(StrategyTemplate):
         self,
         strategy_engine: StrategyEngine,
         strategy_name: str,
-        vt_symbols: list[str],
+        symbols: list[str],
         setting: dict
     ) -> None:
         """构造函数"""
-        super().__init__(strategy_engine, strategy_name, vt_symbols, setting)
+        super().__init__(strategy_engine, strategy_name, symbols, setting)
 
         self.rsi_data: dict[str, float] = {}
         self.atr_data: dict[str, float] = {}
@@ -59,7 +59,7 @@ class TrendFollowingStrategy(StrategyTemplate):
 
         # 创建每个合约的ArrayManager
         self.ams: dict[str, ArrayManager] = {}
-        for vt_symbol in self.vt_symbols:
+        for vt_symbol in self.symbols:
             self.ams[vt_symbol] = ArrayManager()
 
         self.pbg = PortfolioBarGenerator(self.on_bars)

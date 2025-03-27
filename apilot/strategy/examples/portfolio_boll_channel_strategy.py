@@ -35,11 +35,11 @@ class PortfolioBollChannelStrategy(StrategyTemplate):
         self,
         strategy_engine: StrategyEngine,
         strategy_name: str,
-        vt_symbols: list[str],
+        symbols: list[str],
         setting: dict
     ) -> None:
         """构造函数"""
-        super().__init__(strategy_engine, strategy_name, vt_symbols, setting)
+        super().__init__(strategy_engine, strategy_name, symbols, setting)
 
         self.boll_up: dict[str, float] = {}
         self.boll_down: dict[str, float] = {}
@@ -53,7 +53,7 @@ class PortfolioBollChannelStrategy(StrategyTemplate):
 
         # 获取合约信息
         self.ams: dict[str, ArrayManager] = {}
-        for vt_symbol in self.vt_symbols:
+        for vt_symbol in self.symbols:
             self.ams[vt_symbol] = ArrayManager()
             self.targets[vt_symbol] = 0
 
@@ -129,7 +129,7 @@ class PortfolioBollChannelStrategy(StrategyTemplate):
                     self.targets[vt_symbol] = 0
 
         # 基于目标仓位进行委托
-        for vt_symbol in self.vt_symbols:
+        for vt_symbol in self.symbols:
             target_pos = self.targets[vt_symbol]
             current_pos = self.get_pos(vt_symbol)
 

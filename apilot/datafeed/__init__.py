@@ -5,6 +5,7 @@
 
 主要组件:
 - CsvDatabase: 基于CSV文件的数据库实现
+- DataManager: 数据管理类，负责数据加载操作
 - get_database: 获取已配置的数据库实例
 
 推荐用法:
@@ -21,7 +22,10 @@ __all__ = [
     "get_database",
     
     # 具体数据库实现
-    "CsvDatabase"
+    "CsvDatabase",
+    
+    # 数据管理器
+    "DataManager"
 ]
 
 # 从核心模块导入数据库工厂函数
@@ -29,3 +33,4 @@ from apilot.core.database import get_database
 
 # 导入具体数据库实现
 from .csv_database import CsvDatabase
+from .data_manager import DataManager
