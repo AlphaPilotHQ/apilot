@@ -144,7 +144,7 @@ class BacktestingEngine:
         start: datetime,
         rates: Dict[str, float],
         sizes: Dict[str, float],
-        priceticks: Dict[str, float],
+        priceticks: Dict[str, float] = None,
         capital: int = 0,
         end: datetime = None,
         mode: BacktestingMode = BacktestingMode.BAR,
@@ -158,7 +158,7 @@ class BacktestingEngine:
         self.interval = Interval(interval)
         self.rates = rates
         self.sizes = sizes
-        self.priceticks = priceticks
+        self.priceticks = priceticks or {}  # 使用空字典作为默认值
         self.start = start
 
         for vt_symbol in vt_symbols:
@@ -194,7 +194,7 @@ class BacktestingEngine:
         """
         # 检查是否指定了特定交易对
         specific_symbol = kwargs.pop("specific_symbol", None)
-        
+
         # 检查是否为直接CSV文件路径
         data_path = kwargs.get("data_path", "")
         if (
@@ -205,7 +205,7 @@ class BacktestingEngine:
         ):
             # 记录日志，帮助调试
             logger.info(f"设置CSV数据源: {data_path}")
-            
+
             # 如果指定了CSV字段映射，记录到日志
             if "datetime" in kwargs:
                 dt_field = kwargs["datetime"]
@@ -214,14 +214,14 @@ class BacktestingEngine:
                 low_field = kwargs.get("low", "low")
                 close_field = kwargs.get("close", "close")
                 volume_field = kwargs.get("volume", "volume")
-                
+
                 logger.info(f"字段映射: datetime={dt_field}, open={open_field}, high={high_field}, low={low_field}, close={close_field}, volume={volume_field}")
-             
+
             # 如果指定了特定交易对，为该交易对创建单独的数据配置
             if specific_symbol:
                 # 记录日志
                 logger.info(f"为特定交易对 {specific_symbol} 指定数据源: {data_path}")
-                
+
                 # 找到匹配的vt_symbol
                 matched_symbols = [s for s in self.vt_symbols if specific_symbol in s]
                 if matched_symbols:
@@ -236,7 +236,7 @@ class BacktestingEngine:
                         }
                 else:
                     logger.warning(f"未找到匹配的交易对: {specific_symbol}")
-            
+
             # 默认情况下，设置为全局数据源
             self.database_type = database_type
             self.database_config = {
@@ -244,7 +244,7 @@ class BacktestingEngine:
                 **{k: v for k, v in kwargs.items() if k in ["datetime", "open", "high", "low", "close", "volume"]}
             }
             self.specific_data_file = data_path
-            
+
             logger.info(f"步骤4: 数据添加完成: {data_path}")
             return self
 
@@ -262,7 +262,7 @@ class BacktestingEngine:
         logger.info("开始加载历史数据")
         self.history_data = {}
         self.dts = []
-        
+
         # 检查是否有交易对特定的数据配置
         if hasattr(self, "symbol_data_configs") and self.symbol_data_configs:
             # 遍历每个交易对的特定数据配置
@@ -273,25 +273,25 @@ class BacktestingEngine:
                     if not os.path.isfile(data_path):
                         logger.error(f"CSV文件不存在: {data_path}")
                         continue
-                    
+
                     # 从vt_symbol中提取基础交易对名称
                     base_symbol = vt_symbol.split(".")[0]  # 例如从"SOL-USDT.LOCAL"提取"SOL-USDT"
-                    
+
                     logger.info(f"从CSV直接加载 {base_symbol} 数据，时间: {self.start} - {self.end}")
-                    
+
                     # 创建CsvDatabase实例
                     database = CsvDatabase(data_path)
-                    
+
                     # 设置数据字段映射
                     field_config = {k: v for k, v in config.items() if k in ["datetime", "open", "high", "low", "close", "volume"]}
                     if field_config:
                         for field_name, csv_column in field_config.items():
                             if hasattr(database, f"{field_name}_field"):
                                 setattr(database, f"{field_name}_field", csv_column)
-                    
+
                     # 提取交易对信息
                     symbol, exchange = extract_vt_symbol(vt_symbol)
-                    
+
                     # 加载数据
                     bars = database.load_bar_data(
                         symbol=symbol,
@@ -300,7 +300,7 @@ class BacktestingEngine:
                         start=self.start,
                         end=self.end
                     )
-                    
+
                     # 处理数据
                     data = []
                     for bar in bars:
@@ -308,36 +308,36 @@ class BacktestingEngine:
                         data.append(bar)
                         self.dts.append(bar.datetime)
                         self.history_data.setdefault(bar.datetime, {})[vt_symbol] = bar
-                    
+
                     logger.info(f"加载了 {len(data)} 条 {vt_symbol} 的历史数据")
-            
+
             # 对时间点从小到大排序
             self.dts = sorted(list(set(self.dts)))
             logger.info(f"历史数据加载完成，数据量：{len(self.dts)}")
             return
-            
+
         # 如果没有特定交易对配置，使用默认方式加载数据
         logger.info("使用默认数据源加载数据")
-        
+
         # 处理默认数据源
         if self.database_type == "csv" and isinstance(self.database_config, dict) and "data_path" in self.database_config:
             data_path = self.database_config["data_path"]
             field_config = {k: v for k, v in self.database_config.items() if k in ["datetime", "open", "high", "low", "close", "volume"]}
-            
+
             for vt_symbol in self.vt_symbols:
                 base_symbol = vt_symbol.split(".")[0]
                 symbol, exchange = extract_vt_symbol(vt_symbol)
-                
+
                 logger.info(f"从默认CSV加载 {symbol} 数据，时间: {self.start} - {self.end}")
-                
+
                 database = CsvDatabase(data_path)
-                
+
                 # 设置字段映射
                 if field_config:
                     for field_name, csv_column in field_config.items():
                         if hasattr(database, f"{field_name}_field"):
                             setattr(database, f"{field_name}_field", csv_column)
-                
+
                 # 加载数据
                 bars = database.load_bar_data(
                     symbol=symbol,
@@ -346,16 +346,16 @@ class BacktestingEngine:
                     start=self.start,
                     end=self.end
                 )
-                
+
                 data = []
                 for bar in bars:
                     bar.vt_symbol = vt_symbol
                     data.append(bar)
                     self.dts.append(bar.datetime)
                     self.history_data.setdefault(bar.datetime, {})[vt_symbol] = bar
-                
+
                 logger.info(f"加载了 {len(data)} 条 {vt_symbol} 的历史数据")
-        
+
         # 对时间点从小到大排序
         self.dts = sorted(list(set(self.dts)))
         logger.info(f"历史数据加载完成，数据量：{len(self.dts)}")
@@ -898,7 +898,7 @@ class BacktestingEngine:
         """
         获取价格Tick
         """
-        return self.priceticks[vt_symbol]
+        return self.priceticks.get(vt_symbol, 0.0001)
 
     def get_size(self, strategy: CtaTemplate, vt_symbol: str) -> int:
         """
