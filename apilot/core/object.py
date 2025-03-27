@@ -7,7 +7,16 @@ from datetime import datetime
 from logging import INFO
 from typing import Optional
 
-from .constant import Direction, Exchange, Interval, Offset, Status, Product, OptionType, OrderType
+from .constant import (
+    Direction,
+    Exchange,
+    Interval,
+    Offset,
+    OptionType,
+    OrderType,
+    Product,
+    Status,
+)
 
 ACTIVE_STATUSES = set([Status.SUBMITTING, Status.NOTTRADED, Status.PARTTRADED])
 
@@ -33,8 +42,8 @@ class TickData(BaseData):
     """
 
     symbol: str = ""
-    exchange: Exchange = None
-    datetime: datetime = None
+    exchange: Optional[Exchange] = None
+    datetime: Optional[datetime] = None
 
     name: str = ""
     volume: float = 0
@@ -78,7 +87,7 @@ class TickData(BaseData):
 
     def __post_init__(self) -> None:
         """"""
-        self.vt_symbol: str = f"{self.symbol}.{self.exchange.value}"
+        self.vt_symbol: str = f"{self.symbol}.{self.exchange.value}" if self.exchange else ""
 
     @staticmethod
     def from_dict(data: dict) -> "TickData":
@@ -87,8 +96,8 @@ class TickData(BaseData):
         """
         tick = TickData(
             symbol=data["symbol"],
-            exchange=data["exchange"],
-            datetime=data["datetime"],
+            exchange=data.get("exchange"),
+            datetime=data.get("datetime"),
             gateway_name=data.get("gateway_name", ""),
             name=data.get("name", ""),
             volume=data.get("volume", 0),

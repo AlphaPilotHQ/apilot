@@ -8,6 +8,8 @@ import os
 from abc import ABC
 from typing import Any, Dict, List, Optional, Type
 
+from apilot.utils.logger import get_logger
+
 from .event import (
     EventEngine,
 )
@@ -22,7 +24,7 @@ from .object import (
     SubscribeRequest,
 )
 from .utility import TRADER_DIR
-from apilot.utils.logger import get_logger
+
 
 class MainEngine:
     """

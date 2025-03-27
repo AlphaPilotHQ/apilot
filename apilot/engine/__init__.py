@@ -27,10 +27,10 @@ __all__ = [
 ]
 
 # 导入回测相关引擎
+# 从策略模块导入策略模板 (为保持向后兼容)
+from apilot.strategy.template import CtaTemplate, TargetPosTemplate
+
 from .backtest import BacktestingEngine, optimize
 
 # 导入核心引擎组件
 from .oms_engine import OmsEngine
-
-# 从策略模块导入策略模板 (为保持向后兼容)
-from apilot.strategy.template import CtaTemplate, TargetPosTemplate

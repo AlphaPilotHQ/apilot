@@ -6,14 +6,15 @@ import json
 import logging
 import sys
 from datetime import datetime, time
-from pathlib import Path
-from typing import Callable, Tuple, Union, Optional, TypeVar
 from decimal import Decimal
-from math import floor, ceil
+from math import ceil, floor
+from pathlib import Path
+from typing import Callable, Optional, Tuple, TypeVar, Union
 
 import numpy as np
-from .object import BarData, TickData
+
 from .constant import Exchange, Interval
+from .object import BarData, TickData
 
 # 定义泛型返回类型
 T = TypeVar('T')
@@ -167,7 +168,7 @@ class BarGenerator:
         interval: Interval = Interval.MINUTE,
         daily_end: time = None
     ) -> None:
-        """构造函数"""
+        """Constructor"""
         self.on_bar: Callable = on_bar
 
         self.interval: Interval = interval
@@ -187,10 +188,10 @@ class BarGenerator:
 
         self.daily_end: time = daily_end
         if self.interval == Interval.DAILY and not self.daily_end:
-            raise RuntimeError(_("合成日K线必须传入每日收盘时间"))
+            raise RuntimeError("Daily bar generation requires daily end time")
 
     def update_tick(self, tick: TickData) -> None:
-        """更新行情切片数据"""
+        """Update tick data"""
         if not tick.last_price:
             return
 
@@ -232,14 +233,14 @@ class BarGenerator:
         self.last_dt = tick.datetime
 
     def update_bars(self, bars: dict[str, BarData]) -> None:
-        """更新一分钟K线"""
+        """Update bars"""
         if self.interval == Interval.MINUTE:
             self.update_bar_minute_window(bars)
         else:
             self.update_bar_hour_window(bars)
 
     def update_bar_minute_window(self, bars: dict[str, BarData]) -> None:
-        """更新N分钟K线"""
+        """Update minute bar"""
         for vt_symbol, bar in bars.items():
             window_bar: Optional[BarData] = self.window_bars.get(vt_symbol, None)
 
@@ -280,7 +281,7 @@ class BarGenerator:
             self.window_bars = {}
 
     def update_bar_hour_window(self, bars: dict[str, BarData]) -> None:
-        """更新小时K线"""
+        """Update hour bar"""
         for vt_symbol, bar in bars.items():
             hour_bar: Optional[BarData] = self.hour_bars.get(vt_symbol, None)
 
@@ -363,8 +364,30 @@ class BarGenerator:
             self.on_hour_bar(self.finished_hour_bars)
             self.finished_hour_bars = {}
 
+    def update_bar_daily_window(self, bar: BarData) -> None:
+        """Update daily bar"""
+        vt_symbol = bar.vt_symbol
+
+        window_bar = self.window_bars.get(vt_symbol, None)
+        if not window_bar:
+            # Create if not exists
+            window_bar = BarData(
+                symbol=bar.symbol,
+                exchange=bar.exchange,
+                datetime=bar.datetime,
+                gateway_name=bar.gateway_name,
+                open_price=bar.open_price,
+                high_price=bar.high_price,
+                low_price=bar.low_price,
+                close_price=bar.close_price,
+                volume=bar.volume,
+                turnover=bar.turnover,
+                open_interest=bar.open_interest
+            )
+            self.window_bars[vt_symbol] = window_bar
+
     def on_hour_bar(self, bars: dict[str, BarData]) -> None:
-        """推送小时K线"""
+        """Push hour bar"""
         if self.window == 1:
             self.on_window_bar(bars)
         else:
@@ -402,48 +425,6 @@ class BarGenerator:
                 self.on_window_bar(self.window_bars)
                 self.window_bars = {}
 
-
-    def update_bar_daily_window(self, bar: BarData) -> None:
-        """"""
-        # If not inited, create daily bar object
-        if not self.daily_bar:
-            self.daily_bar = BarData(
-                symbol=bar.symbol,
-                exchange=bar.exchange,
-                datetime=bar.datetime,
-                gateway_name=bar.gateway_name,
-                open_price=bar.open_price,
-                high_price=bar.high_price,
-                low_price=bar.low_price
-            )
-        # Otherwise, update high/low price into daily bar
-        else:
-            self.daily_bar.high_price = max(
-                self.daily_bar.high_price,
-                bar.high_price
-            )
-            self.daily_bar.low_price = min(
-                self.daily_bar.low_price,
-                bar.low_price
-            )
-
-        # Update close price/volume/turnover into daily bar
-        self.daily_bar.close_price = bar.close_price
-        self.daily_bar.volume += bar.volume
-        self.daily_bar.turnover += bar.turnover
-        self.daily_bar.open_interest = bar.open_interest
-
-        # Check if daily bar completed
-        if bar.datetime.time() == self.daily_end:
-            self.daily_bar.datetime = bar.datetime.replace(
-                hour=0,
-                minute=0,
-                second=0,
-                microsecond=0
-            )
-            self.on_window_bar(self.daily_bar)
-
-            self.daily_bar = None
 
     def generate(self) -> Optional[BarData]:
         """
@@ -574,20 +555,14 @@ class ArrayManager(object):
 
     def std(self, n: int, nbdev: int = 1, array: bool = False) -> Union[float, np.ndarray]:
         """
-        计算标准差 - 高效NumPy实现
+        Calculate standard deviation.
         """
-        # 确保数据足够计算
+        # Ensure enough data for calculation
         if not self.inited:
-            return 0 if not array else np.zeros(len(self.close))
+            return 0.0
 
-        # 创建结果数组
-        result = np.full_like(self.close, 0.0)
-
-        # 计算有效位置的标准差 (使用纯NumPy操作)
-        for i in range(n-1, len(self.close)):
-            # 使用NumPy的std函数直接计算窗口的标准差
-            result[i] = np.std(self.close[i-n+1:i+1]) * nbdev
-
+        # Efficiently calculate standard deviation with NumPy
+        result: np.ndarray = np.std(self.close[-n:], ddof=1) * nbdev
         if array:
             return result
         return result[-1]
