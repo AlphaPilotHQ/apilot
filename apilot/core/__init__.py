@@ -98,5 +98,3 @@ from .database import (
 
 # 导入配置和工具函数
 from .utility import load_json, save_json, extract_vt_symbol, BarGenerator, ArrayManager  # type: function, function, function, class, class
-
-from .converter import OffsetConverter
