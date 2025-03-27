@@ -75,10 +75,9 @@ class MainEngine:
         Init all engines.
         """
         # Import from engine package instead of individual modules
-        from apilot.engine import OmsEngine, EmailEngine
+        from apilot.engine import OmsEngine
 
         self.add_engine(OmsEngine)
-        self.add_engine(EmailEngine)
 
     def get_gateway(self, gateway_name: str) -> BaseGateway:
         """

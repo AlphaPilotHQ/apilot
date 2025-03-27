@@ -44,7 +44,7 @@ BACKTEST_CONFIG = {
     "risk_free": 0.0,
     "size": 1,
     "pricetick": 0.0,
-    "capital": 1000000,
+    # "capital": 1000000,
 }
 
 # 设置文件名
@@ -132,7 +132,7 @@ class BacktestingEngine:
         vt_symbols: List[str],
         interval: Interval,
         start: datetime,
-        sizes: Dict[str, float],
+        sizes: Dict[str, float] = None,
         priceticks: Dict[str, float] = None,
         capital: int = 0,
         end: datetime = None,
@@ -912,12 +912,6 @@ class BacktestingEngine:
         for vt_orderid in vt_orderids:
             self.cancel_order(strategy, vt_orderid)
 
-    def send_email(self, msg: str, strategy: CtaTemplate = None) -> None:
-        """
-        发送邮件
-        """
-        pass
-
     def sync_strategy_data(self, strategy: CtaTemplate) -> None:
         """
         同步策略数据
@@ -940,7 +934,8 @@ class BacktestingEngine:
         """
         获取合约大小
         """
-        return self.sizes[vt_symbol]
+        # 如果交易对不在sizes字典中，则返回默认值1
+        return self.sizes.get(vt_symbol, 1)
 
     def get_all_trades(self) -> list:
         """

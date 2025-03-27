@@ -6,7 +6,6 @@
 主要组件:
 - BacktestingEngine: 回测引擎，用于策略历史表现回测
 - OmsEngine: 订单管理系统引擎，处理订单生命周期
-- EmailEngine: 邮件引擎，用于发送通知和报告
 
 推荐用法:
     from apilot.engine import BacktestingEngine
@@ -21,7 +20,6 @@ __all__ = [
 
     # 核心引擎组件
     "OmsEngine",
-    "EmailEngine",
 
     # 策略模板 (为保持向后兼容)
     "CtaTemplate",
@@ -33,7 +31,6 @@ from .backtest import BacktestingEngine, optimize
 
 # 导入核心引擎组件
 from .oms_engine import OmsEngine
-from .email_engine import EmailEngine
 
 # 从策略模块导入策略模板 (为保持向后兼容)
 from apilot.strategy.template import CtaTemplate, TargetPosTemplate

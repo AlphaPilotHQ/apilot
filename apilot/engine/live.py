@@ -594,12 +594,4 @@ class CtaEngine(BaseEngine):
         # 在无GUI环境下不需要此方法
         pass
 
-    def send_email(self, msg: str, strategy: CtaTemplate = None) -> None:
-        """发送邮件通知（可以删除）"""
-        # 在脚本环境中可以直接使用主引擎的邮件功能
-        if strategy:
-            subject: str = "{}".format(strategy.strategy_name)
-        else:
-            subject: str = "CTA策略引擎"
 
-        self.main_engine.send_email(subject, msg)

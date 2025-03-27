@@ -298,10 +298,6 @@ class CtaTemplate(ABC):
         for tick in ticks:
             self.on_tick(tick)
 
-    def send_email(self, msg: str) -> None:
-        """发送电子邮件通知"""
-        if self.inited:
-            self.cta_engine.send_email(msg, self)
 
     def sync_data(self) -> None:
         """同步策略变量值到磁盘存储"""
