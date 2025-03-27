@@ -231,10 +231,6 @@ def run_backtesting(
         interval="1m",
         start=start,
         end=end,
-        rates={
-            "SOL-USDT.LOCAL": 0.00075,
-            "BTC-USDT.LOCAL": 0.00075
-        },
         sizes={
             "SOL-USDT.LOCAL": 1,
             "BTC-USDT.LOCAL": 1

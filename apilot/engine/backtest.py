@@ -82,7 +82,6 @@ class BacktestingEngine:
         self.exchanges: Dict[str, Exchange] = {}
         self.start: datetime = None
         self.end: datetime = None
-        self.rates: Dict[str, float] = {}
         self.sizes: Dict[str, float] = {}
         self.priceticks: Dict[str, float] = {}
         self.capital: int = 1_000_000
@@ -142,7 +141,6 @@ class BacktestingEngine:
         vt_symbols: List[str],
         interval: Interval,
         start: datetime,
-        rates: Dict[str, float],
         sizes: Dict[str, float],
         priceticks: Dict[str, float] = None,
         capital: int = 0,
@@ -156,7 +154,6 @@ class BacktestingEngine:
         self.mode = mode
         self.vt_symbols = vt_symbols
         self.interval = Interval(interval)
-        self.rates = rates
         self.sizes = sizes
         self.priceticks = priceticks or {}  # 使用空字典作为默认值
         self.start = start
@@ -461,7 +458,6 @@ class BacktestingEngine:
                 pre_closes,
                 start_poses,
                 self.sizes,
-                self.rates,
             )
             pre_closes = daily_result.close_prices
             start_poses = daily_result.end_poses
@@ -482,7 +478,7 @@ class BacktestingEngine:
         计算统计数据
         """
         if df is None:
-            df = self.daily_df
+        df = self.daily_df
 
         stats = {
             "start_date": "",
@@ -493,7 +489,6 @@ class BacktestingEngine:
             "capital": self.capital,
             "end_balance": 0,
             "max_ddpercent": 0,
-            "total_commission": 0,
             "total_turnover": 0,
             "total_trade_count": 0,
             "total_return": 0,
@@ -541,7 +536,6 @@ class BacktestingEngine:
                 "loss_days": (df["net_pnl"] < 0).sum(),
                 "end_balance": df["balance"].iloc[-1],
                 "max_ddpercent": df["ddpercent"].min(),
-                "total_commission": df["commission"].sum(),
                 "total_turnover": df["turnover"].sum(),
                 "total_trade_count": df["trade_count"].sum(),
             }
@@ -582,7 +576,6 @@ class BacktestingEngine:
             logger.info(f"Total return:\t{stats['total_return']:.2f}%")
             logger.info(f"Annual return:\t{stats['annual_return']:.2f}%")
             logger.info(f"Max drawdown:\t{stats['max_ddpercent']:.2f}%")
-            logger.info(f"Total commission:\t{stats['total_commission']:.2f}")
             logger.info(f"Total turnover:\t{stats['total_turnover']:.2f}")
             logger.info(f"Total trades:\t{stats['total_trade_count']}")
             logger.info(f"Sharpe ratio:\t{stats['sharpe_ratio']:.2f}")
@@ -931,7 +924,6 @@ class BacktestingEngine:
         interval: str,
         start: datetime,
         end: datetime,
-        rates: Dict[str, float],
         sizes: Dict[str, float],
         priceticks: Dict[str, float],
         capital: int,
@@ -952,7 +944,6 @@ class BacktestingEngine:
             interval=interval,
             start=start,
             end=end,
-            rates=rates,
             sizes=sizes,
             priceticks=priceticks,
             capital=capital,
@@ -987,7 +978,6 @@ class DailyResult:
         self.end_poses: Dict[str, float] = {}
 
         self.turnover: float = 0
-        self.commission: float = 0
 
         self.trading_pnl: float = 0
         self.holding_pnl: float = 0
@@ -1011,7 +1001,6 @@ class DailyResult:
         pre_closes: Dict[str, float],
         start_poses: Dict[str, float],
         sizes: Dict[str, float],
-        rates: Dict[str, float],
     ) -> None:
         """
         计算盈亏
@@ -1038,7 +1027,6 @@ class DailyResult:
         self.trade_count = len(self.trades)
         self.trading_pnl = 0
         self.turnover = 0
-        self.commission = 0
 
         for trade in self.trades:
             vt_symbol = trade.vt_symbol
@@ -1052,18 +1040,16 @@ class DailyResult:
                 self.end_poses[vt_symbol] = pos_change
 
             size = sizes.get(vt_symbol, 1)
-            rate = rates.get(vt_symbol, 0)
             close_price = self.close_prices.get(vt_symbol, trade.price)
 
             turnover = trade.volume * size * trade.price
             self.trading_pnl += pos_change * (close_price - trade.price) * size
 
             self.turnover += turnover
-            self.commission += turnover * rate
 
-        # 计算净盈亏
+        # 计算净盈亏 (无手续费)
         self.total_pnl = self.trading_pnl + self.holding_pnl
-        self.net_pnl = self.total_pnl - self.commission
+        self.net_pnl = self.total_pnl
 
 
 @lru_cache(maxsize=1024)
@@ -1197,7 +1183,6 @@ def optimize(
     interval: str,
     start: datetime,
     end: datetime,
-    rates: Dict[str, float],
     sizes: Dict[str, float],
     priceticks: Dict[str, float],
     capital: int,
@@ -1216,7 +1201,6 @@ def optimize(
         interval=interval,
         start=start,
         end=end,
-        rates=rates,
         sizes=sizes,
         priceticks=priceticks,
         capital=capital,
