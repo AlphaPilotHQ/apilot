@@ -8,14 +8,14 @@
 # 标准库导入
 from datetime import datetime
 
-# 从init_env导入必要的组件
-from init_env import BacktestingEngine
+import setup_path
 
 # 从apilot导入必要的组件
 from apilot.core.constant import Direction, Interval
 from apilot.core.object import BarData, TickData, OrderData, TradeData
 from apilot.engine import CtaTemplate
 from apilot.core.utility import BarGenerator, ArrayManager
+from apilot.engine.backtest import BacktestingEngine
 
 
 class TurtleSignalStrategy(CtaTemplate):
@@ -61,19 +61,17 @@ class TurtleSignalStrategy(CtaTemplate):
         策略初始化回调函数
         """
         # 使用引擎的日志方法记录初始化信息
-        self.cta_engine.write_log("海龟信号策略初始化")
+
 
     def on_start(self):
         """
         策略启动回调函数
         """
-        self.cta_engine.write_log("海龟信号策略启动")
 
     def on_stop(self):
         """
         策略停止回调函数
         """
-        self.cta_engine.write_log("海龟信号策略停止")
 
     def on_tick(self, tick: TickData):
         """
@@ -217,13 +215,12 @@ def run_backtesting(show_chart=True):
 
     # 设置回测参数
     bt_engine.set_parameters(
-        vt_symbol="SOL-USDT.LOCAL",  # 修改为与CSV文件名匹配的交易对
+        vt_symbols=["SOL-USDT.LOCAL"],  # 需要使用列表形式
         interval=Interval.MINUTE,
         start=datetime(2023, 1, 1),
         end=datetime(2023, 12, 31),
-        rate=0.0001,
-        size=1,
-        pricetick=0.01,
+        sizes={"SOL-USDT.LOCAL": 1},  # 每个交易对对应的合约数量
+        priceticks={"SOL-USDT.LOCAL": 0.01},  # 每个交易对对应的价格最小变动单位
         capital=100000,
     )
 

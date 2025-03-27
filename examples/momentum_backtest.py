@@ -212,7 +212,6 @@ class StdMomentumStrategy(ap.CtaTemplate):
 @ap.log_exceptions()
 def run_backtesting(
     strategy_class=StdMomentumStrategy,
-    init_cash=100000,
     start=datetime(2023, 1, 1),
     end=datetime(2023, 1, 30),
     std_period=20,
@@ -230,12 +229,7 @@ def run_backtesting(
         vt_symbols=vt_symbols,
         interval="1m",
         start=start,
-        end=end,
-        sizes={
-            "SOL-USDT.LOCAL": 1,
-            "BTC-USDT.LOCAL": 1
-        },
-        capital=init_cash,
+        end=end
     )
     # 3 添加策略
     engine.add_strategy(
