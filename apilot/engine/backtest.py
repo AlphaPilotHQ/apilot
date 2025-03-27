@@ -4,12 +4,10 @@
 提供策略的历史回测、性能分析和参数优化功能
 """
 
-import os
-import os.path
 import traceback
 from datetime import date, datetime, timedelta
 from functools import lru_cache
-from typing import Callable, Dict, List, Optional, Tuple, Type
+from typing import Callable, Dict, List, Type
 
 import numpy as np
 import plotly.graph_objects as go
@@ -17,28 +15,27 @@ from pandas import DataFrame
 from plotly.subplots import make_subplots
 
 from apilot.core.constant import (
+    INTERVAL_DELTA_MAP,
+    BacktestingMode,
     Direction,
     EngineType,
     Exchange,
-    INTERVAL_DELTA_MAP,
     Interval,
     Offset,
     Status,
-    BacktestingMode,
 )
+from apilot.core.database import get_database
 from apilot.core.object import (
     BarData,
     OrderData,
     TickData,
     TradeData,
 )
-from apilot.core.utility import extract_vt_symbol, round_to, load_json, save_json
-from apilot.core.database import get_database
+from apilot.core.utility import extract_vt_symbol, load_json, round_to
+from apilot.datafeed.data_manager import DataManager
 from apilot.optimizer import OptimizationSetting, run_ga_optimization
 from apilot.strategy.template import CtaTemplate
 from apilot.utils.logger import get_logger, set_level
-from apilot.datafeed.csv_database import CsvDatabase
-from apilot.datafeed.data_manager import DataManager
 
 # 回测默认设置
 BACKTEST_CONFIG = {
