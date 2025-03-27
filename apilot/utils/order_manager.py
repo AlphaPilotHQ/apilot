@@ -5,12 +5,11 @@ This module provides tools for managing orders and order IDs
 in trading systems.
 """
 
-from typing import Dict, Optional, Callable
 from copy import copy
+from typing import Callable, Dict, Optional
 
-from apilot.core.object import OrderData
-from apilot.core.object import CancelRequest
 from apilot.core.gateway import BaseGateway
+from apilot.core.object import CancelRequest, OrderData
 
 
 class LocalOrderManager:

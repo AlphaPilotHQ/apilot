@@ -1,12 +1,11 @@
 from datetime import datetime
 
-from apilot.trader.utility import ArrayManager
-from apilot.trader.object import TickData, BarData
-from apilot.trader.constant import Direction
-
-from apilot.portfolio_strategy.template import StrategyTemplate
 from apilot.portfolio_strategy.engine import StrategyEngine
+from apilot.portfolio_strategy.template import StrategyTemplate
 from apilot.portfolio_strategy.utility import PortfolioBarGenerator
+from apilot.trader.constant import Direction
+from apilot.trader.object import BarData, TickData
+from apilot.trader.utility import ArrayManager
 
 
 class TrendFollowingStrategy(StrategyTemplate):

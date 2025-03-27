@@ -1,10 +1,10 @@
-from typing import Dict, List, Callable, Tuple
 from itertools import product
-from random import random, choice
 from multiprocessing import get_context
+from random import choice, random
+from typing import Callable, Dict, List, Tuple
 
 try:
-    from deap import creator, base, tools, algorithms
+    from deap import algorithms, base, creator, tools
 except ImportError:
     # 安装提示
     raise ImportError("需要安装deap库才能使用遗传算法优化。请运行: pip install deap")

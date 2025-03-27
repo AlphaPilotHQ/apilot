@@ -1,10 +1,10 @@
 from datetime import datetime
 
-from apilot.core.utility import BarGenerator, extract_vt_symbol
-from apilot.core.object import TickData, BarData
-from apilot.core.constant import Direction
+from apilot_portfoliostrategy import StrategyEngine, StrategyTemplate
 
-from apilot_portfoliostrategy import StrategyTemplate, StrategyEngine
+from apilot.core.constant import Direction
+from apilot.core.object import BarData, TickData
+from apilot.core.utility import BarGenerator, extract_vt_symbol
 
 
 class PcpArbitrageStrategy(StrategyTemplate):

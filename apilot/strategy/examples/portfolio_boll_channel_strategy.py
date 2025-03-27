@@ -1,10 +1,10 @@
 from datetime import datetime
 
-from apilot.core.utility import ArrayManager, Interval
-from apilot.core.object import TickData, BarData
-
-from apilot_portfoliostrategy import StrategyTemplate, StrategyEngine
+from apilot_portfoliostrategy import StrategyEngine, StrategyTemplate
 from apilot_portfoliostrategy.utility import PortfolioBarGenerator
+
+from apilot.core.object import BarData, TickData
+from apilot.core.utility import ArrayManager, Interval
 
 
 class PortfolioBollChannelStrategy(StrategyTemplate):

@@ -1,15 +1,10 @@
 from abc import ABC
-from copy import copy
-from typing import Any, Callable, List, Dict, Optional, Set, Union
 from collections import defaultdict
+from copy import copy
+from typing import Any, Callable, Dict, List, Optional, Set, Union
 
-from apilot.core.object import (
-    TickData,
-    BarData,
-    TradeData,
-    OrderData
-)
-from apilot.core.constant import Direction, Offset, Interval, EngineType
+from apilot.core.constant import Direction, EngineType, Interval, Offset
+from apilot.core.object import BarData, OrderData, TickData, TradeData
 from apilot.core.utility import virtual
 from apilot.utils.logger import get_logger
 

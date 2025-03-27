@@ -31,6 +31,6 @@ __all__ = [
 from .optimizer import (
     OptimizationSetting,
     check_optimization_setting,
+    ga_evaluate,
     run_ga_optimization,
-    ga_evaluate
 )

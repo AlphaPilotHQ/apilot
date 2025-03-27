@@ -1,12 +1,11 @@
 from datetime import datetime
 
 import numpy as np
+from apilot_portfoliostrategy import StrategyEngine, StrategyTemplate
 
-from apilot.core.utility import BarGenerator
-from apilot.core.object import TickData, BarData
 from apilot.core.constant import Direction
-
-from apilot_portfoliostrategy import StrategyTemplate, StrategyEngine
+from apilot.core.object import BarData, TickData
+from apilot.core.utility import BarGenerator
 
 
 class PairTradingStrategy(StrategyTemplate):
