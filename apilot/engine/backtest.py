@@ -32,17 +32,9 @@ from apilot.core.object import (
     TickData,
     TradeData,
 )
-from apilot.core.utility import (
-    extract_vt_symbol,
-    round_to,
-    load_json,
-    save_json
-)
+from apilot.core.utility import extract_vt_symbol, round_to, load_json, save_json
 from apilot.core.database import get_database
-from apilot.optimizer import (
-    OptimizationSetting,
-    run_ga_optimization
-)
+from apilot.optimizer import OptimizationSetting, run_ga_optimization
 from apilot.strategy.template import CtaTemplate
 from apilot.utils.logger import get_logger, set_level
 from apilot.datafeed.csv_database import CsvDatabase
@@ -68,7 +60,6 @@ set_level("info", "backtest")
 
 
 class BacktestingEngine:
-
     engine_type: EngineType = EngineType.BACKTESTING
     gateway_name: str = "BACKTESTING"
 
@@ -185,7 +176,9 @@ class BacktestingEngine:
             self, strategy_class.__name__, self.vt_symbols, setting
         )
 
-    def add_data(self, database_type: Optional[str] = None, **kwargs) -> "BacktestingEngine":
+    def add_data(
+        self, database_type: Optional[str] = None, **kwargs
+    ) -> "BacktestingEngine":
         """
         添加数据
         """
@@ -212,7 +205,9 @@ class BacktestingEngine:
                 close_field = kwargs.get("close", "close")
                 volume_field = kwargs.get("volume", "volume")
 
-                logger.info(f"字段映射: datetime={dt_field}, open={open_field}, high={high_field}, low={low_field}, close={close_field}, volume={volume_field}")
+                logger.info(
+                    f"字段映射: datetime={dt_field}, open={open_field}, high={high_field}, low={low_field}, close={close_field}, volume={volume_field}"
+                )
 
             # 如果指定了特定交易对，为该交易对创建单独的数据配置
             if specific_symbol:
@@ -229,7 +224,19 @@ class BacktestingEngine:
                         self.symbol_data_configs[vt_symbol] = {
                             "database_type": database_type,
                             "data_path": data_path,
-                            **{k: v for k, v in kwargs.items() if k in ["datetime", "open", "high", "low", "close", "volume"]}
+                            **{
+                                k: v
+                                for k, v in kwargs.items()
+                                if k
+                                in [
+                                    "datetime",
+                                    "open",
+                                    "high",
+                                    "low",
+                                    "close",
+                                    "volume",
+                                ]
+                            },
                         }
                 else:
                     logger.warning(f"未找到匹配的交易对: {specific_symbol}")
@@ -238,7 +245,11 @@ class BacktestingEngine:
             self.database_type = database_type
             self.database_config = {
                 "data_path": data_path,
-                **{k: v for k, v in kwargs.items() if k in ["datetime", "open", "high", "low", "close", "volume"]}
+                **{
+                    k: v
+                    for k, v in kwargs.items()
+                    if k in ["datetime", "open", "high", "low", "close", "volume"]
+                },
             }
             self.specific_data_file = data_path
 
@@ -272,15 +283,23 @@ class BacktestingEngine:
                         continue
 
                     # 从vt_symbol中提取基础交易对名称
-                    base_symbol = vt_symbol.split(".")[0]  # 例如从"SOL-USDT.LOCAL"提取"SOL-USDT"
+                    base_symbol = vt_symbol.split(".")[
+                        0
+                    ]  # 例如从"SOL-USDT.LOCAL"提取"SOL-USDT"
 
-                    logger.info(f"从CSV直接加载 {base_symbol} 数据，时间: {self.start} - {self.end}")
+                    logger.info(
+                        f"从CSV直接加载 {base_symbol} 数据，时间: {self.start} - {self.end}"
+                    )
 
                     # 创建CsvDatabase实例
                     database = CsvDatabase(data_path)
 
                     # 设置数据字段映射
-                    field_config = {k: v for k, v in config.items() if k in ["datetime", "open", "high", "low", "close", "volume"]}
+                    field_config = {
+                        k: v
+                        for k, v in config.items()
+                        if k in ["datetime", "open", "high", "low", "close", "volume"]
+                    }
                     if field_config:
                         for field_name, csv_column in field_config.items():
                             if hasattr(database, f"{field_name}_field"):
@@ -295,7 +314,7 @@ class BacktestingEngine:
                         exchange=Exchange.LOCAL,  # 使用枚举类型
                         interval=self.interval,
                         start=self.start,
-                        end=self.end
+                        end=self.end,
                     )
 
                     # 处理数据
@@ -317,15 +336,25 @@ class BacktestingEngine:
         logger.info("使用默认数据源加载数据")
 
         # 处理默认数据源
-        if self.database_type == "csv" and isinstance(self.database_config, dict) and "data_path" in self.database_config:
+        if (
+            self.database_type == "csv"
+            and isinstance(self.database_config, dict)
+            and "data_path" in self.database_config
+        ):
             data_path = self.database_config["data_path"]
-            field_config = {k: v for k, v in self.database_config.items() if k in ["datetime", "open", "high", "low", "close", "volume"]}
+            field_config = {
+                k: v
+                for k, v in self.database_config.items()
+                if k in ["datetime", "open", "high", "low", "close", "volume"]
+            }
 
             for vt_symbol in self.vt_symbols:
                 base_symbol = vt_symbol.split(".")[0]
                 symbol, exchange = extract_vt_symbol(vt_symbol)
 
-                logger.info(f"从默认CSV加载 {symbol} 数据，时间: {self.start} - {self.end}")
+                logger.info(
+                    f"从默认CSV加载 {symbol} 数据，时间: {self.start} - {self.end}"
+                )
 
                 database = CsvDatabase(data_path)
 
@@ -341,7 +370,7 @@ class BacktestingEngine:
                     exchange=Exchange.LOCAL,
                     interval=self.interval,
                     start=self.start,
-                    end=self.end
+                    end=self.end,
                 )
 
                 data = []
@@ -398,7 +427,9 @@ class BacktestingEngine:
             try:
                 tick_count += 1
                 if tick_count % 1000 == 0:
-                    logger.debug(f"回测进度: 已处理 {tick_count} 个时间点, 当前时间: {dt}")
+                    logger.debug(
+                        f"回测进度: 已处理 {tick_count} 个时间点, 当前时间: {dt}"
+                    )
                 self.new_bars(dt)
             except Exception as e:
                 logger.error(f"触发异常，回测终止: {e}")
@@ -406,7 +437,9 @@ class BacktestingEngine:
                 return
 
         logger.info("历史数据回放结束")
-        logger.debug(f"回测完成统计: 总交易笔数={self.trade_count}, 活跃订单数={len(self.active_limit_orders)}, 总订单数={len(self.limit_orders)}")
+        logger.debug(
+            f"回测完成统计: 总交易笔数={self.trade_count}, 活跃订单数={len(self.active_limit_orders)}, 总订单数={len(self.limit_orders)}"
+        )
 
     def new_bars(self, dt: datetime) -> None:
         """
@@ -478,7 +511,7 @@ class BacktestingEngine:
         计算统计数据
         """
         if df is None:
-        df = self.daily_df
+            df = self.daily_df
 
         stats = {
             "start_date": "",
@@ -663,7 +696,9 @@ class BacktestingEngine:
         撮合限价单
         """
         for order in list(self.active_limit_orders.values()):
-            logger.debug(f"检查订单: {order.vt_orderid}, 方向: {order.direction}, 价格: {order.price}")
+            logger.debug(
+                f"检查订单: {order.vt_orderid}, 方向: {order.direction}, 价格: {order.price}"
+            )
 
             # 更新订单状态
             if order.status == Status.SUBMITTING:
@@ -681,13 +716,17 @@ class BacktestingEngine:
                     continue
                 buy_price = bar.low_price
                 sell_price = bar.high_price
-                logger.debug(f"Bar模式下的价格 - 买入价: {buy_price}, 卖出价: {sell_price}")
+                logger.debug(
+                    f"Bar模式下的价格 - 买入价: {buy_price}, 卖出价: {sell_price}"
+                )
             else:
                 if self.tick.vt_symbol != vt_symbol:
                     continue
                 buy_price = self.tick.ask_price_1
                 sell_price = self.tick.bid_price_1
-                logger.debug(f"Tick模式下的价格 - 买入价: {buy_price}, 卖出价: {sell_price}")
+                logger.debug(
+                    f"Tick模式下的价格 - 买入价: {buy_price}, 卖出价: {sell_price}"
+                )
 
             # 判断是否满足成交条件
             buy_cross = (
@@ -740,7 +779,9 @@ class BacktestingEngine:
             trade.vt_tradeid = f"{self.gateway_name}.{trade.tradeid}"
 
             self.trades[trade.vt_tradeid] = trade
-            logger.debug(f"成交记录创建: {trade.vt_tradeid}, 方向: {trade.direction}, 价格: {trade.price}, 数量: {trade.volume}")
+            logger.debug(
+                f"成交记录创建: {trade.vt_tradeid}, 方向: {trade.direction}, 价格: {trade.price}, 数量: {trade.volume}"
+            )
 
             self.strategy.on_trade(trade)
 
@@ -829,7 +870,9 @@ class BacktestingEngine:
         """
         self.limit_order_count += 1
 
-        logger.debug(f"创建订单 - 合约: {vt_symbol}, 方向: {direction}, 价格: {price}, 数量: {volume}")
+        logger.debug(
+            f"创建订单 - 合约: {vt_symbol}, 方向: {direction}, 价格: {price}, 数量: {volume}"
+        )
 
         order: OrderData = OrderData(
             symbol=self.symbols[vt_symbol],
@@ -962,7 +1005,6 @@ class BacktestingEngine:
 
 
 class DailyResult:
-
     def __init__(self, date: date) -> None:
         """
         初始化日结果
@@ -1207,7 +1249,6 @@ def optimize(
     )
 
     engine.add_strategy(strategy_class, setting)
-
 
     result = run_ga_optimization(
         target_name=target_name,
