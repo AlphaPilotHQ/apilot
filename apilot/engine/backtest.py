@@ -7,7 +7,7 @@
 import traceback
 from datetime import date, datetime, timedelta
 from functools import lru_cache
-from typing import Callable, Dict, List, Type
+from typing import Callable, Dict, List, Type, Union
 
 import numpy as np
 import pandas as pd
@@ -29,7 +29,7 @@ from apilot.core.object import (
     TickData,
     TradeData,
 )
-from apilot.core.utility import extract_vt_symbol, round_to
+from apilot.core.utility import extract_symbol, round_to
 from apilot.datafeed.data_manager import DataManager
 from apilot.optimizer import OptimizationSetting, run_ga_optimization
 from apilot.strategy.template import CtaTemplate
@@ -66,9 +66,8 @@ class BacktestingEngine:
         初始化回测引擎
         """
         self.main_engine = main_engine
-        self.symbols: List[str] = []
-        self.symbol_map: Dict[str, str] = {}
-        self.exchanges: Dict[str, Exchange] = {}
+        self.symbols: List[str] = []  # Full trading symbols (e.g. "BTC.BINANCE")
+        self.exchanges: Dict[str, Exchange] = {}  # 可选缓存，加速访问
         self.start: datetime = None
         self.end: datetime = None
         self.sizes: Dict[str, float] = {}
@@ -141,16 +140,17 @@ class BacktestingEngine:
         self.mode = mode
         self.symbols = symbols
         self.interval = Interval(interval)
-        self.sizes = sizes
-        self.priceticks = priceticks or {}  # 使用空字典作为默认值
+        self.sizes = sizes or {}
+        self.priceticks = priceticks or {}
         self.start = start
 
-        for vt_symbol in symbols:
-            symbol, exchange_str = vt_symbol.split(".")
-            self.symbol_map[vt_symbol] = symbol
-            self.exchanges[vt_symbol] = Exchange(exchange_str)
+        # 缓存交易所对象以提高性能
+        for symbol in symbols:
+            from apilot.utils import get_exchange
+            self.exchanges[symbol] = get_exchange(symbol)
 
         self.capital = capital
+        self.annual_days = annual_days
 
         if not end:
             end = datetime.now()
@@ -158,8 +158,6 @@ class BacktestingEngine:
 
         if self.start >= self.end:
             logger.warning(f"错误：起始日期({self.start})必须小于结束日期({self.end})")
-
-        self.annual_days = annual_days
 
     def add_strategy(
         self, strategy_class: Type[CtaTemplate], setting: dict = None
@@ -251,8 +249,8 @@ class BacktestingEngine:
         self.strategy.on_bars(bars)
 
         # 更新每个品种的收盘价
-        for vt_symbol, bar in bars.items():
-            self.update_daily_close(bar.close_price, vt_symbol)
+        for symbol, bar in bars.items():
+            self.update_daily_close(bar.close_price, symbol)
 
     def calculate_result(self) -> DataFrame:
         """
@@ -291,7 +289,7 @@ class BacktestingEngine:
         # 使用新的绘图模块
         plot_backtest_results(df)
 
-    def update_daily_close(self, price: float, vt_symbol: str) -> None:
+    def update_daily_close(self, price: float, symbol: str) -> None:
         """
         更新每日收盘价
         """
@@ -299,22 +297,22 @@ class BacktestingEngine:
 
         daily_result: DailyResult = self.daily_results.get(d, None)
         if daily_result:
-            daily_result.add_close_price(vt_symbol, price)
+            daily_result.add_close_price(symbol, price)
         else:
             self.daily_results[d] = DailyResult(d)
-            self.daily_results[d].add_close_price(vt_symbol, price)
+            self.daily_results[d].add_close_price(symbol, price)
 
     def new_bar(self, bar: BarData) -> None:
         """
         处理新bar数据
         """
-        self.bars[bar.vt_symbol] = bar
+        self.bars[bar.symbol] = bar
         self.datetime = bar.datetime
 
         self.cross_limit_order()
         self.strategy.on_bar(bar)
 
-        self.update_daily_close(bar.close_price, bar.vt_symbol)
+        self.update_daily_close(bar.close_price, bar.symbol)
 
     def new_tick(self, tick: TickData) -> None:
         """
@@ -326,7 +324,7 @@ class BacktestingEngine:
         self.cross_limit_order()
         self.strategy.on_tick(tick)
 
-        self.update_daily_close(tick.last_price, tick.vt_symbol)
+        self.update_daily_close(tick.last_price, tick.symbol)
 
     def cross_limit_order(self) -> None:
         """
@@ -334,7 +332,7 @@ class BacktestingEngine:
         """
         for order in list(self.active_limit_orders.values()):
             logger.debug(
-                f"检查订单: {order.vt_orderid}, 方向: {order.direction}, 价格: {order.price}"
+                f"检查订单: {order.orderid}, 方向: {order.direction}, 价格: {order.price}"
             )
 
             # 更新订单状态
@@ -343,13 +341,13 @@ class BacktestingEngine:
                 self.strategy.on_order(order)
 
             # 根据订单的交易品种获取对应的价格
-            vt_symbol = f"{order.symbol}.{order.exchange.value}"
+            symbol = order.symbol
 
             # 根据模式设置触发价格
             if self.mode == BacktestingMode.BAR:
-                bar = self.bars.get(vt_symbol)
+                bar = self.bars.get(symbol)
                 if not bar:
-                    logger.debug(f"找不到订单对应的K线数据: {vt_symbol}")
+                    logger.debug(f"找不到订单对应的K线数据: {symbol}")
                     continue
                 buy_price = bar.low_price
                 sell_price = bar.high_price
@@ -357,7 +355,7 @@ class BacktestingEngine:
                     f"Bar模式下的价格 - 买入价: {buy_price}, 卖出价: {sell_price}"
                 )
             else:
-                if self.tick.vt_symbol != vt_symbol:
+                if self.tick.symbol != symbol:
                     continue
                 buy_price = self.tick.ask_price_1
                 sell_price = self.tick.bid_price_1
@@ -385,8 +383,8 @@ class BacktestingEngine:
             order.status = Status.ALLTRADED
             self.strategy.on_order(order)
 
-            if order.vt_orderid in self.active_limit_orders:
-                self.active_limit_orders.pop(order.vt_orderid)
+            if order.orderid in self.active_limit_orders:
+                self.active_limit_orders.pop(order.orderid)
 
             # 创建成交记录
             self.trade_count += 1
@@ -409,40 +407,39 @@ class BacktestingEngine:
                 gateway_name=self.gateway_name,
             )
 
-            # 设置vt_symbol
-            trade.vt_symbol = vt_symbol
+            trade.orderid = order.orderid
+            trade.tradeid = f"{self.gateway_name}.{trade.tradeid}"
 
-            trade.vt_orderid = order.vt_orderid
-            trade.vt_tradeid = f"{self.gateway_name}.{trade.tradeid}"
-
-            self.trades[trade.vt_tradeid] = trade
+            self.trades[trade.tradeid] = trade
             logger.debug(
-                f"成交记录创建: {trade.vt_tradeid}, 方向: {trade.direction}, 价格: {trade.price}, 数量: {trade.volume}"
+                f"成交记录创建: {trade.tradeid}, 方向: {trade.direction}, 价格: {trade.price}, 数量: {trade.volume}"
             )
 
             self.strategy.on_trade(trade)
 
     def load_bar(
         self,
-        vt_symbol: str,
+        symbol: str,
         days: int,
         interval: Interval,
         callback: Callable,
-        use_database: bool,
+        use_database: bool = False,
     ) -> List[BarData]:
         """
-        加载bar数据
+        加载K线数据
         """
-        self.callback = callback
+        logger.debug(f"加载K线数据: {symbol}, 天数: {days}")
 
         init_end = self.start - INTERVAL_DELTA_MAP[interval]
         init_start = self.start - timedelta(days=days)
 
-        symbol, exchange = extract_vt_symbol(vt_symbol)
+        from apilot.utils import split_symbol
+        base_symbol, exchange_str = split_symbol(symbol)
+        self.exchanges[symbol] = Exchange(exchange_str)
 
         bars: List[BarData] = load_bar_data(
             symbol,
-            exchange,
+            exchange_str,
             interval,
             init_start,
             init_end,
@@ -452,21 +449,21 @@ class BacktestingEngine:
         return bars
 
     def load_tick(
-        self, vt_symbol: str, days: int, callback: Callable
+        self, symbol: str, days: int, callback: Callable
     ) -> List[TickData]:
         """
         加载tick数据
         """
-        self.callback = callback
-
         init_end = self.start - timedelta(seconds=1)
         init_start = self.start - timedelta(days=days)
 
-        symbol, exchange = extract_vt_symbol(vt_symbol)
+        from apilot.utils import split_symbol
+        base_symbol, exchange_str = split_symbol(symbol)
+        self.exchanges[symbol] = Exchange(exchange_str)
 
         ticks: List[TickData] = load_tick_data(
             symbol,
-            exchange,
+            exchange_str,
             init_start,
             init_end,
             database_settings=getattr(self, "database_settings", None),
@@ -477,7 +474,7 @@ class BacktestingEngine:
     def send_order(
         self,
         strategy: CtaTemplate,
-        vt_symbol: str,
+        symbol: str,
         direction: Direction,
         offset: Offset,
         price: float,
@@ -488,15 +485,16 @@ class BacktestingEngine:
         """
         发送订单
         """
-        price: float = round_to(price, self.priceticks[vt_symbol])
-        vt_orderid: str = self.send_limit_order(
-            vt_symbol, direction, offset, price, volume
+        price_tick = self.priceticks.get(symbol, 0.001)
+        price: float = round_to(price, price_tick)
+        orderid: str = self.send_limit_order(
+            symbol, direction, offset, price, volume
         )
-        return [vt_orderid]
+        return [orderid]
 
     def send_limit_order(
         self,
-        vt_symbol: str,
+        symbol: str,
         direction: Direction,
         offset: Offset,
         price: float,
@@ -508,12 +506,11 @@ class BacktestingEngine:
         self.limit_order_count += 1
 
         logger.debug(
-            f"创建订单 - 合约: {vt_symbol}, 方向: {direction}, 价格: {price}, 数量: {volume}"
+            f"创建订单 - 合约: {symbol}, 方向: {direction}, 价格: {price}, 数量: {volume}"
         )
 
         order: OrderData = OrderData(
-            symbol=self.symbol_map[vt_symbol],
-            exchange=self.exchanges[vt_symbol],
+            symbol=symbol,  # 直接使用完整交易符号
             orderid=str(self.limit_order_count),
             direction=direction,
             offset=offset,
@@ -524,19 +521,19 @@ class BacktestingEngine:
             datetime=self.datetime,
         )
 
-        self.active_limit_orders[order.vt_orderid] = order
-        self.limit_orders[order.vt_orderid] = order
+        self.active_limit_orders[order.orderid] = order
+        self.limit_orders[order.orderid] = order
 
-        logger.debug(f"订单已创建: {order.vt_orderid}")
-        return order.vt_orderid
+        logger.debug(f"订单已创建: {order.orderid}")
+        return order.orderid
 
-    def cancel_order(self, strategy: CtaTemplate, vt_orderid: str) -> None:
+    def cancel_order(self, strategy: CtaTemplate, orderid: str) -> None:
         """
         撤销订单
         """
-        if vt_orderid not in self.active_limit_orders:
+        if orderid not in self.active_limit_orders:
             return
-        order: OrderData = self.active_limit_orders.pop(vt_orderid)
+        order: OrderData = self.active_limit_orders.pop(orderid)
 
         order.status = Status.CANCELLED
         self.strategy.on_order(order)
@@ -545,9 +542,9 @@ class BacktestingEngine:
         """
         撤销所有订单
         """
-        vt_orderids: list = list(self.active_limit_orders.keys())
-        for vt_orderid in vt_orderids:
-            self.cancel_order(strategy, vt_orderid)
+        orderids: list = list(self.active_limit_orders.keys())
+        for orderid in orderids:
+            self.cancel_order(strategy, orderid)
 
     def sync_strategy_data(self, strategy: CtaTemplate) -> None:
         """
@@ -561,18 +558,18 @@ class BacktestingEngine:
         """
         return self.engine_type
 
-    def get_pricetick(self, strategy: CtaTemplate, vt_symbol: str) -> float:
+    def get_pricetick(self, strategy: CtaTemplate, symbol: str) -> float:
         """
         获取价格Tick
         """
-        return self.priceticks.get(vt_symbol, 0.0001)
+        return self.priceticks.get(symbol, 0.0001)
 
-    def get_size(self, strategy: CtaTemplate, vt_symbol: str) -> int:
+    def get_size(self, strategy: CtaTemplate, symbol: str) -> int:
         """
         获取合约大小
         """
         # 如果交易对不在sizes字典中，则返回默认值1
-        return self.sizes.get(vt_symbol, 1)
+        return self.sizes.get(symbol, 1)
 
     def get_all_trades(self) -> list:
         """
@@ -595,7 +592,7 @@ class BacktestingEngine:
 @lru_cache(maxsize=1024)
 def load_bar_data(
     symbol: str,
-    exchange: Exchange,
+    exchange: Union[Exchange, str],
     interval: Interval,
     start: datetime,
     end: datetime,
@@ -632,61 +629,36 @@ def load_bar_data(
 @lru_cache(maxsize=1024)
 def load_tick_data(
     symbol: str,
-    exchange: Exchange,
+    exchange: Union[Exchange, str],
     start: datetime,
     end: datetime,
     database_settings: dict = None,
 ) -> List[TickData]:
     """
     加载Tick数据
+
+    参数：
+        symbol: 交易对名称
+        exchange: 交易所或交易所名称字符串
+        start: 开始时间
+        end: 结束时间
+        database_settings: 数据库设置
+
+    返回：
+        List[TickData]: Tick数据列表
     """
-    # 获取数据库实例，如果提供了特殊设置，则使用这些设置
-    if database_settings:
-        # 用于支持MongoDB等特殊数据库的实现
-        # 注意：实际的MongoDB数据库处理应该在具体的数据库实现类中处理
-        available_settings = {
-            "csv_data_path": "data_path",
-            "csv_datetime_field": "datetime",
-            "csv_open_field": "open",
-            "csv_high_field": "high",
-            "csv_low_field": "low",
-            "csv_close_field": "close",
-            "csv_volume_field": "volume",
-        }
-        old_settings = {}
+    # 获取数据库实例
+    database = get_database()
 
-        # 暂存原始设置
-        for key, value in database_settings.items():
-            setting_key = available_settings.get(key, key)
-            if setting_key in BACKTEST_CONFIG:
-                old_settings[setting_key] = BACKTEST_CONFIG[setting_key]
-                BACKTEST_CONFIG[setting_key] = value
+    # 加载数据
+    ticks = database.load_tick_data(
+        symbol=symbol,
+        exchange=exchange,
+        start=start,
+        end=end
+    )
 
-        # 获取数据库连接
-        database = get_database()
-
-        # 加载数据
-        ticks = database.load_tick_data(
-            symbol=symbol,
-            exchange=exchange,
-            start=start,
-            end=end,
-        )
-
-        # 恢复原始设置
-        for key, value in old_settings.items():
-            BACKTEST_CONFIG[key] = value
-
-        return ticks
-    else:
-        # 使用默认数据库连接
-        database = get_database()
-        return database.load_tick_data(
-            symbol=symbol,
-            exchange=exchange,
-            start=start,
-            end=end,
-        )
+    return ticks
 
 
 def optimize(

@@ -38,7 +38,7 @@ from apilot.core import (
     SubscribeRequest,
     TickData,
     TradeData,
-    extract_vt_symbol,
+    extract_symbol,
     load_json,
     round_to,
     save_json,
@@ -66,7 +66,7 @@ class CtaEngine(BaseEngine):
         self.orderid_strategy_map = {}
         self.strategy_orderid_map = defaultdict(set)
         self.init_executor = ThreadPoolExecutor(max_workers=1)
-        self.vt_tradeids = set()
+        self.tradeids = set()
         self.database: BaseDatabase = get_database()
 
     def init_engine(self) -> None:
@@ -91,7 +91,7 @@ class CtaEngine(BaseEngine):
     def process_tick_event(self, event: Event) -> None:
         tick = event.data
 
-        strategies = self.symbol_strategy_map[tick.vt_symbol]
+        strategies = self.symbol_strategy_map[tick.symbol]
         if not strategies:
             return
 
@@ -102,27 +102,30 @@ class CtaEngine(BaseEngine):
     def process_order_event(self, event: Event) -> None:
         order = event.data
 
-        strategy: Optional[type] = self.orderid_strategy_map.get(order.vt_orderid, None)
+        strategy: Optional[type] = self.orderid_strategy_map.get(order.orderid, None)
         if not strategy:
             return
 
-        # Remove vt_orderid if order is no longer active.
-        vt_orderids: set = self.strategy_orderid_map[strategy.strategy_name]
-        if order.vt_orderid in vt_orderids and not order.is_active():
-            vt_orderids.remove(order.vt_orderid)
+        # Remove orderid if order is no longer active.
+        orderids: set = self.strategy_orderid_map[strategy.strategy_name]
+        if order.orderid in orderids and not order.is_active():
+            orderids.remove(order.orderid)
 
         # Call strategy on_order function
         self.call_strategy_func(strategy, strategy.on_order, order)
 
     def process_trade_event(self, event: Event) -> None:
+        """
+        处理成交事件
+        """
         trade: TradeData = event.data
 
-        # Filter duplicate trade push
-        if trade.vt_tradeid in self.vt_tradeids:
+        # Avoid processing duplicate trade
+        if trade.tradeid in self.tradeids:
             return
-        self.vt_tradeids.add(trade.vt_tradeid)
+        self.tradeids.add(trade.tradeid)
 
-        strategy: Optional[type] = self.orderid_strategy_map.get(trade.vt_orderid, None)
+        strategy: Optional[type] = self.orderid_strategy_map.get(trade.orderid, None)
         if not strategy:
             return
 
@@ -132,6 +135,7 @@ class CtaEngine(BaseEngine):
         else:
             strategy.pos -= trade.volume
 
+        # Call strategy on_trade function
         self.call_strategy_func(strategy, strategy.on_trade, trade)
 
         # Sync strategy variables to data file
@@ -168,24 +172,24 @@ class CtaEngine(BaseEngine):
         )
 
         # Send Orders
-        vt_orderids: list = []
+        orderids: list = []
 
         for req in req_list:
-            vt_orderid: str = self.main_engine.send_order(req, contract.gateway_name)
+            orderid: str = self.main_engine.send_order(req, contract.gateway_name)
 
             # Check if sending order successful
-            if not vt_orderid:
+            if not orderid:
                 continue
 
-            vt_orderids.append(vt_orderid)
+            orderids.append(orderid)
 
-            self.main_engine.update_order_request(req, vt_orderid, contract.gateway_name)
+            self.main_engine.update_order_request(req, orderid, contract.gateway_name)
 
             # Save relationship between orderid and strategy.
-            self.orderid_strategy_map[vt_orderid] = strategy
-            self.strategy_orderid_map[strategy.strategy_name].add(vt_orderid)
+            self.orderid_strategy_map[orderid] = strategy
+            self.strategy_orderid_map[strategy.strategy_name].add(orderid)
 
-        return vt_orderids
+        return orderids
 
     def send_limit_order(
         self,
@@ -218,9 +222,9 @@ class CtaEngine(BaseEngine):
         stop: bool = False,
         net: bool = False
     ) -> list:
-        contract: Optional[ContractData] = self.main_engine.get_contract(strategy.vt_symbol)
+        contract: Optional[ContractData] = self.main_engine.get_contract(strategy.symbol)
         if not contract:
-            error_msg = f"[{strategy.strategy_name}] 委托失败，找不到合约：{strategy.vt_symbol}"
+            error_msg = f"[{strategy.strategy_name}] 委托失败，找不到合约：{strategy.symbol}"
             logger.error(f"[{APP_NAME}] {error_msg}")
             return ""
 
@@ -232,39 +236,39 @@ class CtaEngine(BaseEngine):
             strategy, contract, direction, offset, price, volume, net
         )
 
-    def cancel_server_order(self, strategy: CtaTemplate, vt_orderid: str) -> None:
+    def cancel_server_order(self, strategy: CtaTemplate, orderid: str) -> None:
         """
-        Cancel existing order by vt_orderid.
+        Cancel existing order by orderid.
         """
-        order: Optional[OrderData] = self.main_engine.get_order(vt_orderid)
+        order: Optional[OrderData] = self.main_engine.get_order(orderid)
         if not order:
             if strategy:
-                error_msg = f"[{strategy.strategy_name}] 撤单失败，找不到委托{vt_orderid}"
+                error_msg = f"[{strategy.strategy_name}] 撤单失败，找不到委托{orderid}"
                 logger.error(f"[{APP_NAME}] {error_msg}")
             else:
-                error_msg = f"撤单失败，找不到委托{vt_orderid}"
+                error_msg = f"撤单失败，找不到委托{orderid}"
                 logger.error(f"[{APP_NAME}] {error_msg}")
             return
 
         req: CancelRequest = order.create_cancel_request()
         self.main_engine.cancel_order(req, order.gateway_name)
 
-    def cancel_order(self, strategy: CtaTemplate, vt_orderid: str) -> None:
-        self.cancel_server_order(strategy, vt_orderid)
+    def cancel_order(self, strategy: CtaTemplate, orderid: str) -> None:
+        self.cancel_server_order(strategy, orderid)
 
     def cancel_all(self, strategy: CtaTemplate) -> None:
-        vt_orderids: set = self.strategy_orderid_map[strategy.strategy_name]
-        if not vt_orderids:
+        orderids: set = self.strategy_orderid_map[strategy.strategy_name]
+        if not orderids:
             return
 
-        for vt_orderid in copy(vt_orderids):
-            self.cancel_order(strategy, vt_orderid)
+        for orderid in copy(orderids):
+            self.cancel_order(strategy, orderid)
 
     def get_engine_type(self) -> EngineType:
         return self.engine_type
 
     def get_pricetick(self, strategy: CtaTemplate) -> float:
-        contract: Optional[ContractData] = self.main_engine.get_contract(strategy.vt_symbol)
+        contract: Optional[ContractData] = self.main_engine.get_contract(strategy.symbol)
 
         if contract:
             return contract.pricetick
@@ -272,7 +276,7 @@ class CtaEngine(BaseEngine):
             return None
 
     def get_size(self, strategy: CtaTemplate) -> int:
-        contract: Optional[ContractData] = self.main_engine.get_contract(strategy.vt_symbol)
+        contract: Optional[ContractData] = self.main_engine.get_contract(strategy.symbol)
 
         if contract:
             return contract.size
@@ -281,36 +285,36 @@ class CtaEngine(BaseEngine):
 
     def load_bar(
         self,
-        vt_symbol: str,
+        symbol: str,
         days: int,
         interval: Interval,
         callback: Callable[[BarData], None],
         use_database: bool
     ) -> List[BarData]:
-        symbol, exchange = extract_vt_symbol(vt_symbol)
+        symbol_str, exchange_str = extract_symbol(symbol)
         end: datetime = datetime.now()
         start: datetime = end - timedelta(days)
         bars: List[BarData] = []
 
         # Try to query bars from database, if not found, load from database.
         bars: List[BarData] = self.database.load_bar_data(
-            symbol, exchange, interval, start, end
+            symbol_str, exchange_str, interval, start, end
         )
 
         return bars
 
     def load_tick(
         self,
-        vt_symbol: str,
+        symbol: str,
         days: int,
         callback: Callable[[TickData], None]
     ) -> List[TickData]:
-        symbol, exchange = extract_vt_symbol(vt_symbol)
+        symbol_str, exchange_str = extract_symbol(symbol)
         end: datetime = datetime.now()
         start: datetime = end - timedelta(days)
 
         ticks: List[TickData] = self.database.load_tick_data(
-            symbol, exchange, start, end
+            symbol_str, exchange_str, start, end
         )
 
         return ticks
@@ -324,7 +328,7 @@ class CtaEngine(BaseEngine):
             logger.critical(f"[{APP_NAME}] {error_msg}")
 
     def add_strategy(
-        self, class_name: str, strategy_name: str, vt_symbol: str, setting: dict
+        self, class_name: str, strategy_name: str, symbol: str, setting: dict
     ) -> None:
         if strategy_name in self.strategies:
             error_msg = f"创建策略失败，存在重名{strategy_name}"
@@ -337,22 +341,22 @@ class CtaEngine(BaseEngine):
             logger.error(f"[{APP_NAME}] {error_msg}")
             return
 
-        if "." not in vt_symbol:
+        if "." not in symbol:
             error_msg = "创建策略失败，本地代码缺失交易所后缀"
             logger.error(f"[{APP_NAME}] {error_msg}")
             return
 
-        __, exchange_str = vt_symbol.split(".")
+        symbol_str, exchange_str = extract_symbol(symbol)
         if exchange_str not in Exchange.__members__:
             error_msg = "创建策略失败，本地代码的交易所后缀不正确"
             logger.error(f"[{APP_NAME}] {error_msg}")
             return
 
-        strategy: CtaTemplate = strategy_class(self, strategy_name, vt_symbol, setting)
+        strategy: CtaTemplate = strategy_class(self, strategy_name, symbol, setting)
         self.strategies[strategy_name] = strategy
 
-        # Add vt_symbol to strategy map.
-        strategies: list = self.symbol_strategy_map[vt_symbol]
+        # Add symbol to strategy map.
+        strategies: list = self.symbol_strategy_map[symbol]
         strategies.append(strategy)
 
         # Update to setting file.
@@ -386,13 +390,13 @@ class CtaEngine(BaseEngine):
                     setattr(strategy, name, value)
 
         # Subscribe market data
-        contract: Optional[ContractData] = self.main_engine.get_contract(strategy.vt_symbol)
+        contract: Optional[ContractData] = self.main_engine.get_contract(strategy.symbol)
         if contract:
             req: SubscribeRequest = SubscribeRequest(
                 symbol=contract.symbol, exchange=contract.exchange)
             self.main_engine.subscribe(req, contract.gateway_name)
         else:
-            error_msg = f"行情订阅失败，找不到合约{strategy.vt_symbol}"
+            error_msg = f"行情订阅失败，找不到合约{strategy.symbol}"
             logger.error(f"[{APP_NAME}] {error_msg}")
 
         # Put event to update init completed status.
@@ -447,17 +451,17 @@ class CtaEngine(BaseEngine):
         self.remove_strategy_setting(strategy_name)
 
         # Remove from symbol strategy map
-        strategies: list = self.symbol_strategy_map[strategy.vt_symbol]
+        strategies: list = self.symbol_strategy_map[strategy.symbol]
         strategies.remove(strategy)
 
         # Remove from active orderid map
         if strategy_name in self.strategy_orderid_map:
-            vt_orderids: set = self.strategy_orderid_map.pop(strategy_name)
+            orderids: set = self.strategy_orderid_map.pop(strategy_name)
 
-            # Remove vt_orderid strategy map
-            for vt_orderid in vt_orderids:
-                if vt_orderid in self.orderid_strategy_map:
-                    self.orderid_strategy_map.pop(vt_orderid)
+            # Remove orderid strategy map
+            for orderid in orderids:
+                if orderid in self.orderid_strategy_map:
+                    self.orderid_strategy_map.pop(orderid)
 
         # Remove from strategies
         self.strategies.pop(strategy_name)
@@ -551,7 +555,7 @@ class CtaEngine(BaseEngine):
         #     self.add_strategy(
         #         strategy_config["class_name"],
         #         strategy_name,
-        #         strategy_config["vt_symbol"],
+        #         strategy_config["symbol"],
         #         strategy_config["setting"]
         #     )
 
@@ -565,7 +569,7 @@ class CtaEngine(BaseEngine):
 
         self.strategy_setting[strategy_name] = {
             "class_name": strategy.__class__.__name__,
-            "vt_symbol": strategy.vt_symbol,
+            "symbol": strategy.symbol,
             "setting": setting,
         }
         save_json(self.setting_filename, self.strategy_setting)
@@ -589,5 +593,3 @@ class CtaEngine(BaseEngine):
         """发送策略状态更新事件（GUI用，可删除）"""
         # 在无GUI环境下不需要此方法
         pass
-
-

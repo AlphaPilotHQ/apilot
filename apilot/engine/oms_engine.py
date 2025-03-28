@@ -94,93 +94,93 @@ class OmsEngine(BaseEngine):
     def process_tick_event(self, event: Event) -> None:
         """"""
         tick: TickData = event.data
-        self.ticks[tick.vt_symbol] = tick
+        self.ticks[tick.symbol] = tick
 
     def process_order_event(self, event: Event) -> None:
         """"""
         order: OrderData = event.data
-        self.orders[order.vt_orderid] = order
+        self.orders[order.orderid] = order
 
         # If order is active, then update data in dict.
         if order.is_active():
-            self.active_orders[order.vt_orderid] = order
+            self.active_orders[order.orderid] = order
         # Otherwise, pop inactive order from in dict
-        elif order.vt_orderid in self.active_orders:
-            self.active_orders.pop(order.vt_orderid)
+        elif order.orderid in self.active_orders:
+            self.active_orders.pop(order.orderid)
 
     def process_trade_event(self, event: Event) -> None:
         """"""
         trade: TradeData = event.data
-        self.trades[trade.vt_tradeid] = trade
+        self.trades[trade.tradeid] = trade
 
     def process_position_event(self, event: Event) -> None:
         """"""
         position: PositionData = event.data
-        self.positions[position.vt_positionid] = position
+        self.positions[position.positionid] = position
 
     def process_account_event(self, event: Event) -> None:
         """"""
         account: AccountData = event.data
-        self.accounts[account.vt_accountid] = account
+        self.accounts[account.accountid] = account
 
     def process_contract_event(self, event: Event) -> None:
         """"""
         contract: ContractData = event.data
-        self.contracts[contract.vt_symbol] = contract
+        self.contracts[contract.symbol] = contract
 
     def process_quote_event(self, event: Event) -> None:
         """"""
         quote: QuoteData = event.data
-        self.quotes[quote.vt_quoteid] = quote
+        self.quotes[quote.quoteid] = quote
 
         # If quote is active, then update data in dict.
         if quote.is_active():
-            self.active_quotes[quote.vt_quoteid] = quote
+            self.active_quotes[quote.quoteid] = quote
         # Otherwise, pop inactive quote from in dict
-        elif quote.vt_quoteid in self.active_quotes:
-            self.active_quotes.pop(quote.vt_quoteid)
+        elif quote.quoteid in self.active_quotes:
+            self.active_quotes.pop(quote.quoteid)
 
-    def get_tick(self, vt_symbol: str) -> Optional[TickData]:
+    def get_tick(self, symbol: str) -> Optional[TickData]:
         """
-        Get latest market tick data by vt_symbol.
+        Get latest market tick data by symbol.
         """
-        return self.ticks.get(vt_symbol, None)
+        return self.ticks.get(symbol, None)
 
-    def get_order(self, vt_orderid: str) -> Optional[OrderData]:
+    def get_order(self, orderid: str) -> Optional[OrderData]:
         """
-        Get latest order data by vt_orderid.
+        Get latest order data by orderid.
         """
-        return self.orders.get(vt_orderid, None)
+        return self.orders.get(orderid, None)
 
-    def get_trade(self, vt_tradeid: str) -> Optional[TradeData]:
+    def get_trade(self, tradeid: str) -> Optional[TradeData]:
         """
-        Get trade data by vt_tradeid.
+        Get trade data by tradeid.
         """
-        return self.trades.get(vt_tradeid, None)
+        return self.trades.get(tradeid, None)
 
-    def get_position(self, vt_positionid: str) -> Optional[PositionData]:
+    def get_position(self, positionid: str) -> Optional[PositionData]:
         """
-        Get latest position data by vt_positionid.
+        Get latest position data by positionid.
         """
-        return self.positions.get(vt_positionid, None)
+        return self.positions.get(positionid, None)
 
-    def get_account(self, vt_accountid: str) -> Optional[AccountData]:
+    def get_account(self, accountid: str) -> Optional[AccountData]:
         """
-        Get latest account data by vt_accountid.
+        Get latest account data by accountid.
         """
-        return self.accounts.get(vt_accountid, None)
+        return self.accounts.get(accountid, None)
 
-    def get_contract(self, vt_symbol: str) -> Optional[ContractData]:
+    def get_contract(self, symbol: str) -> Optional[ContractData]:
         """
-        Get contract data by vt_symbol.
+        Get contract data by symbol.
         """
-        return self.contracts.get(vt_symbol, None)
+        return self.contracts.get(symbol, None)
 
-    def get_quote(self, vt_quoteid: str) -> Optional[QuoteData]:
+    def get_quote(self, quoteid: str) -> Optional[QuoteData]:
         """
-        Get latest quote data by vt_orderid.
+        Get latest quote data by quoteid.
         """
-        return self.quotes.get(vt_quoteid, None)
+        return self.quotes.get(quoteid, None)
 
     def get_all_ticks(self) -> List[TickData]:
         """
@@ -224,38 +224,38 @@ class OmsEngine(BaseEngine):
         """
         return list(self.quotes.values())
 
-    def get_all_active_orders(self, vt_symbol: str = "") -> List[OrderData]:
+    def get_all_active_orders(self, symbol: str = "") -> List[OrderData]:
         """
-        Get all active orders by vt_symbol.
+        Get all active orders by symbol.
 
-        If vt_symbol is empty, return all active orders.
+        If symbol is empty, return all active orders.
         """
-        if not vt_symbol:
+        if not symbol:
             return list(self.active_orders.values())
         else:
             active_orders: List[OrderData] = [
                 order
                 for order in self.active_orders.values()
-                if order.vt_symbol == vt_symbol
+                if order.symbol == symbol
             ]
             return active_orders
 
-    def get_all_active_quotes(self, vt_symbol: str = "") -> List[QuoteData]:
+    def get_all_active_quotes(self, symbol: str = "") -> List[QuoteData]:
         """
-        Get all active quotes by vt_symbol.
-        If vt_symbol is empty, return all active qutoes.
+        Get all active quotes by symbol.
+        If symbol is empty, return all active qutoes.
         """
-        if not vt_symbol:
+        if not symbol:
             return list(self.active_quotes.values())
         else:
             active_quotes: List[QuoteData] = [
                 quote
                 for quote in self.active_quotes.values()
-                if quote.vt_symbol == vt_symbol
+                if quote.symbol == symbol
             ]
             return active_quotes
 
-    def update_order_request(self, req: OrderRequest, vt_orderid: str, gateway_name: str) -> None:
+    def update_order_request(self, req: OrderRequest, orderid: str, gateway_name: str) -> None:
         """
         Update order request (simple version for crypto/US markets without offset conversion)
         """
