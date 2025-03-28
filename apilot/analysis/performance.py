@@ -165,7 +165,7 @@ class PerformanceCalculator:
 
 
 def calculate_statistics(df: DataFrame = None, capital: float = 0,
-                        annual_days: int = 240, output: bool = True) -> dict:
+                        annual_days: int = 240, output: bool = True) -> tuple:
     """
     Calculate statistics from performance data
 
@@ -176,7 +176,7 @@ def calculate_statistics(df: DataFrame = None, capital: float = 0,
         output: Whether to print statistics to log
 
     Returns:
-        Dictionary with calculated statistics
+        Dictionary with calculated statistics and modified DataFrame
     """
     stats = {
         "start_date": "",
@@ -198,11 +198,12 @@ def calculate_statistics(df: DataFrame = None, capital: float = 0,
     # Return early if no data
     if df is None or df.empty:
         logger.warning("No trading data available")
-        return stats
+        return stats, df
 
     # Make a copy to avoid modifying original data
     df = df.copy()
 
+    # Calculate balance
     df["balance"] = df["net_pnl"].cumsum() + capital
 
     # Calculate daily returns
@@ -219,7 +220,7 @@ def calculate_statistics(df: DataFrame = None, capital: float = 0,
     # Check for bankruptcy
     if not (df["balance"] > 0).all():
         logger.warning("Bankruptcy detected during backtest")
-        return stats
+        return stats, df
 
     # Calculate basic statistics
     stats.update(
@@ -276,4 +277,4 @@ def calculate_statistics(df: DataFrame = None, capital: float = 0,
         logger.info(f"Sharpe ratio:\t{stats['sharpe_ratio']:.2f}")
         logger.info(f"Return/Drawdown:\t{stats['return_drawdown_ratio']:.2f}")
 
-    return stats
+    return stats, df

@@ -29,7 +29,6 @@ def extract_vt_symbol(vt_symbol: str) -> Tuple[str, Exchange]:
     symbol, exchange_str = vt_symbol.rsplit(".", 1)
     return symbol, Exchange(exchange_str)
 
-
 def generate_vt_symbol(symbol: str, exchange: Exchange) -> str:
     """生成交易所符号"""
     return f"{symbol}.{exchange.value}"
@@ -562,7 +561,7 @@ class ArrayManager(object):
 
         # Efficiently calculate standard deviation with NumPy
         result = np.std(self.close[-n:], ddof=1) * nbdev
-        
+
         # np.std 对一维数组返回标量值，不需要索引
         if array:
             return result

@@ -11,6 +11,7 @@ from datetime import datetime
 
 import apilot as ap
 from apilot.utils.logger import get_logger, set_level
+from apilot.core.utility import round_to  # 添加 round_to 函数导入
 
 # 获取日志记录器
 logger = get_logger("momentum_strategy")
@@ -139,10 +140,14 @@ class StdMomentumStrategy(ap.CtaTemplate):
                 capital_to_use = self.cta_engine.capital * risk_percent
                 size = max(1, int(capital_to_use / bar.close_price))
 
+                logger.debug(f"{vt_symbol} 资金情况: 可用 {self.cta_engine.capital}, 使用 {capital_to_use}, 数量 {size}")
+
                 # 基于动量信号开仓
                 if self.momentum[vt_symbol] > self.mom_threshold:
+                    logger.debug(f"{vt_symbol} 发出多头信号: 动量 {self.momentum[vt_symbol]:.4f} > 阈值 {self.mom_threshold}")
                     self.buy(vt_symbol=vt_symbol, price=bar.close_price, volume=size)
                 elif self.momentum[vt_symbol] < -self.mom_threshold:
+                    logger.debug(f"{vt_symbol} 发出空头信号: 动量 {self.momentum[vt_symbol]:.4f} < 阈值 {-self.mom_threshold}")
                     self.short(vt_symbol=vt_symbol, price=bar.close_price, volume=size)
 
             elif current_pos > 0:  # 多头持仓 → 标准差追踪止损
@@ -215,7 +220,7 @@ def run_backtesting(
     start=datetime(2023, 1, 1),
     end=datetime(2023, 1, 30),
     std_period=20,
-    mom_threshold=0.01,
+    mom_threshold=0.005,  # 降低动量阈值到0.5%以便更容易触发信号
     trailing_std_scale=2.0,
 ):
     logger.debug(f"运行回测 - 参数: {std_period}, {mom_threshold}, {trailing_std_scale}")
@@ -225,11 +230,19 @@ def run_backtesting(
 
     # 2 设置引擎参数
     symbols = ["SOL-USDT.LOCAL", "BTC-USDT.LOCAL"]
+    
+    # 设置合约大小和价格跳动
+    sizes = {symbol: 1 for symbol in symbols}
+    priceticks = {symbol: 0.001 for symbol in symbols}
+    
     engine.set_parameters(
         symbols=symbols,
         interval="1m",
         start=start,
-        end=end
+        end=end,
+        capital=1_000_000,  # 明确设置资金为100万
+        sizes=sizes,        # 设置合约大小
+        priceticks=priceticks  # 设置最小价格变动
     )
     # 3 添加策略
     engine.add_strategy(
@@ -259,12 +272,21 @@ def run_backtesting(
 
     # 6 计算和输出结果
     engine.calculate_result()
-    engine.calculate_statistics()
-
-    # 7 显示图表
-    engine.show_chart()
-
-
+    stats = engine.calculate_statistics()
+    
+    # 打印统计结果字典键
+    print(f"统计结果字典键: {list(stats.keys())}")
+    
+    # 7 显示图表 - 添加条件判断，仅当有交易数据时才尝试显示图表
+    if len(engine.trades) > 0:
+        try:
+            # 直接调用show_chart，它会使用engine.daily_df
+            engine.show_chart()
+            print("图表已生成！")
+        except Exception as e:
+            print(f"图表显示错误: {e}")
+            import traceback
+            traceback.print_exc()
     # return engine, df
     # 参数优化示例 (注释掉，需要时可以解开使用)
     """

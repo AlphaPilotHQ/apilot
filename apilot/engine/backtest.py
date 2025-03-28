@@ -29,7 +29,7 @@ from apilot.core.object import (
     TickData,
     TradeData,
 )
-from apilot.core.utility import extract_vt_symbol
+from apilot.core.utility import extract_vt_symbol, round_to
 from apilot.datafeed.data_manager import DataManager
 from apilot.optimizer import OptimizationSetting, run_ga_optimization
 from apilot.strategy.template import CtaTemplate
@@ -269,11 +269,12 @@ class BacktestingEngine:
         if df is None:
             df = self.daily_df
 
-        stats = calculate_statistics(df, self.capital, self.annual_days, output)
+        # 调用底层函数，现在它返回(stats, df)元组
+        stats, updated_df = calculate_statistics(df, self.capital, self.annual_days, output)
 
-        # 保存DataFrame用于图表展示
-        if df is not None and not df.empty:
-            self.daily_df = df
+        # 保存更新后的DataFrame用于图表展示
+        if updated_df is not None and not updated_df.empty:
+            self.daily_df = updated_df
 
         return stats
 
