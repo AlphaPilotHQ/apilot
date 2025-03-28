@@ -5,7 +5,7 @@
 """
 
 
-from apilot.core.utility import extract_vt_symbol
+from apilot.core.utility import extract_symbol
 from apilot.datafeed.csv_database import CsvDatabase
 from apilot.utils.logger import get_logger
 
@@ -97,12 +97,12 @@ class DataManager:
                 return
         
         # 加载每个交易对的数据
-        for vt_symbol in symbols:
-            symbol, exchange = extract_vt_symbol(vt_symbol)
+        for symbol in symbols:
+            base_symbol, exchange = extract_symbol(symbol)
 
             # 加载数据
             bars = database.load_bar_data(
-                symbol=symbol,
+                symbol=base_symbol,
                 exchange=exchange,
                 interval=self.engine.interval,
                 start=self.engine.start,
@@ -111,11 +111,11 @@ class DataManager:
 
             # 处理数据
             for bar in bars:
-                bar.vt_symbol = vt_symbol
+                bar.symbol = symbol
                 self.engine.dts.append(bar.datetime)
-                self.engine.history_data.setdefault(bar.datetime, {})[vt_symbol] = bar
+                self.engine.history_data.setdefault(bar.datetime, {})[symbol] = bar
 
-            logger.info(f"加载了 {len(bars)} 条 {vt_symbol} 的历史数据")
+            logger.info(f"加载了 {len(bars)} 条 {symbol} 的历史数据")
 
         # 对时间点从小到大排序
         self.engine.dts = sorted(list(set(self.engine.dts)))
