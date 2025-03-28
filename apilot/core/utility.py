@@ -557,15 +557,16 @@ class ArrayManager(object):
         """
         Calculate standard deviation.
         """
-        # Ensure enough data for calculation
         if not self.inited:
             return 0.0
 
         # Efficiently calculate standard deviation with NumPy
-        result: np.ndarray = np.std(self.close[-n:], ddof=1) * nbdev
+        result = np.std(self.close[-n:], ddof=1) * nbdev
+        
+        # np.std 对一维数组返回标量值，不需要索引
         if array:
             return result
-        return result[-1]
+        return result  # 直接返回结果，不使用索引
 
     def atr(self, n: int, array: bool = False) -> Union[float, np.ndarray]:
         """
