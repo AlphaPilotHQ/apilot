@@ -10,10 +10,8 @@ from functools import lru_cache
 from typing import Callable, Dict, List, Type
 
 import numpy as np
-import plotly.graph_objects as go
+import pandas as pd
 from pandas import DataFrame
-from plotly.subplots import make_subplots
-
 from apilot.core.constant import (
     INTERVAL_DELTA_MAP,
     BacktestingMode,
@@ -31,11 +29,13 @@ from apilot.core.object import (
     TickData,
     TradeData,
 )
-from apilot.core.utility import extract_vt_symbol, load_json, round_to
+from apilot.core.utility import extract_vt_symbol
 from apilot.datafeed.data_manager import DataManager
 from apilot.optimizer import OptimizationSetting, run_ga_optimization
 from apilot.strategy.template import CtaTemplate
 from apilot.utils.logger import get_logger, set_level
+from apilot.plotting.chart import plot_backtest_results
+from apilot.analysis.performance import DailyResult, PerformanceCalculator, calculate_statistics
 
 # 回测默认设置
 BACKTEST_CONFIG = {
@@ -46,10 +46,10 @@ BACKTEST_CONFIG = {
 }
 
 # 设置文件名
-SETTING_FILENAME: str = "apilot_setting.json"
+# SETTING_FILENAME: str = "apilot_setting.json"
 
-# 从JSON文件加载配置
-json_config = load_json(SETTING_FILENAME)
+# # 从JSON文件加载配置
+# json_config = load_json(SETTING_FILENAME)
 
 # 获取回测专用日志器
 logger = get_logger("backtest")
@@ -258,38 +258,8 @@ class BacktestingEngine:
         """
         计算回测结果
         """
-        if not self.trades:
-            logger.info("回测成交记录为空")
-            return DataFrame()
-
-        # 将成交数据添加到每日结果中
-        for trade in self.trades.values():
-            d = trade.datetime.date()
-            daily_result = self.daily_results.get(d, None)
-            if daily_result:
-                daily_result.add_trade(trade)
-
-        # 迭代计算每日结果
-        pre_closes = {}
-        start_poses = {}
-        for daily_result in self.daily_results.values():
-            daily_result.calculate_pnl(
-                pre_closes,
-                start_poses,
-                self.sizes,
-            )
-            pre_closes = daily_result.close_prices
-            start_poses = daily_result.end_poses
-
-        # 生成DataFrame
-        first_result = next(iter(self.daily_results.values()))
-        results = {
-            key: [getattr(dr, key) for dr in self.daily_results.values()]
-            for key in first_result.__dict__
-        }
-
-        self.daily_df = DataFrame.from_dict(results).set_index("date")
-        logger.info("逐日盯市盈亏计算完成")
+        calculator = PerformanceCalculator(self.capital, self.annual_days)
+        self.daily_df = calculator.calculate_result(self.trades, self.daily_results, self.sizes)
         return self.daily_df
 
     def calculate_statistics(self, df: DataFrame = None, output=True) -> dict:
@@ -299,106 +269,12 @@ class BacktestingEngine:
         if df is None:
             df = self.daily_df
 
-        stats = {
-            "start_date": "",
-            "end_date": "",
-            "total_days": 0,
-            "profit_days": 0,
-            "loss_days": 0,
-            "capital": self.capital,
-            "end_balance": 0,
-            "max_ddpercent": 0,
-            "total_turnover": 0,
-            "total_trade_count": 0,
-            "total_return": 0,
-            "annual_return": 0,
-            "sharpe_ratio": 0,
-            "return_drawdown_ratio": 0,
-        }
+        stats = calculate_statistics(df, self.capital, self.annual_days, output)
 
-        # Return early if no data
-        if df is None or df.empty:
-            logger.warning("No trading data available")
-            return stats
+        # 保存DataFrame用于图表展示
+        if df is not None and not df.empty:
+            self.daily_df = df
 
-        # Make a copy to avoid modifying original data
-        df = df.copy()
-
-        df["balance"] = df["net_pnl"].cumsum() + self.capital
-
-        # Calculate daily returns
-        pre_balance = df["balance"].shift(1)
-        pre_balance.iloc[0] = self.capital
-        x = df["balance"] / pre_balance
-        x[x <= 0] = np.nan
-        df["return"] = np.log(x).fillna(0)
-
-        # Calculate drawdown
-        df["highlevel"] = df["balance"].cummax()
-        df["ddpercent"] = (df["balance"] - df["highlevel"]) / df["highlevel"] * 100
-
-        # Save dataframe for charting
-        self.daily_df = df
-
-        # Check for bankruptcy
-        if not (df["balance"] > 0).all():
-            logger.warning("Bankruptcy detected during backtest")
-            return stats
-
-        # Calculate basic statistics
-        stats.update(
-            {
-                "start_date": df.index[0],
-                "end_date": df.index[-1],
-                "total_days": len(df),
-                "profit_days": (df["net_pnl"] > 0).sum(),
-                "loss_days": (df["net_pnl"] < 0).sum(),
-                "end_balance": df["balance"].iloc[-1],
-                "max_ddpercent": df["ddpercent"].min(),
-                "total_turnover": df["turnover"].sum(),
-                "total_trade_count": df["trade_count"].sum(),
-            }
-        )
-
-        # Calculate return metrics
-        stats["total_return"] = (stats["end_balance"] / self.capital - 1) * 100
-        stats["annual_return"] = (
-            stats["total_return"] / stats["total_days"] * self.annual_days
-        )
-
-        # Calculate risk-adjusted metrics
-        daily_returns = df["return"].values
-        if len(daily_returns) > 0 and np.std(daily_returns) > 0:
-            stats["sharpe_ratio"] = (
-                np.mean(daily_returns)
-                / np.std(daily_returns)
-                * np.sqrt(self.annual_days)
-            )
-
-        if stats["max_ddpercent"] < 0:
-            stats["return_drawdown_ratio"] = (
-                -stats["total_return"] / stats["max_ddpercent"]
-            )
-
-        # Clean up invalid values
-        stats = {
-            k: np.nan_to_num(v, nan=0.0, posinf=0.0, neginf=0.0)
-            for k, v in stats.items()
-        }
-
-        if output:
-            logger.info(f"Trade day:\t{stats['start_date']} - {stats['end_date']}")
-            logger.info(f"Profit days:\t{stats['profit_days']}")
-            logger.info(f"Loss days:\t{stats['loss_days']}")
-            logger.info(f"Initial capital:\t{self.capital:.2f}")
-            logger.info(f"Final capital:\t{stats['end_balance']:.2f}")
-            logger.info(f"Total return:\t{stats['total_return']:.2f}%")
-            logger.info(f"Annual return:\t{stats['annual_return']:.2f}%")
-            logger.info(f"Max drawdown:\t{stats['max_ddpercent']:.2f}%")
-            logger.info(f"Total turnover:\t{stats['total_turnover']:.2f}")
-            logger.info(f"Total trades:\t{stats['total_trade_count']}")
-            logger.info(f"Sharpe ratio:\t{stats['sharpe_ratio']:.2f}")
-            logger.info(f"Return/Drawdown:\t{stats['return_drawdown_ratio']:.2f}")
         return stats
 
     def show_chart(self, df: DataFrame = None) -> None:
@@ -411,34 +287,8 @@ class BacktestingEngine:
         if df is None:
             return
 
-        fig = make_subplots(
-            rows=4,
-            cols=1,
-            subplot_titles=["Balance", "Drawdown", "Pnl", "Pnl Distribution"],
-            vertical_spacing=0.06,
-        )
-
-        balance_line = go.Scatter(
-            x=df.index, y=df["balance"], mode="lines", name="Balance"
-        )
-        drawdown_scatter = go.Scatter(
-            x=df.index,
-            y=df["ddpercent"],
-            fillcolor="red",
-            fill="tozeroy",
-            mode="lines",
-            name="Drawdown",
-        )
-        pnl_bar = go.Bar(y=df["net_pnl"], name="Pnl")
-        pnl_histogram = go.Histogram(x=df["net_pnl"], nbinsx=100, name="Days")
-
-        fig.add_trace(balance_line, row=1, col=1)
-        fig.add_trace(drawdown_scatter, row=2, col=1)
-        fig.add_trace(pnl_bar, row=3, col=1)
-        fig.add_trace(pnl_histogram, row=4, col=1)
-
-        fig.update_layout(height=1000, width=1000)
-        fig.show()
+        # 使用新的绘图模块
+        plot_backtest_results(df)
 
     def update_daily_close(self, price: float, vt_symbol: str) -> None:
         """
@@ -740,96 +590,6 @@ class BacktestingEngine:
         获取所有日结果
         """
         return list(self.daily_results.values())
-
-class DailyResult:
-    def __init__(self, date: date) -> None:
-        """
-        初始化日结果
-        """
-        self.date: date = date
-        self.close_prices: Dict[str, float] = {}
-        self.pre_closes: Dict[str, float] = {}
-
-        self.trades: List[TradeData] = []
-        self.trade_count: int = 0
-
-        self.start_poses: Dict[str, float] = {}
-        self.end_poses: Dict[str, float] = {}
-
-        self.turnover: float = 0
-
-        self.trading_pnl: float = 0
-        self.holding_pnl: float = 0
-        self.total_pnl: float = 0
-        self.net_pnl: float = 0
-
-    def add_trade(self, trade: TradeData) -> None:
-        """
-        添加交易
-        """
-        self.trades.append(trade)
-
-    def add_close_price(self, vt_symbol: str, price: float) -> None:
-        """
-        添加收盘价
-        """
-        self.close_prices[vt_symbol] = price
-
-    def calculate_pnl(
-        self,
-        pre_closes: Dict[str, float],
-        start_poses: Dict[str, float],
-        sizes: Dict[str, float],
-    ) -> None:
-        """
-        计算盈亏
-        """
-        self.pre_closes = pre_closes
-        self.start_poses = start_poses.copy()
-        self.end_poses = start_poses.copy()
-
-        # 计算持仓盈亏
-        self.holding_pnl = 0
-        for vt_symbol in self.pre_closes.keys():
-            pre_close = self.pre_closes.get(vt_symbol, 0)
-            if not pre_close:
-                pre_close = 1  # 避免除零错误
-
-            start_pos = self.start_poses.get(vt_symbol, 0)
-            size = sizes.get(vt_symbol, 1)
-            close_price = self.close_prices.get(vt_symbol, pre_close)
-
-            symbol_holding_pnl = start_pos * (close_price - pre_close) * size
-            self.holding_pnl += symbol_holding_pnl
-
-        # 计算交易盈亏
-        self.trade_count = len(self.trades)
-        self.trading_pnl = 0
-        self.turnover = 0
-
-        for trade in self.trades:
-            vt_symbol = trade.vt_symbol
-            pos_change = (
-                trade.volume if trade.direction == Direction.LONG else -trade.volume
-            )
-
-            if vt_symbol in self.end_poses:
-                self.end_poses[vt_symbol] += pos_change
-            else:
-                self.end_poses[vt_symbol] = pos_change
-
-            size = sizes.get(vt_symbol, 1)
-            close_price = self.close_prices.get(vt_symbol, trade.price)
-
-            turnover = trade.volume * size * trade.price
-            self.trading_pnl += pos_change * (close_price - trade.price) * size
-
-            self.turnover += turnover
-
-        # 计算净盈亏 (无手续费)
-        self.total_pnl = self.trading_pnl + self.holding_pnl
-        self.net_pnl = self.total_pnl
-
 
 @lru_cache(maxsize=1024)
 def load_bar_data(
