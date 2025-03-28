@@ -70,14 +70,14 @@ def main() -> None:
         
         # 下单
         print(f"下单: {req.symbol}, {'买入' if req.direction == Direction.LONG else '卖出'}, {req.type.value}, 数量 {req.volume}")
-        vt_orderid = main_engine.send_order(req, 'BINANCE')
+        orderid = main_engine.send_order(req, 'BINANCE')
         
-        if not vt_orderid:
+        if not orderid:
             print("❌ 下单失败")
             main_engine.close()
             sys.exit(1)
         
-        print(f"✅ 下单成功: {vt_orderid}")
+        print(f"✅ 下单成功: {orderid}")
         
         # 测试结束
         print("======= Binance实盘交易测试完成 =======")

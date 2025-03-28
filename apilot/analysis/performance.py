@@ -42,11 +42,11 @@ class DailyResult:
         """
         self.trades.append(trade)
 
-    def add_close_price(self, vt_symbol: str, price: float) -> None:
+    def add_close_price(self, symbol: str, price: float) -> None:
         """
         Add closing price for a symbol
         """
-        self.close_prices[vt_symbol] = price
+        self.close_prices[symbol] = price
 
     def calculate_pnl(
         self,
@@ -63,14 +63,14 @@ class DailyResult:
 
         # Calculate holding PnL
         self.holding_pnl = 0
-        for vt_symbol in self.pre_closes.keys():
-            pre_close = self.pre_closes.get(vt_symbol, 0)
+        for symbol in self.pre_closes.keys():
+            pre_close = self.pre_closes.get(symbol, 0)
             if not pre_close:
                 pre_close = 1  # Avoid division by zero
 
-            start_pos = self.start_poses.get(vt_symbol, 0)
-            size = sizes.get(vt_symbol, 1)
-            close_price = self.close_prices.get(vt_symbol, pre_close)
+            start_pos = self.start_poses.get(symbol, 0)
+            size = sizes.get(symbol, 1)
+            close_price = self.close_prices.get(symbol, pre_close)
 
             symbol_holding_pnl = start_pos * (close_price - pre_close) * size
             self.holding_pnl += symbol_holding_pnl
@@ -81,18 +81,18 @@ class DailyResult:
         self.turnover = 0
 
         for trade in self.trades:
-            vt_symbol = trade.vt_symbol
+            symbol = trade.symbol
             pos_change = (
                 trade.volume if trade.direction == Direction.LONG else -trade.volume
             )
 
-            if vt_symbol in self.end_poses:
-                self.end_poses[vt_symbol] += pos_change
+            if symbol in self.end_poses:
+                self.end_poses[symbol] += pos_change
             else:
-                self.end_poses[vt_symbol] = pos_change
+                self.end_poses[symbol] = pos_change
 
-            size = sizes.get(vt_symbol, 1)
-            close_price = self.close_prices.get(vt_symbol, trade.price)
+            size = sizes.get(symbol, 1)
+            close_price = self.close_prices.get(symbol, trade.price)
 
             turnover = trade.volume * size * trade.price
             self.trading_pnl += pos_change * (close_price - trade.price) * size

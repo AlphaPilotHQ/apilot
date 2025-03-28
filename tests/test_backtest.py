@@ -32,10 +32,10 @@ class TestStrategy(CtaTemplate):
         self,
         cta_engine: Any,
         strategy_name: str,
-        vt_symbol: str,
+        symbol: str,
         setting: dict,
     ):
-        super().__init__(cta_engine, strategy_name, vt_symbol, setting)
+        super().__init__(cta_engine, strategy_name, symbol, setting)
 
         self.fast_ma_array = []
         self.slow_ma_array = []
@@ -112,7 +112,7 @@ engine = BacktestingEngine()
 
 # 设置回测参数
 engine.set_parameters(
-    vt_symbol="SOL-USDT.BINANCE",
+    symbol="SOL-USDT.BINANCE",
     interval=Interval.MINUTE,
     start=datetime(2023, 1, 1),
     end=datetime(2023, 1, 31),
@@ -152,7 +152,7 @@ else:
 # 输出详细的交易记录
 print("\n=== 交易记录 ===")
 if engine.trades:
-    for i, (vt_tradeid, trade) in enumerate(engine.trades.items()):
+    for i, (tradeid, trade) in enumerate(engine.trades.items()):
         print(f"交易 #{i+1}: {'买入' if trade.direction == Direction.LONG else '卖出'} {trade.volume} 手, 价格: {trade.price}, 时间: {trade.datetime}")
 else:
     print("没有交易记录")
