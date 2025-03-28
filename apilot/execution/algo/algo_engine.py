@@ -96,7 +96,7 @@ class AlgoEngine(BaseEngine):
     def process_tick_event(self, event: Event) -> None:
         """处理行情事件"""
         tick: TickData = event.data
-        algos: set[AlgoTemplate] = self.symbol_algo_map[tick.vt_symbol]
+        algos: set[AlgoTemplate] = self.symbol_algo_map[tick.symbol]
 
         for algo in algos:
             algo.update_tick(tick)
@@ -113,7 +113,7 @@ class AlgoEngine(BaseEngine):
         """处理成交事件"""
         trade: TradeData = event.data
 
-        algo: Optional[AlgoTemplate] = self.orderid_algo_map.get(trade.vt_orderid, None)
+        algo: Optional[AlgoTemplate] = self.orderid_algo_map.get(trade.orderid, None)
 
         if algo and algo.status in {AlgoStatus.RUNNING, AlgoStatus.PAUSED}:
             algo.update_trade(trade)
@@ -122,7 +122,7 @@ class AlgoEngine(BaseEngine):
         """处理委托事件"""
         order: OrderData = event.data
 
-        algo: Optional[AlgoTemplate] = self.orderid_algo_map.get(order.vt_orderid, None)
+        algo: Optional[AlgoTemplate] = self.orderid_algo_map.get(order.orderid, None)
 
         if algo and algo.status in {AlgoStatus.RUNNING, AlgoStatus.PAUSED}:
             algo.update_order(order)
@@ -130,7 +130,7 @@ class AlgoEngine(BaseEngine):
     def start_algo(
         self,
         template_name: str,
-        vt_symbol: str,
+        symbol: str,
         direction: Direction,
         offset: Offset,
         price: float,
@@ -138,9 +138,9 @@ class AlgoEngine(BaseEngine):
         setting: dict
     ) -> str:
         """启动算法"""
-        contract: Optional[ContractData] = self.main_engine.get_contract(vt_symbol)
+        contract: Optional[ContractData] = self.main_engine.get_contract(symbol)
         if not contract:
-            logger.warning(f'算法启动失败，找不到合约：{vt_symbol}')
+            logger.warning(f'算法启动失败，找不到合约：{symbol}')
             return ""
 
         algo_template: AlgoTemplate = self.algo_templates[template_name]
@@ -151,7 +151,7 @@ class AlgoEngine(BaseEngine):
         algo: AlgoTemplate = algo_template(
             self,
             algo_name,
-            vt_symbol,
+            symbol,
             direction,
             offset,
             price,
@@ -160,7 +160,7 @@ class AlgoEngine(BaseEngine):
         )
 
         # 订阅行情
-        algos: set = self.symbol_algo_map[algo.vt_symbol]
+        algos: set = self.symbol_algo_map[algo.symbol]
         if not algos:
             self.subscribe(contract.symbol, contract.exchange, contract.gateway_name)
         algos.add(algo)
@@ -212,7 +212,7 @@ class AlgoEngine(BaseEngine):
         offset: Offset
     ) -> str:
         """委托下单"""
-        contract: Optional[ContractData] = self.main_engine.get_contract(algo.vt_symbol)
+        contract: Optional[ContractData] = self.main_engine.get_contract(algo.symbol)
         volume: float = round_to(volume, contract.min_volume)
         if not volume:
             return ""
@@ -227,17 +227,17 @@ class AlgoEngine(BaseEngine):
             offset=offset,
             reference=f"{ENGINE_NAME}_{algo.algo_name}"
         )
-        vt_orderid: str = self.main_engine.send_order(req, contract.gateway_name)
+        orderid: str = self.main_engine.send_order(req, contract.gateway_name)
 
-        self.orderid_algo_map[vt_orderid] = algo
-        return vt_orderid
+        self.orderid_algo_map[orderid] = algo
+        return orderid
 
-    def cancel_order(self, algo: AlgoTemplate, vt_orderid: str) -> None:
+    def cancel_order(self, algo: AlgoTemplate, orderid: str) -> None:
         """委托撤单"""
-        order: Optional[OrderData] = self.main_engine.get_order(vt_orderid)
+        order: Optional[OrderData] = self.main_engine.get_order(orderid)
 
         if not order:
-            logger.warning(f"[{ENGINE_NAME}:{algo.algo_name}] 委托撤单失败，找不到委托：{vt_orderid}")
+            logger.warning(f"[{ENGINE_NAME}:{algo.algo_name}] 委托撤单失败，找不到委托：{orderid}")
             return
 
         req: CancelRequest = order.create_cancel_request()
@@ -245,20 +245,20 @@ class AlgoEngine(BaseEngine):
 
     def get_tick(self, algo: AlgoTemplate) -> Optional[TickData]:
         """查询行情"""
-        tick: Optional[TickData] = self.main_engine.get_tick(algo.vt_symbol)
+        tick: Optional[TickData] = self.main_engine.get_tick(algo.symbol)
 
         if not tick:
-            logger.warning(f"[{ENGINE_NAME}:{algo.algo_name}] 查询行情失败，找不到行情：{algo.vt_symbol}")
+            logger.warning(f"[{ENGINE_NAME}:{algo.algo_name}] 查询行情失败，找不到行情：{algo.symbol}")
 
         return tick
 
     def get_contract(self, algo: AlgoTemplate) -> Optional[ContractData]:
         """查询合约"""
-        contract: Optional[ContractData] = self.main_engine.get_contract(algo.vt_symbol)
+        contract: Optional[ContractData] = self.main_engine.get_contract(algo.symbol)
 
         if not contract:
             source = f"{ENGINE_NAME}:{algo.algo_name}" if algo.algo_name else ENGINE_NAME
-            logger.warning(f"[{source}] 查询合约失败，找不到合约：{algo.vt_symbol}")
+            logger.warning(f"[{source}] 查询合约失败，找不到合约：{algo.symbol}")
 
         return contract
 

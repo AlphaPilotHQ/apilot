@@ -16,7 +16,7 @@ class BestLimitAlgo(AlgoTemplate):
     }
 
     variables: list = [
-        "vt_orderid",
+        "orderid",
         "order_price"
     ]
 
@@ -24,7 +24,7 @@ class BestLimitAlgo(AlgoTemplate):
         self,
         algo_engine: BaseEngine,
         algo_name: str,
-        vt_symbol: str,
+        symbol: str,
         direction: str,
         offset: str,
         price: float,
@@ -32,14 +32,14 @@ class BestLimitAlgo(AlgoTemplate):
         setting: dict
     ) -> None:
         """构造函数"""
-        super().__init__(algo_engine, algo_name, vt_symbol, direction, offset, price, volume, setting)
+        super().__init__(algo_engine, algo_name, symbol, direction, offset, price, volume, setting)
 
         # 参数
         self.min_volume: float = setting["min_volume"]
         self.max_volume: float = setting["max_volume"]
 
         # 变量
-        self.vt_orderid: str = ""
+        self.orderid: str = ""
         self.order_price: float = 0
 
         self.put_event()
@@ -58,12 +58,12 @@ class BestLimitAlgo(AlgoTemplate):
     def on_tick(self, tick: TickData) -> None:
         """Tick行情回调"""
         if self.direction == Direction.LONG:
-            if not self.vt_orderid:
+            if not self.orderid:
                 self.buy_best_limit(tick.bid_price_1)
             elif self.order_price != tick.bid_price_1:
                 self.cancel_all()
         else:
-            if not self.vt_orderid:
+            if not self.orderid:
                 self.sell_best_limit(tick.ask_price_1)
             elif self.order_price != tick.ask_price_1:
                 self.cancel_all()
@@ -81,7 +81,7 @@ class BestLimitAlgo(AlgoTemplate):
     def on_order(self, order: OrderData) -> None:
         """委托回调"""
         if not order.is_active():
-            self.vt_orderid = ""
+            self.orderid = ""
             self.order_price = 0
             self.put_event()
 
@@ -93,7 +93,7 @@ class BestLimitAlgo(AlgoTemplate):
         order_volume: float = min(rand_volume, volume_left)
 
         self.order_price = bid_price_1
-        self.vt_orderid = self.buy(
+        self.orderid = self.buy(
             self.order_price,
             order_volume,
             offset=self.offset
@@ -107,7 +107,7 @@ class BestLimitAlgo(AlgoTemplate):
         order_volume: float = min(rand_volume, volume_left)
 
         self.order_price = ask_price_1
-        self.vt_orderid = self.sell(
+        self.orderid = self.sell(
             self.order_price,
             order_volume,
             offset=self.offset

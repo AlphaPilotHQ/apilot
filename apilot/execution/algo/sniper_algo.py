@@ -10,13 +10,13 @@ class SniperAlgo(AlgoTemplate):
 
     default_setting: dict = {}
 
-    variables: list = ["vt_orderid"]
+    variables: list = ["orderid"]
 
     def __init__(
         self,
         algo_engine: BaseEngine,
         algo_name: str,
-        vt_symbol: str,
+        symbol: str,
         direction: str,
         offset: str,
         price: float,
@@ -24,16 +24,16 @@ class SniperAlgo(AlgoTemplate):
         setting: dict
     ) -> None:
         """构造函数"""
-        super().__init__(algo_engine, algo_name, vt_symbol, direction, offset, price, volume, setting)
+        super().__init__(algo_engine, algo_name, symbol, direction, offset, price, volume, setting)
 
         # 变量
-        self.vt_orderid = ""
+        self.orderid = ""
 
         self.put_event()
 
     def on_tick(self, tick: TickData) -> None:
         """Tick行情回调"""
-        if self.vt_orderid:
+        if self.orderid:
             self.cancel_all()
             return
 
@@ -42,7 +42,7 @@ class SniperAlgo(AlgoTemplate):
                 order_volume: float = self.volume - self.traded
                 order_volume = min(order_volume, tick.ask_volume_1)
 
-                self.vt_orderid = self.buy(
+                self.orderid = self.buy(
                     self.price,
                     order_volume,
                     offset=self.offset
@@ -52,7 +52,7 @@ class SniperAlgo(AlgoTemplate):
                 order_volume: float = self.volume - self.traded
                 order_volume = min(order_volume, tick.bid_volume_1)
 
-                self.vt_orderid = self.sell(
+                self.orderid = self.sell(
                     self.price,
                     order_volume,
                     offset=self.offset
@@ -63,7 +63,7 @@ class SniperAlgo(AlgoTemplate):
     def on_order(self, order: OrderData) -> None:
         """委托回调"""
         if not order.is_active():
-            self.vt_orderid = ""
+            self.orderid = ""
             self.put_event()
 
     def on_trade(self, trade: TradeData) -> None:
