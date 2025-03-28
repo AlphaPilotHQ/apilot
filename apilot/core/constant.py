@@ -7,7 +7,6 @@ This module contains all enumerations used throughout the platform.
 # Standard library imports
 from datetime import timedelta
 from enum import Enum
-from typing import Dict
 
 
 class Direction(Enum):
@@ -45,7 +44,7 @@ class OrderType(Enum):
     MARKET = "市价"  # 市价单
     STOP = "止损"  # 止损单
     STOP_LIMIT = "止损限价"  # 止损限价单
-    POST_ONLY = "只挂"  # 只挂单，不吃单
+    POST_ONLY = "只挂"  # 只挂单, 不吃单
     FAK = "FAK"  # Fill and Kill
     FOK = "FOK"  # Fill or Kill
 
@@ -59,11 +58,10 @@ class Exchange(Enum):
     COINBASE = "COINBASE"  # Coinbase
     DERIBIT = "DERIBIT"  # Deribit
     KRAKEN = "KRAKEN"  # Kraken
-    LOCAL = "LOCAL"  # 本地生成数据（回测使用）
+    LOCAL = "LOCAL"  # 本地生成数据(回测使用)
 
 
 class Currency(Enum):
-
     USD = "USD"  # 美元
     USDT = "USDT"  # 泰达币
     BTC = "BTC"  # 比特币
@@ -72,7 +70,6 @@ class Currency(Enum):
 
 
 class Interval(Enum):
-
     MINUTE = "1m"  # 1分钟
     MINUTE3 = "3m"  # 3分钟
     MINUTE5 = "5m"  # 5分钟
@@ -91,6 +88,16 @@ class EngineType(Enum):
     BACKTESTING = "回测"
 
 
+# 算法交易状态
+class AlgoStatus(Enum):
+    """算法状态"""
+
+    RUNNING = "运行"
+    PAUSED = "暂停"
+    STOPPED = "停止"
+    FINISHED = "结束"
+
+
 # 回测模式
 class BacktestingMode(Enum):
     BAR = 1
@@ -98,7 +105,7 @@ class BacktestingMode(Enum):
 
 
 # 时间间隔映射
-INTERVAL_DELTA_MAP: Dict[Interval, timedelta] = {
+INTERVAL_DELTA_MAP: dict[Interval, timedelta] = {
     Interval.TICK: timedelta(milliseconds=1),
     Interval.MINUTE: timedelta(minutes=1),
     Interval.HOUR: timedelta(hours=1),

@@ -1,3 +1,5 @@
+from typing import ClassVar
+
 from apilot.core import BaseEngine, ContractData, Direction, TickData, TradeData
 from apilot.core.utility import round_to
 
@@ -7,18 +9,9 @@ from .algo_template import AlgoTemplate
 class TwapAlgo(AlgoTemplate):
     """TWAP算法类"""
 
-    display_name: str = "TWAP 时间加权平均"
+    default_setting: ClassVar[dict] = {"time": 600, "interval": 60}
 
-    default_setting: dict = {
-        "time": 600,
-        "interval": 60
-    }
-
-    variables: list = [
-        "order_volume",
-        "timer_count",
-        "total_count"
-    ]
+    variables: ClassVar[list] = ["order_volume", "timer_count", "total_count"]
 
     def __init__(
         self,
@@ -29,10 +22,12 @@ class TwapAlgo(AlgoTemplate):
         offset: str,
         price: float,
         volume: float,
-        setting: dict
+        setting: dict,
     ) -> None:
         """构造函数"""
-        super().__init__(algo_engine, algo_name, symbol, direction, offset, price, volume, setting)
+        super().__init__(
+            algo_engine, algo_name, symbol, direction, offset, price, volume, setting
+        )
 
         # 参数
         self.time: int = setting["time"]
@@ -52,7 +47,6 @@ class TwapAlgo(AlgoTemplate):
     def on_trade(self, trade: TradeData) -> None:
         """成交回调"""
         if self.traded >= self.volume:
-            self.write_log(f"已交易数量：{self.traded}，总数量：{self.volume}")
             self.finish()
         else:
             self.put_event()
@@ -64,7 +58,7 @@ class TwapAlgo(AlgoTemplate):
         self.put_event()
 
         if self.total_count >= self.time:
-            self.write_log("执行时间已结束，停止算法")
+            self.write_log("执行时间已结束, 停止算法")
             self.finish()
             return
 

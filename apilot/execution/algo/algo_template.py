@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, ClassVar
 
 from apilot.core import (
     BaseEngine,
@@ -10,10 +10,9 @@ from apilot.core import (
     TickData,
     TradeData,
 )
+from apilot.core.constant import AlgoStatus
 from apilot.core.utility import virtual
 from apilot.utils.logger import get_logger
-
-from .algo_base import AlgoStatus
 
 # 模块级初始化日志器
 logger = get_logger("AlgoTrading")
@@ -25,11 +24,11 @@ if TYPE_CHECKING:
 class AlgoTemplate:
     """算法模板"""
 
-    _count: int = 0                 # 实例计数
+    _count: int = 0  # 实例计数
 
-    display_name: str = ""          # 显示名称
-    default_setting: dict = {}      # 默认参数
-    variables: list = []            # 变量名称
+    display_name: str = ""  # 显示名称
+    default_setting: ClassVar[dict] = {}  # 默认参数
+    variables: ClassVar[list] = []  # 变量名称
 
     def __init__(
         self,
@@ -40,7 +39,7 @@ class AlgoTemplate:
         offset: Offset,
         price: float,
         volume: int,
-        setting: dict
+        setting: dict,
     ) -> None:
         """构造函数"""
         self.algo_engine: BaseEngine = algo_engine
@@ -56,7 +55,7 @@ class AlgoTemplate:
         self.traded: float = 0
         self.traded_price: float = 0
 
-        self.active_orders: dict[str, OrderData] = {}  
+        self.active_orders: dict[str, OrderData] = {}
 
     def update_tick(self, tick: TickData) -> None:
         """行情数据更新"""
@@ -147,22 +146,17 @@ class AlgoTemplate:
         price: float,
         volume: float,
         order_type: OrderType = OrderType.LIMIT,
-        offset: Offset = Offset.NONE
+        offset: Offset = Offset.NONE,
     ) -> None:
         """买入"""
         if self.status != AlgoStatus.RUNNING:
             return
 
-        msg: str = f"{self.symbol}，委托买入{order_type.value}，{volume}@{price}"
+        msg: str = f"{self.symbol}, 委托买入{order_type.value}, {volume}@{price}"
         logger.info(f"[Algo:{self.algo_name}] {msg}")
 
         return self.algo_engine.send_order(
-            self,
-            Direction.LONG,
-            price,
-            volume,
-            order_type,
-            offset
+            self, Direction.LONG, price, volume, order_type, offset
         )
 
     def sell(
@@ -170,22 +164,17 @@ class AlgoTemplate:
         price: float,
         volume: float,
         order_type: OrderType = OrderType.LIMIT,
-        offset: Offset = Offset.NONE
+        offset: Offset = Offset.NONE,
     ) -> None:
         """卖出"""
         if self.status != AlgoStatus.RUNNING:
             return
 
-        msg: str = f"{self.symbol}委托卖出{order_type.value}，{volume}@{price}"
+        msg: str = f"{self.symbol}委托卖出{order_type.value}, {volume}@{price}"
         logger.info(f"[Algo:{self.algo_name}] {msg}")
 
         return self.algo_engine.send_order(
-            self,
-            Direction.SHORT,
-            price,
-            volume,
-            order_type,
-            offset
+            self, Direction.SHORT, price, volume, order_type, offset
         )
 
     def cancel_order(self, orderid: str) -> None:
@@ -200,11 +189,11 @@ class AlgoTemplate:
         for orderid in self.active_orders.keys():
             self.cancel_order(orderid)
 
-    def get_tick(self) -> Optional[TickData]:
+    def get_tick(self) -> TickData | None:
         """查询行情"""
         return self.algo_engine.get_tick(self)
 
-    def get_contract(self) -> Optional[ContractData]:
+    def get_contract(self) -> ContractData | None:
         """查询合约"""
         return self.algo_engine.get_contract(self)
 
@@ -235,7 +224,7 @@ class AlgoTemplate:
             "traded": self.traded,
             "traded_price": self.traded_price,
             "parameters": self.get_parameters(),
-            "variables": self.get_variables()
+            "variables": self.get_variables(),
         }
         return algo_data
 

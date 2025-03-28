@@ -1,4 +1,5 @@
 from random import uniform
+from typing import ClassVar
 
 from apilot.core import BaseEngine, Direction, OrderData, TickData, TradeData
 
@@ -8,17 +9,12 @@ from .algo_template import AlgoTemplate
 class BestLimitAlgo(AlgoTemplate):
     """最优限价算法类"""
 
-    display_name: str = "BestLimit 最优限价"
-
-    default_setting: dict = {
+    default_setting: ClassVar[dict] = {
         "min_volume": 0,
         "max_volume": 0,
     }
 
-    variables: list = [
-        "orderid",
-        "order_price"
-    ]
+    variables: ClassVar[list] = ["orderid", "order_price"]
 
     def __init__(
         self,
@@ -29,10 +25,12 @@ class BestLimitAlgo(AlgoTemplate):
         offset: str,
         price: float,
         volume: float,
-        setting: dict
+        setting: dict,
     ) -> None:
         """构造函数"""
-        super().__init__(algo_engine, algo_name, symbol, direction, offset, price, volume, setting)
+        super().__init__(
+            algo_engine, algo_name, symbol, direction, offset, price, volume, setting
+        )
 
         # 参数
         self.min_volume: float = setting["min_volume"]
@@ -46,12 +44,12 @@ class BestLimitAlgo(AlgoTemplate):
 
         # 检查最大/最小挂单量
         if self.min_volume <= 0:
-            self.write_log("最小挂单量必须大于0，算法启动失败")
+            self.write_log("最小挂单量必须大于0, 算法启动失败")
             self.finish()
             return
 
         if self.max_volume < self.min_volume:
-            self.write_log("最大挂单量必须不小于最小委托量，算法启动失败")
+            self.write_log("最大挂单量必须不小于最小委托量, 算法启动失败")
             self.finish()
             return
 
@@ -73,7 +71,7 @@ class BestLimitAlgo(AlgoTemplate):
     def on_trade(self, trade: TradeData) -> None:
         """成交回调"""
         if self.traded >= self.volume:
-            self.write_log(f"已交易数量：{self.traded}，总数量：{self.volume}")
+            self.write_log(f"已交易数量: {self.traded}, 总数量: {self.volume}")
             self.finish()
         else:
             self.put_event()
@@ -93,11 +91,7 @@ class BestLimitAlgo(AlgoTemplate):
         order_volume: float = min(rand_volume, volume_left)
 
         self.order_price = bid_price_1
-        self.orderid = self.buy(
-            self.order_price,
-            order_volume,
-            offset=self.offset
-        )
+        self.orderid = self.buy(self.order_price, order_volume, offset=self.offset)
 
     def sell_best_limit(self, ask_price_1: float) -> None:
         """最优限价卖出"""
@@ -107,11 +101,7 @@ class BestLimitAlgo(AlgoTemplate):
         order_volume: float = min(rand_volume, volume_left)
 
         self.order_price = ask_price_1
-        self.orderid = self.sell(
-            self.order_price,
-            order_volume,
-            offset=self.offset
-        )
+        self.orderid = self.sell(self.order_price, order_volume, offset=self.offset)
 
     def generate_rand_volume(self) -> int:
         """随机生成委托数量"""

@@ -1,19 +1,19 @@
 """
 执行算法引擎
 
-管理算法实例的执行和监控，处理市场数据和分发执行结果。
+管理算法实例的执行和监控, 处理市场数据和分发执行结果。
 """
 
 from collections import defaultdict
-from typing import Optional, Type
 
-from apilot.core.constant import Direction, Exchange, Offset, OrderType
+from apilot.core.constant import AlgoStatus, Direction, Exchange, Offset, OrderType
 from apilot.core.engine import (
     BaseEngine,
     EventEngine,
     MainEngine,
 )
 from apilot.core.event import (
+    EVENT_ALGO_UPDATE,
     EVENT_ORDER,
     EVENT_TICK,
     EVENT_TIMER,
@@ -31,7 +31,6 @@ from apilot.core.object import (
 )
 from apilot.utils.logger import get_logger
 
-from .algo_base import EVENT_ALGO_UPDATE, AlgoStatus
 from .algo_template import AlgoTemplate
 
 ENGINE_NAME = "AlgoTrading"
@@ -47,7 +46,7 @@ class AlgoEngine(BaseEngine):
         """构造函数"""
         super().__init__(main_engine, event_engine, ENGINE_NAME)
 
-        self.algo_templates: dict[str, Type[AlgoTemplate]] = {}
+        self.algo_templates: dict[str, type[AlgoTemplate]] = {}
 
         self.algos: dict[str, AlgoTemplate] = {}
         self.symbol_algo_map: dict[str, set[AlgoTemplate]] = defaultdict(set)
@@ -113,7 +112,7 @@ class AlgoEngine(BaseEngine):
         """处理成交事件"""
         trade: TradeData = event.data
 
-        algo: Optional[AlgoTemplate] = self.orderid_algo_map.get(trade.orderid, None)
+        algo: AlgoTemplate | None = self.orderid_algo_map.get(trade.orderid, None)
 
         if algo and algo.status in {AlgoStatus.RUNNING, AlgoStatus.PAUSED}:
             algo.update_trade(trade)
@@ -122,7 +121,7 @@ class AlgoEngine(BaseEngine):
         """处理委托事件"""
         order: OrderData = event.data
 
-        algo: Optional[AlgoTemplate] = self.orderid_algo_map.get(order.orderid, None)
+        algo: AlgoTemplate | None = self.orderid_algo_map.get(order.orderid, None)
 
         if algo and algo.status in {AlgoStatus.RUNNING, AlgoStatus.PAUSED}:
             algo.update_order(order)
@@ -135,12 +134,12 @@ class AlgoEngine(BaseEngine):
         offset: Offset,
         price: float,
         volume: int,
-        setting: dict
+        setting: dict,
     ) -> str:
         """启动算法"""
-        contract: Optional[ContractData] = self.main_engine.get_contract(symbol)
+        contract: ContractData | None = self.main_engine.get_contract(symbol)
         if not contract:
-            logger.warning(f'算法启动失败，找不到合约：{symbol}')
+            logger.warning(f"算法启动失败, 找不到合约: {symbol}")
             return ""
 
         algo_template: AlgoTemplate = self.algo_templates[template_name]
@@ -149,14 +148,7 @@ class AlgoEngine(BaseEngine):
         algo_template._count += 1
         algo_name: str = f"{algo_template.__name__}_{algo_template._count}"
         algo: AlgoTemplate = algo_template(
-            self,
-            algo_name,
-            symbol,
-            direction,
-            offset,
-            price,
-            volume,
-            setting
+            self, algo_name, symbol, direction, offset, price, volume, setting
         )
 
         # 订阅行情
@@ -173,19 +165,19 @@ class AlgoEngine(BaseEngine):
 
     def pause_algo(self, algo_name: str) -> None:
         """暂停算法"""
-        algo: Optional[AlgoTemplate] = self.algos.get(algo_name, None)
+        algo: AlgoTemplate | None = self.algos.get(algo_name, None)
         if algo:
             algo.pause()
 
     def resume_algo(self, algo_name: str) -> None:
         """恢复算法"""
-        algo: Optional[AlgoTemplate] = self.algos.get(algo_name, None)
+        algo: AlgoTemplate | None = self.algos.get(algo_name, None)
         if algo:
             algo.resume()
 
     def stop_algo(self, algo_name: str) -> None:
         """停止算法"""
-        algo: Optional[AlgoTemplate] = self.algos.get(algo_name, None)
+        algo: AlgoTemplate | None = self.algos.get(algo_name, None)
         if algo:
             algo.stop()
 
@@ -196,10 +188,7 @@ class AlgoEngine(BaseEngine):
 
     def subscribe(self, symbol: str, exchange: Exchange, gateway_name: str) -> None:
         """订阅行情"""
-        req: SubscribeRequest = SubscribeRequest(
-            symbol=symbol,
-            exchange=exchange
-        )
+        req: SubscribeRequest = SubscribeRequest(symbol=symbol, exchange=exchange)
         self.main_engine.subscribe(req, gateway_name)
 
     def send_order(
@@ -209,11 +198,11 @@ class AlgoEngine(BaseEngine):
         price: float,
         volume: float,
         order_type: OrderType,
-        offset: Offset
+        offset: Offset,
     ) -> str:
         """委托下单"""
-        contract: Optional[ContractData] = self.main_engine.get_contract(algo.symbol)
-        volume: float = round_to(volume, contract.min_volume)
+        contract: ContractData | None = self.main_engine.get_contract(algo.symbol)
+        volume: float = float(round(volume / contract.min_volume) * contract.min_volume)
         if not volume:
             return ""
 
@@ -225,7 +214,7 @@ class AlgoEngine(BaseEngine):
             volume=volume,
             price=price,
             offset=offset,
-            reference=f"{ENGINE_NAME}_{algo.algo_name}"
+            reference=f"{ENGINE_NAME}_{algo.algo_name}",
         )
         orderid: str = self.main_engine.send_order(req, contract.gateway_name)
 
@@ -234,41 +223,47 @@ class AlgoEngine(BaseEngine):
 
     def cancel_order(self, algo: AlgoTemplate, orderid: str) -> None:
         """委托撤单"""
-        order: Optional[OrderData] = self.main_engine.get_order(orderid)
+        order: OrderData | None = self.main_engine.get_order(orderid)
 
         if not order:
-            logger.warning(f"[{ENGINE_NAME}:{algo.algo_name}] 委托撤单失败，找不到委托：{orderid}")
+            logger.warning(
+                f"[{ENGINE_NAME}:{algo.algo_name}] 委托撤单失败, 找不到委托: {orderid}"
+            )
             return
 
         req: CancelRequest = order.create_cancel_request()
         self.main_engine.cancel_order(req, order.gateway_name)
 
-    def get_tick(self, algo: AlgoTemplate) -> Optional[TickData]:
+    def get_tick(self, algo: AlgoTemplate) -> TickData | None:
         """查询行情"""
-        tick: Optional[TickData] = self.main_engine.get_tick(algo.symbol)
+        tick: TickData | None = self.main_engine.get_tick(algo.symbol)
 
         if not tick:
-            logger.warning(f"[{ENGINE_NAME}:{algo.algo_name}] 查询行情失败，找不到行情：{algo.symbol}")
+            logger.warning(
+                f"[{ENGINE_NAME}:{algo.algo_name}] 查询行情失败, 找不到行情: {algo.symbol}"
+            )
 
         return tick
 
-    def get_contract(self, algo: AlgoTemplate) -> Optional[ContractData]:
+    def get_contract(self, algo: AlgoTemplate) -> ContractData | None:
         """查询合约"""
-        contract: Optional[ContractData] = self.main_engine.get_contract(algo.symbol)
+        contract: ContractData | None = self.main_engine.get_contract(algo.symbol)
 
         if not contract:
-            source = f"{ENGINE_NAME}:{algo.algo_name}" if algo.algo_name else ENGINE_NAME
-            logger.warning(f"[{source}] 查询合约失败，找不到合约：{algo.symbol}")
+            source = (
+                f"{ENGINE_NAME}:{algo.algo_name}" if algo.algo_name else ENGINE_NAME
+            )
+            logger.warning(f"[{source}] 查询合约失败, 找不到合约: {algo.symbol}")
 
         return contract
 
     def put_algo_event(self, algo: AlgoTemplate, data: dict) -> None:
         """推送更新"""
         # 移除运行结束的算法实例
-        if (
-            algo in self.algos.values()
-            and algo.status in {AlgoStatus.STOPPED, AlgoStatus.FINISHED}
-        ):
+        if algo in self.algos.values() and algo.status in {
+            AlgoStatus.STOPPED,
+            AlgoStatus.FINISHED,
+        }:
             self.algos.pop(algo.algo_name)
 
             for algos in self.symbol_algo_map.values():
