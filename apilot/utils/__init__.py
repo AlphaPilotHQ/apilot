@@ -19,8 +19,16 @@ __all__ = [
     # 订单管理
     "LocalOrderManager",
     
+    # 日志系统
+    "get_logger",
+    "set_level",
+    "log_exceptions",
+    
     # 其他工具函数会逐步添加
 ]
 
 # 订单管理工具
 from .order_manager import LocalOrderManager
+
+# 日志系统
+from .logger import get_logger, set_level, log_exceptions

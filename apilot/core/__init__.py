@@ -12,7 +12,7 @@ import apilot.core as apcore  # 大量组件使用
 __all__ = [
     # 常量定义
     "Direction", "Offset", "Exchange", "Interval", "Status", "Product",
-    "OptionType", "OrderType",
+    "OrderType",
 
     # 事件相关组件
     "Event", "EventEngine",
@@ -45,7 +45,6 @@ from .constant import (
     Exchange,  # type: Enum
     Interval,  # type: Enum
     Offset,  # type: Enum
-    OptionType,  # type: Enum
     OrderType,  # type: Enum
     Product,  # type: Enum
     Status,  # type: Enum

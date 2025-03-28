@@ -9,7 +9,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Dict, List, Optional, Type
 
-from apilot.core import BarData, Exchange, Interval, TickData
+from .constant import Exchange, Interval
+from .object import BarData, TickData
 
 # Database default configuration
 DATABASE_CONFIG = {

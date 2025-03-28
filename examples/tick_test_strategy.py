@@ -7,6 +7,10 @@ from apilot_ctastrategy import (
 )
 
 from time import time
+from apilot.utils.logger import get_logger
+
+# Initialize logger for this strategy
+logger = get_logger("TestStrategy")
 
 
 class TestStrategy(CtaTemplate):
@@ -34,19 +38,19 @@ class TestStrategy(CtaTemplate):
         """
         Callback when strategy is inited.
         """
-        self.write_log("策略初始化")
+        logger.info(f"[{self.strategy_name}] Strategy initialized")
 
     def on_start(self):
         """
         Callback when strategy is started.
         """
-        self.write_log("策略启动")
+        logger.info(f"[{self.strategy_name}] Strategy started")
 
     def on_stop(self):
         """
         Callback when strategy is stopped.
         """
-        self.write_log("策略停止")
+        logger.info(f"[{self.strategy_name}] Strategy stopped")
 
     def on_tick(self, tick: TickData):
         """
@@ -67,9 +71,9 @@ class TestStrategy(CtaTemplate):
                 start = time()
                 test_func()
                 time_cost = (time() - start) * 1000
-                self.write_log("耗时%s毫秒") % (time_cost)
+                logger.info(f"[{self.strategy_name}] Time cost: {time_cost} ms")
             else:
-                self.write_log("测试已全部完成")
+                logger.info(f"[{self.strategy_name}] All tests completed")
                 self.test_all_done = True
 
         self.put_event()
@@ -96,14 +100,14 @@ class TestStrategy(CtaTemplate):
     def test_market_order(self):
         """"""
         self.buy(self.last_tick.limit_up, 1)
-        self.write_log("执行市价单测试")
+        logger.info(f"[{self.strategy_name}] Market order test executed")
 
     def test_limit_order(self):
         """"""
         self.buy(self.last_tick.limit_down, 1)
-        self.write_log("执行限价单测试")
+        logger.info(f"[{self.strategy_name}] Limit order test executed")
 
     def test_cancel_all(self):
         """"""
         self.cancel_all()
-        self.write_log("执行全部撤单测试")
+        logger.info(f"[{self.strategy_name}] Cancel all test executed")
