@@ -25,7 +25,6 @@ from apilot.core import (
     EventEngine,
     MainEngine,
     # 组件类
-    OffsetConverter,
     OrderData,
     OrderRequest,
     PositionData,
@@ -54,9 +53,6 @@ class OmsEngine(BaseEngine):
 
         self.active_orders: Dict[str, OrderData] = {}
         self.active_quotes: Dict[str, QuoteData] = {}
-
-        self.offset_converters: Dict[str, OffsetConverter] = {}
-        self.initialize_converters()
 
         self.add_function()
         self.register_event()
@@ -112,30 +108,15 @@ class OmsEngine(BaseEngine):
         elif order.vt_orderid in self.active_orders:
             self.active_orders.pop(order.vt_orderid)
 
-        # Update to offset converter
-        converter: OffsetConverter = self.offset_converters.get(order.gateway_name, None)
-        if converter:
-            converter.update_order(order)
-
     def process_trade_event(self, event: Event) -> None:
         """"""
         trade: TradeData = event.data
         self.trades[trade.vt_tradeid] = trade
 
-        # Update to offset converter
-        converter: OffsetConverter = self.offset_converters.get(trade.gateway_name, None)
-        if converter:
-            converter.update_trade(trade)
-
     def process_position_event(self, event: Event) -> None:
         """"""
         position: PositionData = event.data
         self.positions[position.vt_positionid] = position
-
-        # Update to offset converter
-        converter: OffsetConverter = self.offset_converters.get(position.gateway_name, None)
-        if converter:
-            converter.update_position(position)
 
     def process_account_event(self, event: Event) -> None:
         """"""
@@ -146,10 +127,6 @@ class OmsEngine(BaseEngine):
         """"""
         contract: ContractData = event.data
         self.contracts[contract.vt_symbol] = contract
-
-        # Initialize offset converter for each gateway
-        if contract.gateway_name not in self.offset_converters:
-            self.offset_converters[contract.gateway_name] = OffsetConverter(self)
 
     def process_quote_event(self, event: Event) -> None:
         """"""
@@ -280,11 +257,9 @@ class OmsEngine(BaseEngine):
 
     def update_order_request(self, req: OrderRequest, vt_orderid: str, gateway_name: str) -> None:
         """
-        Update order request to offset converter.
+        Update order request (simple version for crypto/US markets without offset conversion)
         """
-        converter: OffsetConverter = self.offset_converters.get(gateway_name, None)
-        if converter:
-            converter.update_order_request(req, vt_orderid)
+        pass
 
     def convert_order_request(
         self,
@@ -293,25 +268,12 @@ class OmsEngine(BaseEngine):
         net: bool = False
     ) -> List[OrderRequest]:
         """
-        将请求拆分为具体委托请求
+        Simple version for crypto/US markets without offset conversion
         """
-        converter: OffsetConverter = self.offset_converters.get(gateway_name, None)
-        if not converter:
-            return [req]
+        return [req]
 
-        reqs: List[OrderRequest] = converter.convert_order_request(req, net)
-        return reqs
-
-    def get_converter(self, gateway_name: str) -> OffsetConverter:
+    def get_converter(self, gateway_name: str) -> None:
         """
-        Get offset converter object of specific gateway.
+        Simple stub for crypto/US markets
         """
-        return self.offset_converters.get(gateway_name, None)
-
-    def initialize_converters(self) -> None:
-        """
-        Initialize offset converters for all gateways.
-        """
-        for gateway in self.main_engine.gateways.values():
-            if gateway.gateway_name not in self.offset_converters:
-                self.offset_converters[gateway.gateway_name] = OffsetConverter(self)
+        return None
