@@ -9,10 +9,20 @@
 - 数据处理工具: 数据格式转换、滤波等
 - 可视化工具: 绘制K线、收益曲线等
 - 订单管理工具: 本地订单ID管理等
+- 符号处理工具: 交易符号解析与处理
 
 推荐用法:
     from apilot.utils import 特定工具函数
 """
+
+# 导入符号处理工具
+from .symbol import split_symbol, get_exchange, get_base_symbol
+
+# 订单管理工具
+from .order_manager import LocalOrderManager
+
+# 日志系统
+from .logger import get_logger, set_level, log_exceptions
 
 # 定义公共API
 __all__ = [
@@ -24,11 +34,8 @@ __all__ = [
     "set_level",
     "log_exceptions",
     
-    # 其他工具函数会逐步添加
+    # 符号处理
+    "split_symbol",
+    "get_exchange",
+    "get_base_symbol",
 ]
-
-# 订单管理工具
-from .order_manager import LocalOrderManager
-
-# 日志系统
-from .logger import get_logger, set_level, log_exceptions

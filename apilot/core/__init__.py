@@ -36,7 +36,7 @@ __all__ = [
 
     # 配置和工具函数
     "load_json", "save_json",
-    "extract_vt_symbol", "BarGenerator", "ArrayManager"
+    "extract_symbol", "BarGenerator", "ArrayManager"
 ]
 
 # 导入常量定义
@@ -99,7 +99,7 @@ from .object import (
 from .utility import (  # type: function, function, function, class, class
     ArrayManager,
     BarGenerator,
-    extract_vt_symbol,
+    extract_symbol,
     load_json,
     save_json,
 )

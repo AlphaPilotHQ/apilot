@@ -24,14 +24,17 @@ T = TypeVar('T')
 log_formatter: logging.Formatter = logging.Formatter("[%(asctime)s] %(message)s")
 
 
-def extract_vt_symbol(vt_symbol: str) -> Tuple[str, Exchange]:
-    """从交易所符号中提取标的和交易所"""
-    symbol, exchange_str = vt_symbol.rsplit(".", 1)
-    return symbol, Exchange(exchange_str)
+def extract_symbol(symbol: str) -> Tuple[str, Exchange]:
+    """Extract base symbol and exchange from full trading symbol"""
+    # 使用新的工具函数实现
+    from apilot.utils import split_symbol, get_exchange
+    base_symbol, exchange_str = split_symbol(symbol)
+    return base_symbol, Exchange(exchange_str)
 
-def generate_vt_symbol(symbol: str, exchange: Exchange) -> str:
-    """生成交易所符号"""
-    return f"{symbol}.{exchange.value}"
+
+def generate_symbol(base_symbol: str, exchange: Exchange) -> str:
+    """Generate full trading symbol from base symbol and exchange"""
+    return f"{base_symbol}.{exchange.value}"
 
 
 def _get_trader_dir(temp_name: str) -> Tuple[Path, Path]:
@@ -201,7 +204,7 @@ class BarGenerator:
             self.on_bar(self.bars)
             self.bars = {}
 
-        bar: Optional[BarData] = self.bars.get(tick.vt_symbol, None)
+        bar: Optional[BarData] = self.bars.get(tick.symbol, None)
         if not bar:
             bar = BarData(
                 symbol=tick.symbol,
@@ -215,7 +218,7 @@ class BarGenerator:
                 close_price=tick.last_price,
                 open_interest=tick.open_interest
             )
-            self.bars[bar.vt_symbol] = bar
+            self.bars[bar.symbol] = bar
         else:
             bar.high_price = max(bar.high_price, tick.last_price)
             bar.low_price = min(bar.low_price, tick.last_price)
@@ -223,12 +226,12 @@ class BarGenerator:
             bar.open_interest = tick.open_interest
             bar.datetime = tick.datetime
 
-        last_tick: Optional[TickData] = self.last_ticks.get(tick.vt_symbol, None)
+        last_tick: Optional[TickData] = self.last_ticks.get(tick.symbol, None)
         if last_tick:
             bar.volume += max(tick.volume - last_tick.volume, 0)
             bar.turnover += max(tick.turnover - last_tick.turnover, 0)
 
-        self.last_ticks[tick.vt_symbol] = tick
+        self.last_ticks[tick.symbol] = tick
         self.last_dt = tick.datetime
 
     def update_bars(self, bars: dict[str, BarData]) -> None:
@@ -240,8 +243,8 @@ class BarGenerator:
 
     def update_bar_minute_window(self, bars: dict[str, BarData]) -> None:
         """Update minute bar"""
-        for vt_symbol, bar in bars.items():
-            window_bar: Optional[BarData] = self.window_bars.get(vt_symbol, None)
+        for symbol, bar in bars.items():
+            window_bar: Optional[BarData] = self.window_bars.get(symbol, None)
 
             # 如果没有N分钟K线则创建
             if not window_bar:
@@ -255,7 +258,7 @@ class BarGenerator:
                     high_price=bar.high_price,
                     low_price=bar.low_price
                 )
-                self.window_bars[vt_symbol] = window_bar
+                self.window_bars[symbol] = window_bar
 
             # 更新K线内最高价及最低价
             else:
@@ -281,8 +284,8 @@ class BarGenerator:
 
     def update_bar_hour_window(self, bars: dict[str, BarData]) -> None:
         """Update hour bar"""
-        for vt_symbol, bar in bars.items():
-            hour_bar: Optional[BarData] = self.hour_bars.get(vt_symbol, None)
+        for symbol, bar in bars.items():
+            hour_bar: Optional[BarData] = self.hour_bars.get(symbol, None)
 
             # 如果没有小时K线则创建
             if not hour_bar:
@@ -300,7 +303,7 @@ class BarGenerator:
                     turnover=bar.turnover,
                     open_interest=bar.open_interest
                 )
-                self.hour_bars[vt_symbol] = hour_bar
+                self.hour_bars[symbol] = hour_bar
 
             else:
                 # 如果收到59分的分钟K线，更新小时K线并推送
@@ -319,12 +322,12 @@ class BarGenerator:
                     hour_bar.turnover += bar.turnover
                     hour_bar.open_interest = bar.open_interest
 
-                    self.finished_hour_bars[vt_symbol] = hour_bar
-                    self.hour_bars[vt_symbol] = None
+                    self.finished_hour_bars[symbol] = hour_bar
+                    self.hour_bars[symbol] = None
 
                 # 如果收到新的小时的分钟K线，直接推送当前的小时K线
                 elif bar.datetime.hour != hour_bar.datetime.hour:
-                    self.finished_hour_bars[vt_symbol] = hour_bar
+                    self.finished_hour_bars[symbol] = hour_bar
 
                     dt: datetime = bar.datetime.replace(minute=0, second=0, microsecond=0)
                     hour_bar = BarData(
@@ -340,7 +343,7 @@ class BarGenerator:
                         turnover=bar.turnover,
                         open_interest=bar.open_interest
                     )
-                    self.hour_bars[vt_symbol] = hour_bar
+                    self.hour_bars[symbol] = hour_bar
 
                 # 否则直接更新小时K线
                 else:
@@ -365,9 +368,9 @@ class BarGenerator:
 
     def update_bar_daily_window(self, bar: BarData) -> None:
         """Update daily bar"""
-        vt_symbol = bar.vt_symbol
+        symbol = bar.symbol
 
-        window_bar = self.window_bars.get(vt_symbol, None)
+        window_bar = self.window_bars.get(symbol, None)
         if not window_bar:
             # Create if not exists
             window_bar = BarData(
@@ -383,15 +386,15 @@ class BarGenerator:
                 turnover=bar.turnover,
                 open_interest=bar.open_interest
             )
-            self.window_bars[vt_symbol] = window_bar
+            self.window_bars[symbol] = window_bar
 
     def on_hour_bar(self, bars: dict[str, BarData]) -> None:
         """Push hour bar"""
         if self.window == 1:
             self.on_window_bar(bars)
         else:
-            for vt_symbol, bar in bars.items():
-                window_bar: Optional[BarData] = self.window_bars.get(vt_symbol, None)
+            for symbol, bar in bars.items():
+                window_bar: Optional[BarData] = self.window_bars.get(symbol, None)
                 if not window_bar:
                     window_bar = BarData(
                         symbol=bar.symbol,
@@ -402,7 +405,7 @@ class BarGenerator:
                         high_price=bar.high_price,
                         low_price=bar.low_price
                     )
-                    self.window_bars[vt_symbol] = window_bar
+                    self.window_bars[symbol] = window_bar
                 else:
                     window_bar.high_price = max(
                         window_bar.high_price,
