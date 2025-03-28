@@ -67,8 +67,8 @@ class PairTradingStrategy(StrategyTemplate):
             """"""
             pass
 
-        for vt_symbol in self.symbols:
-            self.bgs[vt_symbol] = BarGenerator(on_bar)
+        for symbol in self.symbols:
+            self.bgs[symbol] = BarGenerator(on_bar)
 
     def on_init(self) -> None:
         """策略初始化回调"""
@@ -91,11 +91,11 @@ class PairTradingStrategy(StrategyTemplate):
             and self.last_tick_time.minute != tick.datetime.minute
         ):
             bars = {}
-            for vt_symbol, bg in self.bgs.items():
-                bars[vt_symbol] = bg.generate()
+            for symbol, bg in self.bgs.items():
+                bars[symbol] = bg.generate()
             self.on_bars(bars)
 
-        bg: BarGenerator = self.bgs[tick.vt_symbol]
+        bg: BarGenerator = self.bgs[tick.symbol]
         bg.update_tick(tick)
 
         self.last_tick_time = tick.datetime
@@ -158,9 +158,9 @@ class PairTradingStrategy(StrategyTemplate):
         # 推送更新事件
         self.put_event()
 
-    def calculate_price(self, vt_symbol: str, direction: Direction, reference: float) -> float:
+    def calculate_price(self, symbol: str, direction: Direction, reference: float) -> float:
         """计算调仓委托价格（支持按需重载实现）"""
-        pricetick: float = self.get_pricetick(vt_symbol)
+        pricetick: float = self.get_pricetick(symbol)
 
         if direction == Direction.LONG:
             price: float = reference + self.tick_add * pricetick

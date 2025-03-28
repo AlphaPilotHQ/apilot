@@ -58,8 +58,8 @@ class TrendFollowingStrategy(StrategyTemplate):
 
         # 创建每个合约的ArrayManager
         self.ams: dict[str, ArrayManager] = {}
-        for vt_symbol in self.symbols:
-            self.ams[vt_symbol] = ArrayManager()
+        for symbol in self.symbols:
+            self.ams[symbol] = ArrayManager()
 
         self.pbg = PortfolioBarGenerator(self.on_bars)
 
@@ -87,56 +87,56 @@ class TrendFollowingStrategy(StrategyTemplate):
     def on_bars(self, bars: dict[str, BarData]) -> None:
         """K线切片回调"""
         # 更新K线计算RSI数值
-        for vt_symbol, bar in bars.items():
-            am: ArrayManager = self.ams[vt_symbol]
+        for symbol, bar in bars.items():
+            am: ArrayManager = self.ams[symbol]
             am.update_bar(bar)
 
-        for vt_symbol, bar in bars.items():
-            am: ArrayManager = self.ams[vt_symbol]
+        for symbol, bar in bars.items():
+            am: ArrayManager = self.ams[symbol]
             if not am.inited:
                 return
 
             atr_array = am.atr(self.atr_window, array=True)
-            self.atr_data[vt_symbol] = atr_array[-1]
-            self.atr_ma[vt_symbol] = atr_array[-self.atr_ma_window:].mean()
-            self.rsi_data[vt_symbol] = am.rsi(self.rsi_window)
+            self.atr_data[symbol] = atr_array[-1]
+            self.atr_ma[symbol] = atr_array[-self.atr_ma_window:].mean()
+            self.rsi_data[symbol] = am.rsi(self.rsi_window)
 
-            current_pos = self.get_pos(vt_symbol)
+            current_pos = self.get_pos(symbol)
             if current_pos == 0:
-                self.intra_trade_high[vt_symbol] = bar.high_price
-                self.intra_trade_low[vt_symbol] = bar.low_price
+                self.intra_trade_high[symbol] = bar.high_price
+                self.intra_trade_low[symbol] = bar.low_price
 
-                if self.atr_data[vt_symbol] > self.atr_ma[vt_symbol]:
-                    if self.rsi_data[vt_symbol] > self.rsi_buy:
-                        self.set_target(vt_symbol, self.fixed_size)
-                    elif self.rsi_data[vt_symbol] < self.rsi_sell:
-                        self.set_target(vt_symbol, -self.fixed_size)
+                if self.atr_data[symbol] > self.atr_ma[symbol]:
+                    if self.rsi_data[symbol] > self.rsi_buy:
+                        self.set_target(symbol, self.fixed_size)
+                    elif self.rsi_data[symbol] < self.rsi_sell:
+                        self.set_target(symbol, -self.fixed_size)
                     else:
-                        self.set_target(vt_symbol, 0)
+                        self.set_target(symbol, 0)
 
             elif current_pos > 0:
-                self.intra_trade_high[vt_symbol] = max(self.intra_trade_high[vt_symbol], bar.high_price)
-                self.intra_trade_low[vt_symbol] = bar.low_price
+                self.intra_trade_high[symbol] = max(self.intra_trade_high[symbol], bar.high_price)
+                self.intra_trade_low[symbol] = bar.low_price
 
-                long_stop = self.intra_trade_high[vt_symbol] * (1 - self.trailing_percent / 100)
+                long_stop = self.intra_trade_high[symbol] * (1 - self.trailing_percent / 100)
 
                 if bar.close_price <= long_stop:
-                    self.set_target(vt_symbol, 0)
+                    self.set_target(symbol, 0)
 
             elif current_pos < 0:
-                self.intra_trade_low[vt_symbol] = min(self.intra_trade_low[vt_symbol], bar.low_price)
-                self.intra_trade_high[vt_symbol] = bar.high_price
+                self.intra_trade_low[symbol] = min(self.intra_trade_low[symbol], bar.low_price)
+                self.intra_trade_high[symbol] = bar.high_price
 
-                short_stop = self.intra_trade_low[vt_symbol] * (1 + self.trailing_percent / 100)
+                short_stop = self.intra_trade_low[symbol] * (1 + self.trailing_percent / 100)
 
                 if bar.close_price >= short_stop:
-                    self.set_target(vt_symbol, 0)
+                    self.set_target(symbol, 0)
 
         self.rebalance_portfolio(bars)
 
         self.put_event()
 
-    def calculate_price(self, vt_symbol: str, direction: Direction, reference: float) -> float:
+    def calculate_price(self, symbol: str, direction: Direction, reference: float) -> float:
         """计算调仓委托价格（支持按需重载实现）"""
         if direction == Direction.LONG:
             price: float = reference + self.price_add

@@ -115,29 +115,29 @@ class CtaTemplate(ABC):
         收到多个币种的K线数据时调用，由子类实现
         """
         # 遍历每个币种的K线并调用on_bar，保持向后兼容性
-        for vt_symbol, bar in bars.items():
+        for symbol, bar in bars.items():
             self.on_bar(bar)
 
     @virtual
     def on_trade(self, trade: TradeData) -> None:
         """成交回调"""
         # 更新持仓数据
-        self.pos_dict[trade.vt_symbol] += trade.volume if trade.direction == Direction.LONG else -trade.volume
+        self.pos_dict[trade.symbol] += trade.volume if trade.direction == Direction.LONG else -trade.volume
 
     @virtual
     def on_order(self, order: OrderData) -> None:
         """委托回调"""
         # 更新委托缓存
-        self.orders[order.vt_orderid] = order
+        self.orders[order.orderid] = order
 
         # 如果委托不再活跃，从活跃委托集合中移除
-        if not order.is_active() and order.vt_orderid in self.active_orderids:
-            self.active_orderids.remove(order.vt_orderid)
+        if not order.is_active() and order.orderid in self.active_orderids:
+            self.active_orderids.remove(order.orderid)
 
     # TODO：应该改成long short close三种状态比较好
     def buy(
         self,
-        vt_symbol: str,
+        symbol: str,
         price: float,
         volume: float,
         net: bool = False
@@ -145,11 +145,11 @@ class CtaTemplate(ABC):
         """
         买入开仓
         """
-        return self.send_order(vt_symbol, Direction.LONG, Offset.OPEN, price, volume, net)
+        return self.send_order(symbol, Direction.LONG, Offset.OPEN, price, volume, net)
 
     def sell(
         self,
-        vt_symbol: str,
+        symbol: str,
         price: float,
         volume: float,
         net: bool = False
@@ -157,11 +157,11 @@ class CtaTemplate(ABC):
         """
         卖出平仓
         """
-        return self.send_order(vt_symbol, Direction.SHORT, Offset.CLOSE, price, volume, net)
+        return self.send_order(symbol, Direction.SHORT, Offset.CLOSE, price, volume, net)
 
     def short(
         self,
-        vt_symbol: str,
+        symbol: str,
         price: float,
         volume: float,
         net: bool = False
@@ -169,11 +169,11 @@ class CtaTemplate(ABC):
         """
         卖出开仓
         """
-        return self.send_order(vt_symbol, Direction.SHORT, Offset.OPEN, price, volume, net)
+        return self.send_order(symbol, Direction.SHORT, Offset.OPEN, price, volume, net)
 
     def cover(
         self,
-        vt_symbol: str,
+        symbol: str,
         price: float,
         volume: float,
         net: bool = False
@@ -181,11 +181,11 @@ class CtaTemplate(ABC):
         """
         买入平仓
         """
-        return self.send_order(vt_symbol, Direction.LONG, Offset.CLOSE, price, volume, net)
+        return self.send_order(symbol, Direction.LONG, Offset.CLOSE, price, volume, net)
 
     def send_order(
         self,
-        vt_symbol: str,
+        symbol: str,
         direction: Direction,
         offset: Offset,
         price: float,
@@ -196,15 +196,15 @@ class CtaTemplate(ABC):
         try:
             if self.trading:
                 # 根据是否为多币种模式调用不同的发单接口
-                vt_orderids: List[str] = self.cta_engine.send_order(
-                    self, vt_symbol, direction, offset, price, volume, net
+                orderids: List[str] = self.cta_engine.send_order(
+                    self, symbol, direction, offset, price, volume, net
                 )
 
                 # 添加到活跃委托集合
-                for vt_orderid in vt_orderids:
-                    self.active_orderids.add(vt_orderid)
+                for orderid in orderids:
+                    self.active_orderids.add(orderid)
 
-                return vt_orderids
+                return orderids
             else:
                 logger.warning(f"[{self.strategy_name}] 策略未启动交易，订单未发送")
                 return []
@@ -212,46 +212,46 @@ class CtaTemplate(ABC):
             logger.error(f"[{self.strategy_name}] 发送订单异常: {str(e)}")
             return []
 
-    def cancel_order(self, vt_orderid: str) -> None:
+    def cancel_order(self, orderid: str) -> None:
         """撤销委托"""
         if self.trading:
-            self.cta_engine.cancel_order(self, vt_orderid)
+            self.cta_engine.cancel_order(self, orderid)
 
     def cancel_all(self) -> None:
         """全撤活动委托"""
         if self.trading:
-            for vt_orderid in list(self.active_orderids):
-                self.cancel_order(vt_orderid)
+            for orderid in list(self.active_orderids):
+                self.cancel_order(orderid)
 
-    def get_pos(self, vt_symbol: str) -> int:
+    def get_pos(self, symbol: str) -> int:
         """
         查询持仓
         """
-        return self.pos_dict.get(vt_symbol, 0)
+        return self.pos_dict.get(symbol, 0)
 
-    def get_target(self, vt_symbol: str) -> int:
+    def get_target(self, symbol: str) -> int:
         """查询目标仓位"""
-        return self.target_dict.get(vt_symbol, 0)
+        return self.target_dict.get(symbol, 0)
 
-    def set_target(self, vt_symbol: str, target: int) -> None:
+    def set_target(self, symbol: str, target: int) -> None:
         """设置目标仓位"""
-        self.target_dict[vt_symbol] = target
+        self.target_dict[symbol] = target
 
     def get_engine_type(self) -> EngineType:
         """查询引擎类型"""
         return self.cta_engine.get_engine_type()
 
-    def get_pricetick(self, vt_symbol: str) -> float:
+    def get_pricetick(self, symbol: str) -> float:
         """
         获取合约最小价格跳动
         """
-        return self.cta_engine.get_pricetick(self, vt_symbol)
+        return self.cta_engine.get_pricetick(self, symbol)
 
-    def get_size(self, vt_symbol: str) -> int:
+    def get_size(self, symbol: str) -> int:
         """
         获取合约乘数
         """
-        return self.cta_engine.get_size(self, vt_symbol)
+        return self.cta_engine.get_size(self, symbol)
 
     def load_bar(
         self,
@@ -301,7 +301,7 @@ class CtaTemplate(ABC):
 
     def calculate_price(
         self,
-        vt_symbol: str,
+        symbol: str,
         direction: Direction,
         reference: float
     ) -> float:
@@ -313,17 +313,17 @@ class CtaTemplate(ABC):
         self.cancel_all()
 
         # 只发出当前K线切片有行情的合约的委托
-        for vt_symbol, bar in bars.items():
+        for symbol, bar in bars.items():
             # 计算仓差
-            target: int = self.get_target(vt_symbol)
-            pos: int = self.get_pos(vt_symbol)
+            target: int = self.get_target(symbol)
+            pos: int = self.get_pos(symbol)
             diff: int = target - pos
 
             # 多头
             if diff > 0:
                 # 计算多头委托价
                 order_price: float = self.calculate_price(
-                    vt_symbol,
+                    symbol,
                     Direction.LONG,
                     bar.close_price
                 )
@@ -340,15 +340,15 @@ class CtaTemplate(ABC):
 
                 # 发出对应委托
                 if cover_volume:
-                    self.cover(vt_symbol, order_price, cover_volume)
+                    self.cover(symbol, order_price, cover_volume)
 
                 if buy_volume:
-                    self.buy(vt_symbol, order_price, buy_volume)
+                    self.buy(symbol, order_price, buy_volume)
             # 空头
             elif diff < 0:
                 # 计算空头委托价
                 order_price: float = self.calculate_price(
-                    vt_symbol,
+                    symbol,
                     Direction.SHORT,
                     bar.close_price
                 )
@@ -365,14 +365,14 @@ class CtaTemplate(ABC):
 
                 # 发出对应委托
                 if sell_volume:
-                    self.sell(vt_symbol, order_price, sell_volume)
+                    self.sell(symbol, order_price, sell_volume)
 
                 if short_volume:
-                    self.short(vt_symbol, order_price, short_volume)
+                    self.short(symbol, order_price, short_volume)
 
-    def get_order(self, vt_orderid: str) -> Optional[OrderData]:
+    def get_order(self, orderid: str) -> Optional[OrderData]:
         """查询委托数据"""
-        return self.orders.get(vt_orderid, None)
+        return self.orders.get(orderid, None)
 
     def get_all_active_orderids(self) -> List[str]:
         """获取全部活动状态的委托号"""
@@ -404,14 +404,14 @@ class TargetPosTemplate(CtaTemplate):
 
     @virtual
     def on_order(self, order: OrderData) -> None:
-        vt_orderid: str = order.vt_orderid
+        orderid: str = order.orderid
 
         if not order.is_active():
-            if vt_orderid in self.active_orderids:
-                self.active_orderids.remove(vt_orderid)
+            if orderid in self.active_orderids:
+                self.active_orderids.remove(orderid)
 
-            if vt_orderid in self.cancel_orderids:
-                self.cancel_orderids.remove(vt_orderid)
+            if orderid in self.cancel_orderids:
+                self.cancel_orderids.remove(orderid)
 
     def check_order_finished(self) -> bool:
         if self.active_orderids:
@@ -430,10 +430,10 @@ class TargetPosTemplate(CtaTemplate):
             self.send_new_order()
 
     def cancel_old_order(self) -> None:
-        for vt_orderid in self.active_orderids:
-            if vt_orderid not in self.cancel_orderids:
-                self.cancel_order(vt_orderid)
-                self.cancel_orderids.append(vt_orderid)
+        for orderid in self.active_orderids:
+            if orderid not in self.cancel_orderids:
+                self.cancel_order(orderid)
+                self.cancel_orderids.append(orderid)
 
     def send_new_order(self) -> None:
         """根据目标仓位和实际仓位计算并委托"""
@@ -464,8 +464,8 @@ class TargetPosTemplate(CtaTemplate):
         # 回测模式直接发单
         if self.get_engine_type() == EngineType.BACKTESTING:
             func = self.buy if is_long else self.short
-            vt_orderids = func(self.symbols[0], price, abs(pos_change))
-            self.active_orderids.extend(vt_orderids)
+            orderids = func(self.symbols[0], price, abs(pos_change))
+            self.active_orderids.extend(orderids)
             return
 
         # 实盘模式，有活动订单时不交易
@@ -479,15 +479,15 @@ class TargetPosTemplate(CtaTemplate):
             if self.get_pos(self.symbols[0]) < 0:  # 持有空仓
                 # 计算实际平仓量
                 cover_volume = min(volume, abs(self.get_pos(self.symbols[0])))
-                vt_orderids = self.cover(self.symbols[0], price, cover_volume)
+                orderids = self.cover(self.symbols[0], price, cover_volume)
             else:  # 无仓位或持有多仓
-                vt_orderids = self.buy(self.symbols[0], price, volume)
+                orderids = self.buy(self.symbols[0], price, volume)
         else:  # 做空
             if self.get_pos(self.symbols[0]) > 0:  # 持有多仓
                 # 计算实际平仓量
                 sell_volume = min(volume, self.get_pos(self.symbols[0]))
-                vt_orderids = self.sell(self.symbols[0], price, sell_volume)
+                orderids = self.sell(self.symbols[0], price, sell_volume)
             else:  # 无仓位或持有空仓
-                vt_orderids = self.short(self.symbols[0], price, volume)
+                orderids = self.short(self.symbols[0], price, volume)
 
-        self.active_orderids.extend(vt_orderids)
+        self.active_orderids.extend(orderids)

@@ -4,7 +4,7 @@ from apilot_portfoliostrategy import StrategyEngine, StrategyTemplate
 
 from apilot.core.constant import Direction
 from apilot.core.object import BarData, TickData
-from apilot.core.utility import BarGenerator, extract_vt_symbol
+from apilot.core.utility import BarGenerator, extract_symbol
 
 
 class PcpArbitrageStrategy(StrategyTemplate):
@@ -59,23 +59,23 @@ class PcpArbitrageStrategy(StrategyTemplate):
         self.last_tick_time: datetime = None
 
         # 绑定合约代码
-        for vt_symbol in self.symbols:
-            symbol, _ = extract_vt_symbol(vt_symbol)
+        for symbol in self.symbols:
+            base_symbol, _ = extract_symbol(symbol)
 
-            if "C" in symbol:
-                self.call_symbol = vt_symbol
-                _, strike_str = symbol.split("-C-")     # CFFEX/DCE
+            if "C" in base_symbol:
+                self.call_symbol = symbol
+                _, strike_str = base_symbol.split("-C-")     # CFFEX/DCE
                 self.strike_price = int(strike_str)
-            elif "P" in symbol:
-                self.put_symbol = vt_symbol
+            elif "P" in base_symbol:
+                self.put_symbol = symbol
             else:
-                self.futures_symbol = vt_symbol
+                self.futures_symbol = symbol
 
             def on_bar(bar: BarData):
                 """"""
                 pass
 
-            self.bgs[vt_symbol] = BarGenerator(on_bar)
+            self.bgs[symbol] = BarGenerator(on_bar)
 
     def on_init(self) -> None:
         """策略初始化回调"""
@@ -98,11 +98,11 @@ class PcpArbitrageStrategy(StrategyTemplate):
             and self.last_tick_time.minute != tick.datetime.minute
         ):
             bars = {}
-            for vt_symbol, bg in self.bgs.items():
-                bars[vt_symbol] = bg.generate()
+            for symbol, bg in self.bgs.items():
+                bars[symbol] = bg.generate()
             self.on_bars(bars)
 
-        bg: BarGenerator = self.bgs[tick.vt_symbol]
+        bg: BarGenerator = self.bgs[tick.symbol]
         bg.update_tick(tick)
 
         self.last_tick_time = tick.datetime
@@ -157,7 +157,7 @@ class PcpArbitrageStrategy(StrategyTemplate):
 
         self.put_event()
 
-    def calculate_price(self, vt_symbol: str, direction: Direction, reference: float) -> float:
+    def calculate_price(self, symbol: str, direction: Direction, reference: float) -> float:
         """计算调仓委托价格（支持按需重载实现）"""
         if direction == Direction.LONG:
             price: float = reference + self.price_add

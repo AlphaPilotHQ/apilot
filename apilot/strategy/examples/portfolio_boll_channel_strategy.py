@@ -53,9 +53,9 @@ class PortfolioBollChannelStrategy(StrategyTemplate):
 
         # 获取合约信息
         self.ams: dict[str, ArrayManager] = {}
-        for vt_symbol in self.symbols:
-            self.ams[vt_symbol] = ArrayManager()
-            self.targets[vt_symbol] = 0
+        for symbol in self.symbols:
+            self.ams[symbol] = ArrayManager()
+            self.targets[symbol] = 0
 
         self.pbg = PortfolioBarGenerator(self.on_bars, 2, self.on_2hour_bars, Interval.HOUR)
 
@@ -86,74 +86,74 @@ class PortfolioBollChannelStrategy(StrategyTemplate):
         self.cancel_all()
 
         # 更新到缓存序列
-        for vt_symbol, bar in bars.items():
-            am: ArrayManager = self.ams[vt_symbol]
+        for symbol, bar in bars.items():
+            am: ArrayManager = self.ams[symbol]
             am.update_bar(bar)
 
-        for vt_symbol, bar in bars.items():
-            am: ArrayManager = self.ams[vt_symbol]
+        for symbol, bar in bars.items():
+            am: ArrayManager = self.ams[symbol]
             if not am.inited:
                 return
 
-            self.boll_up[vt_symbol], self.boll_down[vt_symbol] = am.boll(self.boll_window, self.boll_dev)
-            self.cci_value[vt_symbol] = am.cci(self.cci_window)
-            self.atr_value[vt_symbol] = am.atr(self.atr_window)
+            self.boll_up[symbol], self.boll_down[symbol] = am.boll(self.boll_window, self.boll_dev)
+            self.cci_value[symbol] = am.cci(self.cci_window)
+            self.atr_value[symbol] = am.atr(self.atr_window)
 
             # 计算目标仓位
-            current_pos = self.get_pos(vt_symbol)
+            current_pos = self.get_pos(symbol)
             if current_pos == 0:
-                self.intra_trade_high[vt_symbol] = bar.high_price
-                self.intra_trade_low[vt_symbol] = bar.low_price
+                self.intra_trade_high[symbol] = bar.high_price
+                self.intra_trade_low[symbol] = bar.low_price
 
-                if self.cci_value[vt_symbol] > 0:
-                    self.targets[vt_symbol] = self.fixed_size
-                elif self.cci_value[vt_symbol] < 0:
-                    self.targets[vt_symbol] = -self.fixed_size
+                if self.cci_value[symbol] > 0:
+                    self.targets[symbol] = self.fixed_size
+                elif self.cci_value[symbol] < 0:
+                    self.targets[symbol] = -self.fixed_size
 
             elif current_pos > 0:
-                self.intra_trade_high[vt_symbol] = max(self.intra_trade_high[vt_symbol], bar.high_price)
-                self.intra_trade_low[vt_symbol] = bar.low_price
+                self.intra_trade_high[symbol] = max(self.intra_trade_high[symbol], bar.high_price)
+                self.intra_trade_low[symbol] = bar.low_price
 
-                long_stop = self.intra_trade_high[vt_symbol] - self.atr_value[vt_symbol] * self.sl_multiplier
+                long_stop = self.intra_trade_high[symbol] - self.atr_value[symbol] * self.sl_multiplier
 
                 if bar.close_price <= long_stop:
-                    self.targets[vt_symbol] = 0
+                    self.targets[symbol] = 0
 
             elif current_pos < 0:
-                self.intra_trade_low[vt_symbol] = min(self.intra_trade_low[vt_symbol], bar.low_price)
-                self.intra_trade_high[vt_symbol] = bar.high_price
+                self.intra_trade_low[symbol] = min(self.intra_trade_low[symbol], bar.low_price)
+                self.intra_trade_high[symbol] = bar.high_price
 
-                short_stop = self.intra_trade_low[vt_symbol] + self.atr_value[vt_symbol] * self.sl_multiplier
+                short_stop = self.intra_trade_low[symbol] + self.atr_value[symbol] * self.sl_multiplier
 
                 if bar.close_price >= short_stop:
-                    self.targets[vt_symbol] = 0
+                    self.targets[symbol] = 0
 
         # 基于目标仓位进行委托
-        for vt_symbol in self.symbols:
-            target_pos = self.targets[vt_symbol]
-            current_pos = self.get_pos(vt_symbol)
+        for symbol in self.symbols:
+            target_pos = self.targets[symbol]
+            current_pos = self.get_pos(symbol)
 
             pos_diff = target_pos - current_pos
             volume = abs(pos_diff)
-            bar = bars[vt_symbol]
-            boll_up = self.boll_up[vt_symbol]
-            boll_down = self.boll_down[vt_symbol]
+            bar = bars[symbol]
+            boll_up = self.boll_up[symbol]
+            boll_down = self.boll_down[symbol]
 
             if pos_diff > 0:
                 price = bar.close_price + self.price_add
 
                 if current_pos < 0:
-                    self.cover(vt_symbol, price, volume)
+                    self.cover(symbol, price, volume)
                 else:
-                    self.buy(vt_symbol, boll_up, volume)
+                    self.buy(symbol, boll_up, volume)
 
             elif pos_diff < 0:
                 price = bar.close_price - self.price_add
 
                 if current_pos > 0:
-                    self.sell(vt_symbol, price, volume)
+                    self.sell(symbol, price, volume)
                 else:
-                    self.short(vt_symbol, boll_down, volume)
+                    self.short(symbol, boll_down, volume)
 
         # 推送界面更新
         self.put_event()
