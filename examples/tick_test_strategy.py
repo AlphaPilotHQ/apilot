@@ -23,9 +23,9 @@ class TestStrategy(CtaTemplate):
     parameters = ["test_trigger"]
     variables = ["tick_count", "test_all_done"]
 
-    def __init__(self, cta_engine, strategy_name, vt_symbol, setting):
+    def __init__(self, cta_engine, strategy_name, symbol, setting):
         """"""
-        super().__init__(cta_engine, strategy_name, vt_symbol, setting)
+        super().__init__(cta_engine, strategy_name, symbol, setting)
 
         self.test_funcs = [
             self.test_market_order,

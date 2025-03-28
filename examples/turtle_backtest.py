@@ -45,9 +45,9 @@ class TurtleSignalStrategy(ap.CtaTemplate):
     parameters = ["entry_window", "exit_window", "atr_window", "fixed_size"]
     variables = ["entry_up", "entry_down", "exit_up", "exit_down", "atr_value"]
 
-    def __init__(self, cta_engine, strategy_name, vt_symbol, setting):
+    def __init__(self, cta_engine, strategy_name, symbol, setting):
         """初始化策略"""
-        super().__init__(cta_engine, strategy_name, vt_symbol, setting)
+        super().__init__(cta_engine, strategy_name, symbol, setting)
 
         # 创建K线生成器和数据管理器
         self.bg = ap.BarGenerator(self.on_bar)

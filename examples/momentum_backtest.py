@@ -51,9 +51,9 @@ class StdMomentumStrategy(ap.CtaTemplate):
         self.bgs = {}
         self.ams = {}
 
-        for vt_symbol in self.symbols:
-            self.bgs[vt_symbol] = ap.BarGenerator(self.on_bar, 5, self.on_5min_bar)
-            self.ams[vt_symbol] = ap.ArrayManager(size=200)
+        for symbol in self.symbols:
+            self.bgs[symbol] = ap.BarGenerator(self.on_bar, 5, self.on_5min_bar)
+            self.ams[symbol] = ap.ArrayManager(size=200)
 
         # 为每个交易对创建状态跟踪字典
         self.momentum = {}
@@ -63,108 +63,108 @@ class StdMomentumStrategy(ap.CtaTemplate):
         self.pos = {}
 
         # 初始化每个交易对的状态
-        for vt_symbol in self.symbols:
-            self.momentum[vt_symbol] = 0.0
-            self.std_value[vt_symbol] = 0.0
-            self.intra_trade_high[vt_symbol] = 0
-            self.intra_trade_low[vt_symbol] = 0
-            self.pos[vt_symbol] = 0
+        for symbol in self.symbols:
+            self.momentum[symbol] = 0.0
+            self.std_value[symbol] = 0.0
+            self.intra_trade_high[symbol] = 0
+            self.intra_trade_low[symbol] = 0
+            self.pos[symbol] = 0
 
     def on_init(self):
         self.load_bar(self.std_period * 2)
 
     def on_bar(self, bar: ap.BarData):
         """原始K线数据更新"""
-        vt_symbol = f"{bar.symbol}.{bar.exchange.value}"
-        if vt_symbol in self.bgs:
-            # 创建正确的字典格式：{vt_symbol: bar}
-            bars_dict = {vt_symbol: bar}
-            self.bgs[vt_symbol].update_bars(bars_dict)
+        symbol = bar.symbol
+        if symbol in self.bgs:
+            # 创建正确的字典格式：{symbol: bar}
+            bars_dict = {symbol: bar}
+            self.bgs[symbol].update_bars(bars_dict)
 
     def on_5min_bar(self, bars: dict):
         """5分钟K线数据更新，包含交易逻辑"""
         self.cancel_all()  # 取消之前的所有订单
 
         # 首先更新所有交易对的数据
-        for vt_symbol, bar in bars.items():
-            if vt_symbol not in self.ams:
+        for symbol, bar in bars.items():
+            if symbol not in self.ams:
                 continue
 
-            am = self.ams[vt_symbol]
+            am = self.ams[symbol]
             am.update_bar(bar)
 
             # 计算标准差
-            self.std_value[vt_symbol] = am.std(self.std_period)
+            self.std_value[symbol] = am.std(self.std_period)
 
             # 计算动量因子
             if len(am.close_array) > self.std_period + 1:
                 old_price = am.close_array[-self.std_period - 1]
                 current_price = am.close_array[-1]
                 if old_price != 0:
-                    self.momentum[vt_symbol] = (current_price / old_price) - 1
+                    self.momentum[symbol] = (current_price / old_price) - 1
                 else:
-                    self.momentum[vt_symbol] = 0.0
+                    self.momentum[symbol] = 0.0
 
             logger.debug(
-                f"{vt_symbol} 生成5分钟K线: {bar.datetime} O:{bar.open_price} "
+                f"{symbol} 生成5分钟K线: {bar.datetime} O:{bar.open_price} "
                 f"H:{bar.high_price} L:{bar.low_price} C:{bar.close_price} V:{bar.volume}"
-                f" 动量: {self.momentum.get(vt_symbol, 0):.4f}"
+                f" 动量: {self.momentum.get(symbol, 0):.4f}"
             )
 
         # 然后执行交易逻辑
-        for vt_symbol, bar in bars.items():
-            if vt_symbol not in self.ams or not self.ams[vt_symbol].inited:
+        for symbol, bar in bars.items():
+            if symbol not in self.ams or not self.ams[symbol].inited:
                 continue
 
             # 获取当前持仓
-            current_pos = self.pos.get(vt_symbol, 0)
+            current_pos = self.pos.get(symbol, 0)
 
             # 持仓状态下更新跟踪止损价格
             if current_pos > 0:
-                self.intra_trade_high[vt_symbol] = max(
-                    self.intra_trade_high[vt_symbol], bar.high_price
+                self.intra_trade_high[symbol] = max(
+                    self.intra_trade_high[symbol], bar.high_price
                 )
             elif current_pos < 0:
-                self.intra_trade_low[vt_symbol] = min(
-                    self.intra_trade_low[vt_symbol], bar.low_price
+                self.intra_trade_low[symbol] = min(
+                    self.intra_trade_low[symbol], bar.low_price
                 )
 
             # 交易逻辑
             if current_pos == 0:
                 # 初始化追踪价格
-                self.intra_trade_high[vt_symbol] = bar.high_price
-                self.intra_trade_low[vt_symbol] = bar.low_price
+                self.intra_trade_high[symbol] = bar.high_price
+                self.intra_trade_low[symbol] = bar.low_price
 
                 # 限制每次交易的资金比例，最多使用资金的10%
                 risk_percent = 0.1
                 capital_to_use = self.cta_engine.capital * risk_percent
                 size = max(1, int(capital_to_use / bar.close_price))
 
-                logger.debug(f"{vt_symbol} 资金情况: 可用 {self.cta_engine.capital}, 使用 {capital_to_use}, 数量 {size}")
+                logger.debug(f"{symbol} 资金情况: 可用 {self.cta_engine.capital}, 使用 {capital_to_use}, 数量 {size}")
 
                 # 基于动量信号开仓
-                if self.momentum[vt_symbol] > self.mom_threshold:
-                    logger.debug(f"{vt_symbol} 发出多头信号: 动量 {self.momentum[vt_symbol]:.4f} > 阈值 {self.mom_threshold}")
-                    self.buy(vt_symbol=vt_symbol, price=bar.close_price, volume=size)
-                elif self.momentum[vt_symbol] < -self.mom_threshold:
-                    logger.debug(f"{vt_symbol} 发出空头信号: 动量 {self.momentum[vt_symbol]:.4f} < 阈值 {-self.mom_threshold}")
-                    self.short(vt_symbol=vt_symbol, price=bar.close_price, volume=size)
+                if self.momentum[symbol] > self.mom_threshold:
+                    logger.debug(f"{symbol} 发出多头信号: 动量 {self.momentum[symbol]:.4f} > 阈值 {self.mom_threshold}")
+                    self.buy(symbol=symbol, price=bar.close_price, volume=size)
+                elif self.momentum[symbol] < -self.mom_threshold:
+                    logger.debug(f"{symbol} 发出空头信号: 动量 {self.momentum[symbol]:.4f} < 阈值 {-self.mom_threshold}")
+                    self.short(symbol=symbol, price=bar.close_price, volume=size)
 
             elif current_pos > 0:  # 多头持仓 → 标准差追踪止损
                 # 计算移动止损价格
-                long_stop = self.intra_trade_high[vt_symbol] - self.trailing_std_scale * self.std_value[vt_symbol]
+                long_stop = self.intra_trade_high[symbol] - self.trailing_std_scale * self.std_value[symbol]
 
                 # 当价格跌破止损线时平仓
                 if bar.close_price < long_stop:
-                    self.sell(vt_symbol=vt_symbol, price=bar.close_price, volume=abs(current_pos))
+                    self.sell(symbol=symbol, price=bar.close_price, volume=abs(current_pos))
 
             elif current_pos < 0:  # 空头持仓 → 标准差追踪止损
                 # 计算移动止损价格
-                short_stop = self.intra_trade_low[vt_symbol] + self.trailing_std_scale * self.std_value[vt_symbol]
+                short_stop = self.intra_trade_low[symbol] + self.trailing_std_scale * self.std_value[symbol]
 
                 # 当价格突破止损线时平仓
                 if bar.close_price > short_stop:
-                    self.cover(vt_symbol=vt_symbol, price=bar.close_price, volume=abs(current_pos))
+                    self.cover(symbol=symbol, price=bar.close_price, volume=abs(current_pos))
 
     def on_order(self, order: ap.OrderData):
         """委托回调"""
@@ -173,43 +173,43 @@ class StdMomentumStrategy(ap.CtaTemplate):
 
     def on_trade(self, trade: ap.TradeData):
         """成交回调"""
-        vt_symbol = f"{trade.symbol}.{trade.exchange.value}"
+        symbol = trade.symbol
 
         # 更新持仓
         if trade.direction == ap.Direction.LONG:
             # 买入或平空
             if trade.offset == ap.Offset.OPEN:
                 # 买入开仓
-                self.pos[vt_symbol] = self.pos.get(vt_symbol, 0) + trade.volume
+                self.pos[symbol] = self.pos.get(symbol, 0) + trade.volume
             else:
                 # 买入平仓
-                self.pos[vt_symbol] = self.pos.get(vt_symbol, 0) + trade.volume
+                self.pos[symbol] = self.pos.get(symbol, 0) + trade.volume
         else:
             # 卖出或平多
             if trade.offset == ap.Offset.OPEN:
                 # 卖出开仓
-                self.pos[vt_symbol] = self.pos.get(vt_symbol, 0) - trade.volume
+                self.pos[symbol] = self.pos.get(symbol, 0) - trade.volume
             else:
                 # 卖出平仓
-                self.pos[vt_symbol] = self.pos.get(vt_symbol, 0) - trade.volume
+                self.pos[symbol] = self.pos.get(symbol, 0) - trade.volume
 
         # 更新最高/最低价追踪
-        current_pos = self.pos.get(vt_symbol, 0)
+        current_pos = self.pos.get(symbol, 0)
         if current_pos > 0:
             # 多头仓位，更新最高价
-            self.intra_trade_high[vt_symbol] = max(
-                self.intra_trade_high.get(vt_symbol, trade.price),
+            self.intra_trade_high[symbol] = max(
+                self.intra_trade_high.get(symbol, trade.price),
                 trade.price
             )
         elif current_pos < 0:
             # 空头仓位，更新最低价
-            self.intra_trade_low[vt_symbol] = min(
-                self.intra_trade_low.get(vt_symbol, trade.price),
+            self.intra_trade_low[symbol] = min(
+                self.intra_trade_low.get(symbol, trade.price),
                 trade.price
             )
 
         logger.info(
-            f"Trade: {vt_symbol} {trade.vt_orderid} {trade.direction} "
+            f"Trade: {symbol} {trade.vt_orderid} {trade.direction} "
             f"{trade.offset} {trade.volume}@{trade.price}, pos: {current_pos}"
         )
 
@@ -230,19 +230,19 @@ def run_backtesting(
 
     # 2 设置引擎参数
     symbols = ["SOL-USDT.LOCAL", "BTC-USDT.LOCAL"]
-    
-    # 设置合约大小和价格跳动
-    sizes = {symbol: 1 for symbol in symbols}
-    priceticks = {symbol: 0.001 for symbol in symbols}
-    
+
+    # # 设置合约大小和价格跳动
+    # sizes = {symbol: 1 for symbol in symbols}
+    # priceticks = {symbol: 0.001 for symbol in symbols}
+
     engine.set_parameters(
         symbols=symbols,
         interval="1m",
         start=start,
         end=end,
-        capital=1_000_000,  # 明确设置资金为100万
-        sizes=sizes,        # 设置合约大小
-        priceticks=priceticks  # 设置最小价格变动
+        # capital=1_000_000,  # 明确设置资金为100万
+        # sizes=sizes,        # 设置合约大小
+        # priceticks=priceticks  # 设置最小价格变动
     )
     # 3 添加策略
     engine.add_strategy(
@@ -258,13 +258,13 @@ def run_backtesting(
     # 为SOL-USDT添加数据
     engine.add_data.csv(
         data_path="data/SOL-USDT_LOCAL_1m.csv",
-        symbol_name="SOL-USDT",  
+        symbol_name="SOL-USDT",
     )
 
     # 为BTC-USDT添加数据
     engine.add_data.csv(
         data_path="data/BTC-USDT_LOCAL_1m.csv",
-        symbol_name="BTC-USDT",  
+        symbol_name="BTC-USDT",
     )
 
     # 5 运行回测
@@ -273,10 +273,10 @@ def run_backtesting(
     # 6 计算和输出结果
     engine.calculate_result()
     stats = engine.calculate_statistics()
-    
+
     # 打印统计结果字典键
     print(f"统计结果字典键: {list(stats.keys())}")
-    
+
     # 7 显示图表 - 添加条件判断，仅当有交易数据时才尝试显示图表
     if len(engine.trades) > 0:
         try:
