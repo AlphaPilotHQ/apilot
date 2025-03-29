@@ -5,13 +5,16 @@
 """
 
 import traceback
+from collections.abc import Callable
 from datetime import date, datetime, timedelta
-from functools import lru_cache
-from typing import Callable, Dict, List, Type, Union
 
-import numpy as np
-import pandas as pd
 from pandas import DataFrame
+
+from apilot.analysis.performance import (
+    DailyResult,
+    PerformanceCalculator,
+    calculate_statistics,
+)
 from apilot.core.constant import (
     INTERVAL_DELTA_MAP,
     BacktestingMode,
@@ -22,20 +25,23 @@ from apilot.core.constant import (
     Offset,
     Status,
 )
-from apilot.core.database import get_database
 from apilot.core.object import (
     BarData,
     OrderData,
     TickData,
     TradeData,
 )
-from apilot.core.utility import extract_symbol, round_to
+from apilot.core.utility import round_to
 from apilot.datafeed.data_manager import DataManager
 from apilot.optimizer import OptimizationSetting, run_ga_optimization
+from apilot.plotting.chart import plot_backtest_results
 from apilot.strategy.template import CtaTemplate
 from apilot.utils.logger import get_logger, set_level
-from apilot.plotting.chart import plot_backtest_results
-from apilot.analysis.performance import DailyResult, PerformanceCalculator, calculate_statistics
+
+# 获取日志记录器
+logger = get_logger("BacktestEngine")
+set_level("debug", "BacktestEngine")
+
 
 # 回测默认设置
 BACKTEST_CONFIG = {
@@ -51,11 +57,6 @@ BACKTEST_CONFIG = {
 # # 从JSON文件加载配置
 # json_config = load_json(SETTING_FILENAME)
 
-# 获取回测专用日志器
-logger = get_logger("backtest")
-# 设置为INFO级别，减少调试信息输出
-set_level("info", "backtest")
-
 
 class BacktestingEngine:
     engine_type: EngineType = EngineType.BACKTESTING
@@ -66,42 +67,42 @@ class BacktestingEngine:
         初始化回测引擎
         """
         self.main_engine = main_engine
-        self.symbols: List[str] = []  # Full trading symbols (e.g. "BTC.BINANCE")
-        self.exchanges: Dict[str, Exchange] = {}  # 可选缓存，加速访问
+        self.symbols: list[str] = []  # Full trading symbols (e.g. "BTC.BINANCE")
+        self.exchanges: dict[str, Exchange] = {}  # 可选缓存,加速访问
         self.start: datetime = None
         self.end: datetime = None
-        self.sizes: Dict[str, float] = {}
-        self.priceticks: Dict[str, float] = {}
+        self.sizes: dict[str, float] | None = None
+        self.priceticks: dict[str, float] | None = None
         self.capital: int = 1_000_000
         self.annual_days: int = 240
         self.mode: BacktestingMode = BacktestingMode.BAR
 
-        self.strategy_class: Type[CtaTemplate] = None
+        self.strategy_class: type[CtaTemplate] = None
         self.strategy: CtaTemplate = None
         self.tick: TickData = None
-        self.bars: Dict[str, BarData] = {}
+        self.bars: dict[str, BarData] = {}
         self.datetime: datetime = None
 
         self.interval: Interval = None
         self.days: int = 0
         self.callback: Callable = None
-        self.history_data = {}  # 使用字典来存储历史数据
-        self.dts: List[datetime] = []
+        self.history_data = {}
+        self.dts: list[datetime] = []
 
         self.limit_order_count: int = 0
-        self.limit_orders: Dict[str, OrderData] = {}
-        self.active_limit_orders: Dict[str, OrderData] = {}
+        self.limit_orders: dict[str, OrderData] = {}
+        self.active_limit_orders: dict[str, OrderData] = {}
 
         self.trade_count: int = 0
-        self.trades: Dict[str, TradeData] = {}
+        self.trades: dict[str, TradeData] = {}
 
         self.logs: list = []
 
-        self.daily_results: Dict[date, DailyResult] = {}
+        self.daily_results: dict[date, DailyResult] = {}
         self.daily_df: DataFrame = None
 
         # 添加数据管理器
-        self.add_data = DataManager(self)
+        self.data_manager = DataManager(self)  # 数据管理器实例
 
     def clear_data(self) -> None:
         """
@@ -124,13 +125,13 @@ class BacktestingEngine:
 
     def set_parameters(
         self,
-        symbols: List[str],
+        symbols: list[str],
         interval: Interval,
         start: datetime,
-        sizes: Dict[str, float] = None,
-        priceticks: Dict[str, float] = None,
+        sizes: dict[str, float] | None = None,
+        priceticks: dict[str, float] | None = None,
         capital: int = 0,
-        end: datetime = None,
+        end: datetime | None = None,
         mode: BacktestingMode = BacktestingMode.BAR,
         annual_days: int = 240,
     ) -> None:
@@ -140,13 +141,14 @@ class BacktestingEngine:
         self.mode = mode
         self.symbols = symbols
         self.interval = Interval(interval)
-        self.sizes = sizes or {}
-        self.priceticks = priceticks or {}
+        self.sizes = sizes
+        self.priceticks = priceticks
         self.start = start
 
         # 缓存交易所对象以提高性能
         for symbol in symbols:
             from apilot.utils import get_exchange
+
             self.exchanges[symbol] = get_exchange(symbol)
 
         self.capital = capital
@@ -157,10 +159,10 @@ class BacktestingEngine:
         self.end = end.replace(hour=23, minute=59, second=59)
 
         if self.start >= self.end:
-            logger.warning(f"错误：起始日期({self.start})必须小于结束日期({self.end})")
+            logger.warning(f"错误:起始日期({self.start})必须小于结束日期({self.end})")
 
     def add_strategy(
-        self, strategy_class: Type[CtaTemplate], setting: dict = None
+        self, strategy_class: type[CtaTemplate], setting: dict | None = None
     ) -> None:
         """
         添加策略
@@ -182,8 +184,8 @@ class BacktestingEngine:
         day_count: int = 0
         ix: int = 0
 
-        logger.debug(f"准备初始化，时间点数量: {len(self.dts)}")
-        for ix, dt in enumerate(self.dts):
+        logger.debug(f"准备初始化,时间点数量: {len(self.dts)}")
+        for _ix, dt in enumerate(self.dts):
             if self.datetime and dt.day != self.datetime.day:
                 day_count += 1
                 if day_count >= self.days:
@@ -193,19 +195,19 @@ class BacktestingEngine:
                 logger.debug(f"初始化阶段处理时间点: {dt}")
                 self.new_bars(dt)
             except Exception as e:
-                logger.error(f"触发异常，回测终止: {e}")
+                logger.error(f"触发异常,回测终止: {e}")
                 logger.error(traceback.format_exc())
                 return
 
         self.strategy.inited = True
-        logger.info("策略初始化结束，处理了 {ix} 个时间点")
+        logger.info("策略初始化结束,处理了 {ix} 个时间点")
 
         self.strategy.on_start()
         self.strategy.trading = True
         logger.info("开始回放历史数据")
 
         # 使用剩余历史数据进行策略回测
-        logger.debug(f"开始回测阶段，起始索引: {ix}, 结束索引: {len(self.dts)}")
+        logger.debug(f"开始回测阶段,起始索引: {ix}, 结束索引: {len(self.dts)}")
         tick_count = 0
         for dt in self.dts[ix:]:
             try:
@@ -216,7 +218,7 @@ class BacktestingEngine:
                     )
                 self.new_bars(dt)
             except Exception as e:
-                logger.error(f"触发异常，回测终止: {e}")
+                logger.error(f"触发异常,回测终止: {e}")
                 logger.error(traceback.format_exc())
                 return
 
@@ -243,7 +245,7 @@ class BacktestingEngine:
         # 更新策略的多个bar数据
         self.bars = bars
 
-        logger.debug(f"开始撮合订单，活跃订单数: {len(self.active_limit_orders)}")
+        logger.debug(f"开始撮合订单,活跃订单数: {len(self.active_limit_orders)}")
         self.cross_limit_order()
         logger.debug("调用策略on_bars处理K线数据")
         self.strategy.on_bars(bars)
@@ -257,7 +259,9 @@ class BacktestingEngine:
         计算回测结果
         """
         calculator = PerformanceCalculator(self.capital, self.annual_days)
-        self.daily_df = calculator.calculate_result(self.trades, self.daily_results, self.sizes)
+        self.daily_df = calculator.calculate_result(
+            self.trades, self.daily_results, self.sizes
+        )
         return self.daily_df
 
     def calculate_statistics(self, df: DataFrame = None, output=True) -> dict:
@@ -267,8 +271,10 @@ class BacktestingEngine:
         if df is None:
             df = self.daily_df
 
-        # 调用底层函数，现在它返回(stats, df)元组
-        stats, updated_df = calculate_statistics(df, self.capital, self.annual_days, output)
+        # 调用底层函数,现在它返回(stats, df)元组
+        stats, updated_df = calculate_statistics(
+            df, self.capital, self.annual_days, output
+        )
 
         # 保存更新后的DataFrame用于图表展示
         if updated_df is not None and not updated_df.empty:
@@ -391,7 +397,7 @@ class BacktestingEngine:
 
             # 确定成交价格和持仓变化
             trade_price = buy_price if buy_cross else sell_price
-            pos_change = order.volume if buy_cross else -order.volume
+            # pos_change = order.volume if buy_cross else -order.volume
 
             # 创建成交对象
             trade = TradeData(
@@ -424,49 +430,75 @@ class BacktestingEngine:
         interval: Interval,
         callback: Callable,
         use_database: bool = False,
-    ) -> List[BarData]:
+    ) -> list[BarData]:
         """
         加载K线数据
+
+        参数:
+            symbol: 交易对,形式为 "基础符号.交易所"
+            days: 加载的天数
+            interval: K线周期
+            callback: 回调函数
+            use_database: 是否使用数据库(保留兼容性,已不再使用)
+
+        返回:
+            BarData对象列表
         """
         logger.debug(f"加载K线数据: {symbol}, 天数: {days}")
 
+        # 计算初始日期范围
         init_end = self.start - INTERVAL_DELTA_MAP[interval]
         init_start = self.start - timedelta(days=days)
 
+        # 从符号中提取基础符号和交易所
         from apilot.utils import split_symbol
+
         base_symbol, exchange_str = split_symbol(symbol)
         self.exchanges[symbol] = Exchange(exchange_str)
 
-        bars: List[BarData] = load_bar_data(
-            symbol,
-            exchange_str,
-            interval,
-            init_start,
-            init_end,
+        # 使用数据管理器加载数据
+        bars: list[BarData] = self.data_manager.load_bar_data(
+            symbol=base_symbol,
+            exchange=exchange_str,
+            interval=interval,
+            start=init_start,
+            end=init_end,
             gateway_name=self.gateway_name,
         )
 
         return bars
 
-    def load_tick(
-        self, symbol: str, days: int, callback: Callable
-    ) -> List[TickData]:
+    def load_tick(self, symbol: str, days: int, callback: Callable) -> list[TickData]:
         """
         加载tick数据
+
+        参数:
+            symbol: 交易对,形式为 "基础符号.交易所"
+            days: 加载的天数
+            callback: 回调函数
+
+        返回:
+            TickData对象列表
         """
-        init_end = self.start - timedelta(seconds=1)
+        logger.debug(f"加载Tick数据: {symbol}, 天数: {days}")
+
+        # 计算初始日期范围
+        init_end = self.start - timedelta(minutes=1)
         init_start = self.start - timedelta(days=days)
 
+        # 从符号中提取基础符号和交易所
         from apilot.utils import split_symbol
+
         base_symbol, exchange_str = split_symbol(symbol)
         self.exchanges[symbol] = Exchange(exchange_str)
 
-        ticks: List[TickData] = load_tick_data(
-            symbol,
-            exchange_str,
-            init_start,
-            init_end,
-            database_settings=getattr(self, "database_settings", None),
+        # 使用数据管理器加载数据
+        ticks: list[TickData] = self.data_manager.load_tick_data(
+            symbol=base_symbol,
+            exchange=exchange_str,
+            start=init_start,
+            end=init_end,
+            gateway_name=self.gateway_name,
         )
 
         return ticks
@@ -487,9 +519,7 @@ class BacktestingEngine:
         """
         price_tick = self.priceticks.get(symbol, 0.001)
         price: float = round_to(price, price_tick)
-        orderid: str = self.send_limit_order(
-            symbol, direction, offset, price, volume
-        )
+        orderid: str = self.send_limit_order(symbol, direction, offset, price, volume)
         return [orderid]
 
     def send_limit_order(
@@ -568,7 +598,7 @@ class BacktestingEngine:
         """
         获取合约大小
         """
-        # 如果交易对不在sizes字典中，则返回默认值1
+        # 如果交易对不在sizes字典中,则返回默认值1
         return self.sizes.get(symbol, 1)
 
     def get_all_trades(self) -> list:
@@ -589,114 +619,4 @@ class BacktestingEngine:
         """
         return list(self.daily_results.values())
 
-@lru_cache(maxsize=1024)
-def load_bar_data(
-    symbol: str,
-    exchange: Union[Exchange, str],
-    interval: Interval,
-    start: datetime,
-    end: datetime,
-    gateway_name: str = ""
-) -> List[BarData]:
-    """
-    加载K线数据
-    """
 
-    # 获取数据库实例
-    database = get_database()
-
-    # 设置为索引模式并使用默认索引映射
-    if hasattr(database, "set_index_mapping"):
-        database.set_index_mapping(
-            datetime=0,
-            open=1,
-            high=2,
-            low=3,
-            close=4,
-            volume=5
-        )
-
-    # 加载数据
-    return database.load_bar_data(
-        symbol=symbol,
-        exchange=exchange,
-        interval=interval,
-        start=start,
-        end=end
-    )
-
-
-@lru_cache(maxsize=1024)
-def load_tick_data(
-    symbol: str,
-    exchange: Union[Exchange, str],
-    start: datetime,
-    end: datetime,
-    database_settings: dict = None,
-) -> List[TickData]:
-    """
-    加载Tick数据
-
-    参数：
-        symbol: 交易对名称
-        exchange: 交易所或交易所名称字符串
-        start: 开始时间
-        end: 结束时间
-        database_settings: 数据库设置
-
-    返回：
-        List[TickData]: Tick数据列表
-    """
-    # 获取数据库实例
-    database = get_database()
-
-    # 加载数据
-    ticks = database.load_tick_data(
-        symbol=symbol,
-        exchange=exchange,
-        start=start,
-        end=end
-    )
-
-    return ticks
-
-
-def optimize(
-    target_name: str,
-    strategy_class: Type[CtaTemplate],
-    symbols: List[str],
-    interval: str,
-    start: datetime,
-    end: datetime,
-    sizes: Dict[str, float],
-    priceticks: Dict[str, float],
-    capital: int,
-    setting: dict,
-    optimization_setting: OptimizationSetting,
-    use_ga: bool = True,
-    max_workers: int = None,
-) -> DataFrame:
-    """
-    多币种回测优化
-    """
-    engine = BacktestingEngine()
-
-    engine.set_parameters(
-        symbols=symbols,
-        interval=interval,
-        start=start,
-        end=end,
-        sizes=sizes,
-        priceticks=priceticks,
-        capital=capital,
-    )
-
-    engine.add_strategy(strategy_class, setting)
-
-    result = run_ga_optimization(
-        target_name=target_name,
-        evaluator=engine,
-        optimization_setting=optimization_setting,
-        max_workers=max_workers,
-    )
-    return result
