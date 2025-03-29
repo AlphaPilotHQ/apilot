@@ -33,7 +33,6 @@ from apilot.core.object import (
 )
 from apilot.core.utility import round_to
 from apilot.datafeed.data_manager import DataManager
-from apilot.optimizer import OptimizationSetting, run_ga_optimization
 from apilot.plotting.chart import plot_backtest_results
 from apilot.strategy.template import CtaTemplate
 from apilot.utils.logger import get_logger, set_level

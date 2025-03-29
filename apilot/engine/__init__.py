@@ -14,9 +14,9 @@
 
 # 定义公共API
 __all__ = [
-    "BacktestingEngine",
     "EVENT_LOG",
     "EVENT_TIMER",
+    "BacktestingEngine",
     "Event",
     "EventType",
     "OmsEngine",
