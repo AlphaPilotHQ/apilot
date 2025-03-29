@@ -3,6 +3,7 @@ import os
 import sys
 from functools import wraps
 from logging.handlers import TimedRotatingFileHandler
+from typing import ClassVar
 
 from colorama import Fore, Style, init
 
@@ -11,8 +12,9 @@ init(autoreset=True)
 LOG_DIR = "logs"
 os.makedirs(LOG_DIR, exist_ok=True)
 
+
 class CustomFormatter(logging.Formatter):
-    FORMATS = {
+    FORMATS: ClassVar[dict[int, tuple[str, str]]] = {
         logging.DEBUG: (Fore.CYAN, " "),
         logging.INFO: (Fore.GREEN, " "),
         logging.WARNING: (Fore.YELLOW, " "),
@@ -27,9 +29,9 @@ class CustomFormatter(logging.Formatter):
 
 
 class CustomLogger:
-    _instances = {}
+    _instances: ClassVar[dict[str, "CustomLogger"]] = {}
 
-    def __new__(cls, name='apilot'):
+    def __new__(cls, name="apilot"):
         if name not in cls._instances:
             instance = super().__new__(cls)
             instance._initialize_logger(name)
@@ -44,28 +46,30 @@ class CustomLogger:
         for handler in self.logger.handlers[:]:
             self.logger.removeHandler(handler)
 
-        # 日志输出到文件（每天自动创建新文件）
+        # 日志输出到文件(每天自动创建新文件)
         file_handler = TimedRotatingFileHandler(
-            os.path.join(LOG_DIR, f"{name}.log"),
-            when="midnight",
-            backupCount=7
+            os.path.join(LOG_DIR, f"{name}.log"), when="midnight", backupCount=7
         )
-        file_handler.setFormatter(logging.Formatter(
-            "%(asctime)s [%(levelname)s] - %(message)s"))
+        file_handler.setFormatter(
+            logging.Formatter("%(asctime)s [%(levelname)s] - %(message)s")
+        )
 
-        # 控制台日志处理器，带颜色格式化
+        # 控制台日志处理器,带颜色格式化
         console_handler = logging.StreamHandler(sys.stdout)
-        console_handler.setFormatter(CustomFormatter(
-            "%(asctime)s [%(levelname)s] - %(message)s"))
+        console_handler.setFormatter(
+            CustomFormatter("%(asctime)s [%(levelname)s] - %(message)s")
+        )
 
         self.logger.addHandler(file_handler)
         self.logger.addHandler(console_handler)
 
 
 def get_logger(name=None) -> logging.Logger:
-    return CustomLogger(name or 'apilot').logger
+    return CustomLogger(name or "apilot").logger
+
 
 logger = get_logger()
+
 
 def set_level(level_name, name=None):
     level_map = {
@@ -73,10 +77,11 @@ def set_level(level_name, name=None):
         "info": logging.INFO,
         "warning": logging.WARNING,
         "error": logging.ERROR,
-        "critical": logging.CRITICAL
+        "critical": logging.CRITICAL,
     }
     level = level_map.get(level_name.lower(), logging.INFO)
     get_logger(name).setLevel(level)
+
 
 def log_exceptions(logger_name=None):
     def decorator(func):
@@ -88,12 +93,15 @@ def log_exceptions(logger_name=None):
                 logger = get_logger(logger_name)
                 logger.exception(f"函数 {func.__name__} 出错: {e}")
                 raise
+
         return wrapper
+
     return decorator
 
-if __name__ == '__main__':
-    logger.debug("提示信息，青色")
-    logger.info("提示信息，绿色")
-    logger.warning("警告信息，黄色")
-    logger.error("错误信息，红色")
-    logger.critical("重要提示，深红色")
+
+if __name__ == "__main__":
+    logger.debug("提示信息,青色")
+    logger.info("提示信息,绿色")
+    logger.warning("警告信息,黄色")
+    logger.error("错误信息,红色")
+    logger.critical("重要提示,深红色")

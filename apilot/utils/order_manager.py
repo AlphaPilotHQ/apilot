@@ -5,8 +5,8 @@ This module provides tools for managing orders and order IDs
 in trading systems.
 """
 
+from collections.abc import Callable
 from copy import copy
-from typing import Callable, Dict, Optional
 
 from apilot.core.gateway import BaseGateway
 from apilot.core.object import CancelRequest, OrderData
@@ -15,7 +15,7 @@ from apilot.core.object import CancelRequest, OrderData
 class LocalOrderManager:
     """
     Management tool to support use local order id for trading.
-    
+
     This utility helps manage the mapping between local order IDs and
     exchange/broker system order IDs. It provides buffering capability
     for handling asynchronous order operations.
@@ -24,7 +24,7 @@ class LocalOrderManager:
     def __init__(self, gateway: BaseGateway, order_prefix: str = "") -> None:
         """
         Initialize order manager.
-        
+
         Args:
             gateway: Trading gateway instance
             order_prefix: Prefix for local order IDs
@@ -34,20 +34,20 @@ class LocalOrderManager:
         # For generating local orderid
         self.order_prefix = order_prefix
         self.order_count: int = 0
-        self.orders: Dict[str, OrderData] = {}        # local_orderid: order
+        self.orders: dict[str, OrderData] = {}  # local_orderid: order
 
         # Map between local and system orderid
-        self.local_sys_orderid_map: Dict[str, str] = {}
-        self.sys_local_orderid_map: Dict[str, str] = {}
+        self.local_sys_orderid_map: dict[str, str] = {}
+        self.sys_local_orderid_map: dict[str, str] = {}
 
         # Push order data buf
-        self.push_data_buf: Dict[str, Dict] = {}  # sys_orderid: data
+        self.push_data_buf: dict[str, dict] = {}  # sys_orderid: data
 
         # Callback for processing push order data
         self.push_data_callback: Callable = None
 
         # Cancel request buf
-        self.cancel_request_buf: Dict[str, CancelRequest] = {}    # local_orderid: req
+        self.cancel_request_buf: dict[str, CancelRequest] = {}  # local_orderid: req
 
         # Hook cancel order function
         self._cancel_order: Callable = gateway.cancel_order
@@ -107,13 +107,13 @@ class LocalOrderManager:
         """
         self.push_data_buf[sys_orderid] = data
 
-    def get_order_with_sys_orderid(self, sys_orderid: str) -> Optional[OrderData]:
+    def get_order_with_sys_orderid(self, sys_orderid: str) -> OrderData | None:
         """
         Get order by system order ID.
-        
+
         Args:
             sys_orderid: System order ID
-            
+
         Returns:
             Optional[OrderData]: Order data or None if not found
         """
@@ -126,10 +126,10 @@ class LocalOrderManager:
     def get_order_with_local_orderid(self, local_orderid: str) -> OrderData:
         """
         Get order by local order ID.
-        
+
         Args:
             local_orderid: Local order ID
-            
+
         Returns:
             OrderData: Order data
         """
@@ -139,7 +139,7 @@ class LocalOrderManager:
     def on_order(self, order: OrderData) -> None:
         """
         Keep an order buf before pushing it to gateway.
-        
+
         Args:
             order: Order data
         """
@@ -149,10 +149,10 @@ class LocalOrderManager:
     def cancel_order(self, req: CancelRequest) -> None:
         """
         Cancel order with request.
-        
+
         Handles cases where system order ID is not yet available
         by buffering the cancel request.
-        
+
         Args:
             req: Cancel request
         """
@@ -166,7 +166,7 @@ class LocalOrderManager:
     def check_cancel_request(self, local_orderid: str) -> None:
         """
         Check if there's pending cancel request for an order ID.
-        
+
         Args:
             local_orderid: Local order ID
         """
