@@ -618,5 +618,3 @@ class BacktestingEngine:
         获取所有日结果
         """
         return list(self.daily_results.values())
-
-
