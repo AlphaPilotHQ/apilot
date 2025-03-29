@@ -3,7 +3,7 @@ VeighNa Binance Gateway using CCXT
 """
 
 from datetime import datetime
-from typing import List
+from typing import Any, ClassVar
 
 import ccxt
 
@@ -32,10 +32,7 @@ from apilot.core.object import (
 EXCHANGE_BINANCE = Exchange.BINANCE
 
 # Maps of CCXT orderType, orderStatus to VeighNa constants
-ORDERTYPE_BINANCE2VT = {
-    "limit": OrderType.LIMIT,
-    "market": OrderType.MARKET
-}
+ORDERTYPE_BINANCE2VT = {"limit": OrderType.LIMIT, "market": OrderType.MARKET}
 ORDERTYPE_VT2BINANCE = {v: k for k, v in ORDERTYPE_BINANCE2VT.items()}
 
 STATUS_BINANCE2VT = {
@@ -65,15 +62,16 @@ class BinanceGateway(BaseGateway):
     """
     VeighNa gateway for Binance connection using CCXT.
     """
+
     default_name = "BINANCE"
-    default_setting = {
+    default_setting: ClassVar[dict[str, Any]] = {
         "API Key": "",
         "Secret Key": "",
         "Session Number": 3,
         "Proxy Host": "",
         "Proxy Port": 0,
     }
-    exchanges = [Exchange.BINANCE]
+    exchanges: ClassVar[list[Exchange]] = [Exchange.BINANCE]
 
     def __init__(self, event_engine: EventEngine, gateway_name: str = "BINANCE"):
         """Constructor"""
@@ -124,7 +122,7 @@ class BinanceGateway(BaseGateway):
         """Query positions"""
         self.rest_api.query_position()
 
-    def query_history(self, req: HistoryRequest) -> List[BarData]:
+    def query_history(self, req: HistoryRequest) -> list[BarData]:
         """Query history data"""
         return self.rest_api.query_history(req)
 
@@ -174,9 +172,9 @@ class BinanceRestApi:
         self.proxy_port = proxy_port
 
         # Create CCXT exchange instance
-        exchange_class = getattr(ccxt, "binance")
+        exchange_class = ccxt.binance
         options = {}
-        
+
         # Set proxy
         if proxy_host and proxy_port:
             self.gateway.write_log(f"使用代理: {proxy_host}:{proxy_port}")
@@ -192,14 +190,14 @@ class BinanceRestApi:
                 "options": options,
                 "proxies": {
                     "http": f"http://{proxy_host}:{proxy_port}",
-                    "https": f"http://{proxy_host}:{proxy_port}"
-                }
+                    "https": f"http://{proxy_host}:{proxy_port}",
+                },
             }
         else:
             self.exchange_kwargs = {
                 "apiKey": api_key,
                 "secret": secret_key,
-                "options": options
+                "options": options,
             }
 
         # Create the exchange instance
@@ -221,27 +219,27 @@ class BinanceRestApi:
         try:
             self.gateway.write_log("开始初始化Binance接口")
             self.exchange.load_markets()
-            
+
             # Query account and positions
             self.query_account()
             self.query_position()
-            
+
             # Initialize contract info
             self.init_contracts()
-            
+
             self.gateway.write_log("Binance接口初始化成功")
         except Exception as e:
             self.gateway.write_log(f"Binance接口初始化失败: {e}")
-        
+
     def init_contracts(self) -> None:
         """Initialize contract list"""
         for symbol_data in self.exchange.markets.values():
             if not symbol_data["active"]:
                 continue
-                
+
             symbol = symbol_data["symbol"]
             self.contract_symbols.add(symbol)
-            
+
             contract = ContractData(
                 symbol=symbol,
                 exchange=EXCHANGE_BINANCE,
@@ -249,19 +247,21 @@ class BinanceRestApi:
                 product=Product.SPOT,
                 size=1,
                 pricetick=float(symbol_data["precision"]["price"]),
-                min_volume=float(symbol_data.get("limits", {}).get("amount", {}).get("min", 0)),
-                gateway_name=self.gateway_name
+                min_volume=float(
+                    symbol_data.get("limits", {}).get("amount", {}).get("min", 0)
+                ),
+                gateway_name=self.gateway_name,
             )
-            
+
             self.gateway.on_contract(contract)
-            
+
         self.gateway.write_log(f"合约信息查询成功: {len(self.contract_symbols)}个")
 
     def query_account(self) -> None:
         """Query account balance"""
         try:
             self.gateway.write_log("正在获取账户余额信息...")
-            
+
             # 测试代理连接
             try:
                 # 先用一个简单的API调用检查连接
@@ -271,7 +271,7 @@ class BinanceRestApi:
                 self.gateway.write_log(f"连接到Binance API失败: {conn_err}")
                 self.gateway.write_log("请检查代理设置是否正确, 以及代理是否已开启")
                 return
-                
+
             # 获取账户余额
             try:
                 data = self.exchange.fetch_balance()
@@ -280,27 +280,31 @@ class BinanceRestApi:
                 self.gateway.write_log(f"获取账户余额失败: {bal_err}")
                 self.gateway.write_log("请检查API密钥权限是否正确设置")
                 import traceback
+
                 self.gateway.write_log(f"详细错误: {traceback.format_exc()}")
                 return
-            
+
             # Process each currency
             for currency, balance_data in data["total"].items():
                 # Skip zero balances
                 if balance_data == 0:
                     continue
-                
+
                 account = AccountData(
                     accountid=currency,
                     balance=data["total"][currency],
                     frozen=data["total"][currency] - data["free"].get(currency, 0),
-                    gateway_name=self.gateway_name
+                    gateway_name=self.gateway_name,
                 )
-                
+
                 self.gateway.on_account(account)
-                self.gateway.write_log(f"账户 {currency}: 总额={data['total'][currency]}, 可用={data['free'].get(currency, 0)}")
+                self.gateway.write_log(
+                    f"账户 {currency}: 总额={data['total'][currency]}, 可用={data['free'].get(currency, 0)}"
+                )
         except Exception as e:
             self.gateway.write_log(f"账户资金查询失败: {e}")
             import traceback
+
             self.gateway.write_log(f"详细错误堆栈: {traceback.format_exc()}")
 
     def query_position(self) -> None:
@@ -314,17 +318,17 @@ class BinanceRestApi:
             # Generate local orderid
             self.order_count += 1
             local_orderid = f"{self.connect_time}{self.order_count}"
-            
+
             # Convert request to Binance params
             side = "buy" if req.direction == Direction.LONG else "sell"
             ordertype = ORDERTYPE_VT2BINANCE.get(req.type, "")
-            
+
             params = {
                 "symbol": req.symbol,
                 "side": side,
                 "type": ordertype,
             }
-            
+
             # Add price and quantity according to order type
             if req.type == OrderType.LIMIT:
                 params["price"] = str(req.price)
@@ -332,16 +336,16 @@ class BinanceRestApi:
                 params["timeInForce"] = "GTC"
             else:
                 params["quantity"] = str(req.volume)
-            
+
             # Send order via CCXT
             result = self.exchange.create_order(
                 req.symbol,
                 ordertype,
                 side,
                 req.volume,
-                req.price if req.type == OrderType.LIMIT else None
+                req.price if req.type == OrderType.LIMIT else None,
             )
-            
+
             # Store sys orderid and local orderid map
             sys_orderid = result["id"]
             self.orders[local_orderid] = OrderData(
@@ -355,12 +359,12 @@ class BinanceRestApi:
                 traded=0,
                 status=Status.SUBMITTING,
                 gateway_name=self.gateway_name,
-                datetime=datetime.now()
+                datetime=datetime.now(),
             )
-            
+
             LOCAL_SYS_ORDER_ID_MAP[local_orderid] = sys_orderid
             SYS_LOCAL_ORDER_ID_MAP[sys_orderid] = local_orderid
-            
+
             return local_orderid
         except Exception as e:
             self.gateway.write_log(f"委托下单失败: {e}")
@@ -374,7 +378,7 @@ class BinanceRestApi:
             if not sys_orderid:
                 self.gateway.write_log(f"撤单失败: 找不到委托单 {req.orderid}")
                 return
-                
+
             # Cancel order via CCXT
             self.exchange.cancel_order(sys_orderid, req.symbol)
             self.gateway.write_log(f"撤单请求发送成功: {req.orderid}")
@@ -392,7 +396,7 @@ class BinanceRestApi:
         # Currently we use rest API for everything, so we just record the subscription
         self.gateway.write_log(f"订阅行情: {req.symbol}")
 
-    def query_history(self, req: HistoryRequest) -> List[BarData]:
+    def query_history(self, req: HistoryRequest) -> list[BarData]:
         """Query K-line history data"""
         try:
             # Convert VeighNa interval to Binance interval
@@ -400,44 +404,43 @@ class BinanceRestApi:
             if not interval:
                 self.gateway.write_log(f"不支持的K线周期: {req.interval}")
                 return []
-                
+
             # Calculate start time and end time
             # CCXT requires timestamps in milliseconds
-            end_time = int(datetime.now().timestamp() * 1000)
+
+            # 仅使用开始时间, 结束时间暂不使用
             if req.end:
-                end_time = int(req.end.timestamp() * 1000)
-                
+                # 注意: Binance API目前未使用结束时间
+                pass
+
             start_time = None
             if req.start:
                 start_time = int(req.start.timestamp() * 1000)
-                
+
             # Fetch OHLCV data
             data = self.exchange.fetch_ohlcv(
-                req.symbol,
-                interval,
-                since=start_time,
-                limit=1000
+                req.symbol, interval, since=start_time, limit=1000
             )
-            
+
             # Convert to VeighNa BarData
             bars = []
             for row in data:
-                ts, o, h, l, c, v = row
+                ts, open_price, high_price, low_price, close_price, volume = row
                 dt = datetime.fromtimestamp(ts / 1000)
                 bar = BarData(
                     symbol=req.symbol,
                     exchange=EXCHANGE_BINANCE,
                     interval=req.interval,
                     datetime=dt,
-                    open_price=float(o),
-                    high_price=float(h),
-                    low_price=float(l),
-                    close_price=float(c),
-                    volume=float(v),
-                    gateway_name=self.gateway_name
+                    open_price=float(open_price),
+                    high_price=float(high_price),
+                    low_price=float(low_price),
+                    close_price=float(close_price),
+                    volume=float(volume),
+                    gateway_name=self.gateway_name,
                 )
                 bars.append(bar)
-                
+
             return bars
         except Exception as e:
             self.gateway.write_log(f"获取历史数据失败: {e}")
