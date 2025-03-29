@@ -21,7 +21,6 @@ __all__ = [
     "BarData",
     "BarGenerator",
     "ContractData",
-    "CtaTemplate",
     "Direction",
     "Exchange",
     "Interval",
@@ -30,6 +29,7 @@ __all__ = [
     "OptimizationSetting",
     "OrderData",
     "OrderType",
+    "PATemplate",
     "PositionData",
     "Product",
     "Status",
@@ -83,7 +83,7 @@ from .engine.backtest import BacktestingEngine
 from .optimizer import OptimizationSetting, run_ga_optimization
 
 # 导出策略模板
-from .strategy.template import CtaTemplate, TargetPosTemplate
+from .strategy.template import PATemplate, TargetPosTemplate
 
 # 导出日志系统
 from .utils.logger import get_logger, log_exceptions, set_level

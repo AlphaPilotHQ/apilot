@@ -1,36 +1,45 @@
 """
 策略模块
 
-包含各种交易策略的模板和实现,支持CTA策略和目标仓位策略.
+包含各种交易策略的模板和实现,支持PA策略和目标持仓策略.
 
 主要组件:
-- CtaTemplate: CTA策略基类,提供标准的策略框架
-- TargetPosTemplate: 目标仓位策略基类,简化仓位管理
-- 各种示例策略实现,可作为自定义策略的参考
+- PATemplate: PA策略基类,提供标准的策略框架
+- TargetPosTemplate: 目标持仓策略模板,用于管理目标持仓
 
-推荐用法:
-    from apilot.strategy import CtaTemplate
-    # 继承策略基类
+使用示例:
+    from apilot.strategy import PATemplate
 
-    class MyStrategy(CtaTemplate):
-        ...
-"""
+    class MyStrategy(PATemplate):
+        # 定义您的策略
+        pass
 
-# 定义公共API
+默认导出:
 __all__ = [
-    "CtaTemplate",
-    "PairTradingStrategy",
-    "PcpArbitrageStrategy",
-    "PortfolioBollChannelStrategy",
+    "PATemplate",
     "TargetPosTemplate",
-    "TrendFollowingStrategy",
 ]
 
+推荐用法:
+    from apilot.strategy import PATemplate
+    # 继承策略基类
+
+    class MyStrategy(PATemplate):
+        ...
+
+"""
+
 # 从模板导入基类
-from .template import CtaTemplate, TargetPosTemplate
+from .template import PATemplate, TargetPosTemplate
 
 # 导入示例策略
 # from .examples.pair_trading_strategy import PairTradingStrategy
 # from .examples.pcp_arbitrage_strategy import PcpArbitrageStrategy
 # from .examples.portfolio_boll_channel_strategy import PortfolioBollChannelStrategy
 # from .examples.trend_following_strategy import TrendFollowingStrategy
+
+# 定义公共API
+__all__ = [
+    "PATemplate",
+    "TargetPosTemplate",
+]
