@@ -1,11 +1,10 @@
 """
 数据管理类
 
-负责管理数据源，提供多种数据源配置方法，包括CSV和MongoDB。
+负责管理数据源, 提供多种数据源配置方法, 包括CSV和MongoDB。
 """
 
 import logging
-from typing import Union, Optional
 
 from apilot.core.constant import Exchange, Interval
 from apilot.core.object import BarData, TickData
@@ -18,7 +17,7 @@ class DataManager:
     """
     数据管理类
 
-    提供统一的数据访问接口，支持多种数据源配置。
+    提供统一的数据访问接口, 支持多种数据源配置。
     """
 
     def __init__(self, engine=None):
@@ -26,7 +25,7 @@ class DataManager:
         初始化数据管理器
 
         参数:
-            engine: 回测引擎实例，可选
+            engine: 回测引擎实例, 可选
         """
         from apilot.core.database import get_database
 
@@ -38,7 +37,7 @@ class DataManager:
         设置当前使用的数据库
 
         参数:
-            database: 数据库实例，必须是BaseDatabase的子类
+            database: 数据库实例, 必须是BaseDatabase的子类
         """
         self.database = database
 
@@ -140,7 +139,7 @@ class DataManager:
     def load_bar_data(
         self,
         symbol: str,
-        exchange: Union[Exchange, str],
+        exchange: Exchange | str,
         interval: Interval,
         start,
         end,
@@ -187,20 +186,16 @@ class DataManager:
         return bars
 
     def load_tick_data(
-        self, symbol: str, exchange: Union[Exchange, str], start, end, **kwargs
+        self, symbol: str, exchange: Exchange | str, start, end, **kwargs
     ) -> list[TickData]:
         """
         统一的Tick数据加载方法
 
         参数:
-            symbol: 交易对名称
-            exchange: 交易所, 可以是Exchange枚举或字符串
+            symbol: 交易对代码
+            exchange: 交易所
             start: 开始时间
             end: 结束时间
-            **kwargs: 其他参数, 如gateway_name等
-
-        返回:
-            TickData对象列表
         """
         # 提取基本符号和交易所
         if "." in symbol and not isinstance(exchange, Exchange):
