@@ -23,8 +23,7 @@ __all__ = [
 ]
 
 # 导入回测相关引擎
-# 从策略模块导入策略模板 (为保持向后兼容)
-from apilot.strategy.template import CtaTemplate, TargetPosTemplate
+from apilot.strategy.template import PATemplate, TargetPosTemplate
 
 from .backtest import BacktestingEngine
 

@@ -34,7 +34,7 @@ from apilot.core.object import (
 from apilot.core.utility import round_to
 from apilot.datafeed.data_manager import DataManager
 from apilot.plotting.chart import plot_backtest_results
-from apilot.strategy.template import CtaTemplate
+from apilot.strategy.template import PATemplate
 from apilot.utils.logger import get_logger, set_level
 
 # 获取日志记录器
@@ -76,8 +76,8 @@ class BacktestingEngine:
         self.annual_days: int = 240
         self.mode: BacktestingMode = BacktestingMode.BAR
 
-        self.strategy_class: type[CtaTemplate] = None
-        self.strategy: CtaTemplate = None
+        self.strategy_class: type[PATemplate] = None
+        self.strategy: PATemplate = None
         self.tick: TickData = None
         self.bars: dict[str, BarData] = {}
         self.datetime: datetime = None
@@ -161,7 +161,7 @@ class BacktestingEngine:
             logger.warning(f"错误:起始日期({self.start})必须小于结束日期({self.end})")
 
     def add_strategy(
-        self, strategy_class: type[CtaTemplate], setting: dict | None = None
+        self, strategy_class: type[PATemplate], setting: dict | None = None
     ) -> None:
         """
         添加策略
@@ -504,7 +504,7 @@ class BacktestingEngine:
 
     def send_order(
         self,
-        strategy: CtaTemplate,
+        strategy: PATemplate,
         symbol: str,
         direction: Direction,
         offset: Offset,
@@ -556,7 +556,7 @@ class BacktestingEngine:
         logger.debug(f"订单已创建: {order.orderid}")
         return order.orderid
 
-    def cancel_order(self, strategy: CtaTemplate, orderid: str) -> None:
+    def cancel_order(self, strategy: PATemplate, orderid: str) -> None:
         """
         撤销订单
         """
@@ -567,7 +567,7 @@ class BacktestingEngine:
         order.status = Status.CANCELLED
         self.strategy.on_order(order)
 
-    def cancel_all(self, strategy: CtaTemplate) -> None:
+    def cancel_all(self, strategy: PATemplate) -> None:
         """
         撤销所有订单
         """
@@ -575,7 +575,7 @@ class BacktestingEngine:
         for orderid in orderids:
             self.cancel_order(strategy, orderid)
 
-    def sync_strategy_data(self, strategy: CtaTemplate) -> None:
+    def sync_strategy_data(self, strategy: PATemplate) -> None:
         """
         同步策略数据
         """
@@ -587,13 +587,13 @@ class BacktestingEngine:
         """
         return self.engine_type
 
-    def get_pricetick(self, strategy: CtaTemplate, symbol: str) -> float:
+    def get_pricetick(self, strategy: PATemplate, symbol: str) -> float:
         """
         获取价格Tick
         """
         return self.priceticks.get(symbol, 0.0001)
 
-    def get_size(self, strategy: CtaTemplate, symbol: str) -> int:
+    def get_size(self, strategy: PATemplate, symbol: str) -> int:
         """
         获取合约大小
         """

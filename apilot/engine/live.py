@@ -45,17 +45,17 @@ from apilot.core import (
     save_json,
 )
 from apilot.core.database import BaseDatabase, get_database
-from apilot.strategy import CtaTemplate
+from apilot.strategy import PATemplate
 from apilot.utils.logger import get_logger
 
 # 模块级初始化日志器
 logger = get_logger("LiveTrading")
 
 
-class CtaEngine(BaseEngine):
+class PAEngine(BaseEngine):
     engine_type: EngineType = EngineType.LIVE
-    setting_filename: str = "cta_strategy_setting.json"
-    data_filename: str = "cta_strategy_data.json"
+    setting_filename: str = "pa_strategy_setting.json"
+    data_filename: str = "pa_strategy_data.json"
 
     def __init__(self, main_engine: MainEngine, event_engine: EventEngine) -> None:
         super().__init__(main_engine, event_engine, APP_NAME)
@@ -80,7 +80,7 @@ class CtaEngine(BaseEngine):
         # 脚本环境中不需要动态加载策略类
         # self.load_strategy_class()
         self.register_event()
-        logger.info(f"[{APP_NAME}] CTA策略引擎初始化成功")
+        logger.info(f"[{APP_NAME}] PA策略引擎初始化成功")
 
     def close(self) -> None:
         self.stop_all_strategies()
@@ -127,9 +127,7 @@ class CtaEngine(BaseEngine):
             return
         self.tradeids.add(trade.tradeid)
 
-        strategy: CtaTemplate | None = self.orderid_strategy_map.get(
-            trade.orderid, None
-        )
+        strategy: PATemplate | None = self.orderid_strategy_map.get(trade.orderid, None)
         if not strategy:
             return
 
@@ -147,7 +145,7 @@ class CtaEngine(BaseEngine):
 
     def send_server_order(
         self,
-        strategy: CtaTemplate,
+        strategy: PATemplate,
         contract: ContractData,
         direction: Direction,
         offset: Offset,
@@ -195,7 +193,7 @@ class CtaEngine(BaseEngine):
 
     def send_limit_order(
         self,
-        strategy: CtaTemplate,
+        strategy: PATemplate,
         contract: ContractData,
         direction: Direction,
         offset: Offset,
@@ -209,7 +207,7 @@ class CtaEngine(BaseEngine):
 
     def send_order(
         self,
-        strategy: CtaTemplate,
+        strategy: PATemplate,
         direction: Direction,
         offset: Offset,
         price: float,
@@ -250,13 +248,13 @@ class CtaEngine(BaseEngine):
         req: CancelRequest = order.create_cancel_request()
         self.main_engine.cancel_order(req, order.gateway_name)
 
-    def cancel_order(self, strategy: CtaTemplate, orderid: str) -> None:
+    def cancel_order(self, strategy: PATemplate, orderid: str) -> None:
         """
         取消策略委托
         """
         self.cancel_server_order(orderid, strategy)
 
-    def cancel_all(self, strategy: CtaTemplate) -> None:
+    def cancel_all(self, strategy: PATemplate) -> None:
         orderids: set = self.strategy_orderid_map[strategy.strategy_name]
         if not orderids:
             return
@@ -267,7 +265,7 @@ class CtaEngine(BaseEngine):
     def get_engine_type(self) -> EngineType:
         return self.engine_type
 
-    def get_pricetick(self, strategy: CtaTemplate) -> float:
+    def get_pricetick(self, strategy: PATemplate) -> float:
         contract: ContractData | None = self.main_engine.get_contract(strategy.symbol)
 
         if contract:
@@ -275,7 +273,7 @@ class CtaEngine(BaseEngine):
         else:
             return None
 
-    def get_size(self, strategy: CtaTemplate) -> int:
+    def get_size(self, strategy: PATemplate) -> int:
         contract: ContractData | None = self.main_engine.get_contract(strategy.symbol)
 
         if contract:
@@ -315,7 +313,7 @@ class CtaEngine(BaseEngine):
         return ticks
 
     def call_strategy_func(
-        self, strategy: CtaTemplate, func: Callable, params: Any = None
+        self, strategy: PATemplate, func: Callable, params: Any = None
     ) -> None:
         try:
             func(params) if params is not None else func()
@@ -351,7 +349,7 @@ class CtaEngine(BaseEngine):
             logger.error(f"[{APP_NAME}] {error_msg}")
             return
 
-        strategy: CtaTemplate = strategy_class(self, strategy_name, symbol, setting)
+        strategy: PATemplate = strategy_class(self, strategy_name, symbol, setting)
         self.strategies[strategy_name] = strategy
 
         # Add symbol to strategy map.
@@ -368,7 +366,7 @@ class CtaEngine(BaseEngine):
         """
         Init strategies in queue.
         """
-        strategy: CtaTemplate = self.strategies[strategy_name]
+        strategy: PATemplate = self.strategies[strategy_name]
 
         if strategy.inited:
             error_msg = f"{strategy_name}已经完成初始化,禁止重复操作"
@@ -404,7 +402,7 @@ class CtaEngine(BaseEngine):
         logger.info(f"[{APP_NAME}] {strategy_name}初始化完成")
 
     def start_strategy(self, strategy_name: str) -> None:
-        strategy: CtaTemplate = self.strategies[strategy_name]
+        strategy: PATemplate = self.strategies[strategy_name]
         if not strategy.inited:
             error_msg = f"策略{strategy_name}启动失败,请先初始化"
             logger.error(f"[{APP_NAME}] {error_msg}")
@@ -418,7 +416,7 @@ class CtaEngine(BaseEngine):
         strategy.trading = True
 
     def stop_strategy(self, strategy_name: str) -> None:
-        strategy: CtaTemplate = self.strategies[strategy_name]
+        strategy: PATemplate = self.strategies[strategy_name]
         if not strategy.trading:
             return
 
@@ -435,13 +433,13 @@ class CtaEngine(BaseEngine):
         self.sync_strategy_data(strategy)
 
     def edit_strategy(self, strategy_name: str, setting: dict) -> None:
-        strategy: CtaTemplate = self.strategies[strategy_name]
+        strategy: PATemplate = self.strategies[strategy_name]
         strategy.update_setting(setting)
 
         self.update_strategy_setting(strategy_name, setting)
 
     def remove_strategy(self, strategy_name: str) -> bool:
-        strategy: CtaTemplate = self.strategies[strategy_name]
+        strategy: PATemplate = self.strategies[strategy_name]
         if strategy.trading:
             error_msg = f"策略{strategy_name}移除失败,请先停止"
             logger.error(f"[{APP_NAME}] {error_msg}")
@@ -495,7 +493,7 @@ class CtaEngine(BaseEngine):
     def load_strategy_data(self) -> None:
         self.strategy_data = load_json(self.data_filename)
 
-    def sync_strategy_data(self, strategy: CtaTemplate) -> None:
+    def sync_strategy_data(self, strategy: PATemplate) -> None:
         """
         Sync strategy data into json file.
         """
@@ -522,7 +520,7 @@ class CtaEngine(BaseEngine):
     def get_strategy_parameters(self, strategy_name) -> dict:
         """获取策略实例参数(简化版)"""
         # 在脚本环境中,可以直接访问策略实例获取参数
-        strategy: CtaTemplate = self.strategies[strategy_name]
+        strategy: PATemplate = self.strategies[strategy_name]
         return strategy.get_parameters()
 
     def init_all_strategies(self) -> dict:
@@ -569,7 +567,7 @@ class CtaEngine(BaseEngine):
         """
         # 在脚本环境中,策略参数通常直接在代码中修改,而不是动态更新
         # 但保留文件保存功能以便记录
-        strategy: CtaTemplate = self.strategies[strategy_name]
+        strategy: PATemplate = self.strategies[strategy_name]
 
         self.strategy_setting[strategy_name] = {
             "class_name": strategy.__class__.__name__,
@@ -593,7 +591,7 @@ class CtaEngine(BaseEngine):
         self.strategy_data.pop(strategy_name, None)
         save_json(self.data_filename, self.strategy_data)
 
-    def put_strategy_event(self, strategy: CtaTemplate) -> None:
+    def put_strategy_event(self, strategy: PATemplate) -> None:
         """发送策略状态更新事件(GUI用,可删除)"""
         # 在无GUI环境下不需要此方法
         pass
