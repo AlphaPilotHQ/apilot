@@ -11,7 +11,6 @@
 
 from apilot.core.database import (
     BaseDatabase,
-    database_registry,
     get_database,
     register_database,
 )
