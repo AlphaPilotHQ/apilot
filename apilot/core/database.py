@@ -46,7 +46,7 @@ class TickOverview:
 
 class BaseDatabase(ABC):
     """
-    抽象基类，定义了数据库接口的标准方法
+    抽象基类,定义了数据库接口的标准方法
     """
 
     @abstractmethod
@@ -115,7 +115,7 @@ def use_database(name: str, **kwargs) -> BaseDatabase:
 
 def get_database() -> BaseDatabase:
     """
-    获取数据库对象，如果未初始化则进行初始化。
+    获取数据库对象,如果未初始化则进行初始化.
     """
     global database
 
@@ -134,7 +134,7 @@ def get_database() -> BaseDatabase:
         database = use_database(database_name, **database_params)
         return database
     except Exception:
-        # 默认使用已注册的数据库，或者抛出异常
+        # 默认使用已注册的数据库,或者抛出异常
         if _DATABASE_REGISTRY:
             first_db_name = next(iter(_DATABASE_REGISTRY))
             database_class = _DATABASE_REGISTRY[first_db_name]
