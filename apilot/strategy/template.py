@@ -6,18 +6,13 @@ from typing import Any, ClassVar
 
 from apilot.core.constant import Direction, EngineType, Interval, Offset
 from apilot.core.object import BarData, OrderData, TickData, TradeData
+from apilot.core.utility import virtual
 from apilot.utils.logger import get_logger
 
-# 模块级别初始化日志器
 logger = get_logger("PAStrategy")
 
 
 class PATemplate(ABC):
-    """
-    PA策略模板
-    统一采用多币种设计,单币种只是特殊情况
-    """
-
     parameters: ClassVar[list] = []
     variables: ClassVar[list] = []
 
@@ -31,7 +26,6 @@ class PATemplate(ABC):
         self.pa_engine = pa_engine
         self.strategy_name = strategy_name
 
-        # 统一处理为列表形式
         if isinstance(symbols, str):
             self.symbols = [symbols]
         else:
@@ -86,46 +80,35 @@ class PATemplate(ABC):
 
     @abstractmethod
     def on_init(self) -> None:
-        """策略初始化回调"""
         pass
 
-    @abstractmethod
+    @virtual
     def on_start(self) -> None:
-        """策略启动回调"""
         pass
 
-    @abstractmethod
+    @virtual
     def on_stop(self) -> None:
-        """策略停止回调"""
         pass
 
-    @abstractmethod
+    @virtual
     def on_tick(self, tick: TickData) -> None:
-        """行情Tick推送回调"""
         pass
 
-    @abstractmethod
+    @virtual
     def on_bar(self, bar: BarData) -> None:
-        """K线推送回调"""
         pass
 
     def on_bars(self, bars: dict[str, BarData]) -> None:
-        """K线字典推送回调"""
-        # 遍历每个币种的K线并调用on_bar,保持向后兼容性
         for _symbol, bar in bars.items():
             self.on_bar(bar)
 
-    @abstractmethod
     def on_trade(self, trade: TradeData) -> None:
-        """成交回调"""
         # 更新持仓数据
         self.pos_dict[trade.symbol] += (
             trade.volume if trade.direction == Direction.LONG else -trade.volume
         )
 
-    @abstractmethod
     def on_order(self, order: OrderData) -> None:
-        """委托回调"""
         # 更新委托缓存
         self.orders[order.orderid] = order
 
@@ -352,119 +335,3 @@ class PATemplate(ABC):
     def get_all_active_orderids(self) -> list[str]:
         """获取全部活动状态的委托号"""
         return list(self.active_orderids)
-
-
-class TargetPosTemplate(PATemplate):
-    tick_add = 1
-
-    last_tick: TickData = None
-    last_bar: BarData = None
-    target_pos = 0
-
-    def __init__(self, pa_engine, strategy_name, symbols, setting) -> None:
-        super().__init__(pa_engine, strategy_name, symbols, setting)
-
-        self.active_orderids: list = []
-        self.cancel_orderids: list = []
-
-        self.variables.append("target_pos")
-
-    @abstractmethod
-    def on_tick(self, tick: TickData) -> None:
-        self.last_tick = tick
-
-    @abstractmethod
-    def on_bar(self, bar: BarData) -> None:
-        self.last_bar = bar
-
-    @abstractmethod
-    def on_order(self, order: OrderData) -> None:
-        orderid: str = order.orderid
-
-        if not order.is_active():
-            if orderid in self.active_orderids:
-                self.active_orderids.remove(orderid)
-
-            if orderid in self.cancel_orderids:
-                self.cancel_orderids.remove(orderid)
-
-    def check_order_finished(self) -> bool:
-        if self.active_orderids:
-            return False
-        else:
-            return True
-
-    def set_target_pos(self, target_pos) -> None:
-        self.target_pos = target_pos
-        self.trade()
-
-    def trade(self) -> None:
-        if not self.check_order_finished():
-            self.cancel_old_order()
-        else:
-            self.send_new_order()
-
-    def cancel_old_order(self) -> None:
-        for orderid in self.active_orderids:
-            if orderid not in self.cancel_orderids:
-                self.cancel_order(orderid)
-                self.cancel_orderids.append(orderid)
-
-    def send_new_order(self) -> None:
-        """根据目标仓位和实际仓位计算并委托"""
-        # 计算仓位变化
-        pos_change = self.target_pos - self.get_pos(self.symbols[0])
-        if not pos_change:
-            return
-
-        # 标记买卖方向
-        is_long = pos_change > 0
-
-        # 设置价格
-        price = 0
-        if self.last_tick:
-            if is_long:
-                price = self.last_tick.ask_price_1 + self.tick_add
-                if self.last_tick.limit_up:
-                    price = min(price, self.last_tick.limit_up)
-            else:
-                price = self.last_tick.bid_price_1 - self.tick_add
-                if self.last_tick.limit_down:
-                    price = max(price, self.last_tick.limit_down)
-        elif self.last_bar:
-            price = self.last_bar.close_price + (
-                self.tick_add if is_long else -self.tick_add
-            )
-        else:
-            return  # 无法确定价格时不交易
-
-        # 回测模式直接发单
-        if self.get_engine_type() == EngineType.BACKTESTING:
-            func = self.buy if is_long else self.short
-            orderids = func(self.symbols[0], price, abs(pos_change))
-            self.active_orderids.extend(orderids)
-            return
-
-        # 实盘模式,有活动订单时不交易
-        if self.active_orderids:
-            return
-
-        # 实盘模式处理
-        volume = abs(pos_change)
-
-        if is_long:  # 做多
-            if self.get_pos(self.symbols[0]) < 0:  # 持有空仓
-                # 计算实际平仓量
-                cover_volume = min(volume, abs(self.get_pos(self.symbols[0])))
-                orderids = self.cover(self.symbols[0], price, cover_volume)
-            else:  # 无仓位或持有多仓
-                orderids = self.buy(self.symbols[0], price, volume)
-        else:  # 做空
-            if self.get_pos(self.symbols[0]) > 0:  # 持有多仓
-                # 计算实际平仓量
-                sell_volume = min(volume, self.get_pos(self.symbols[0]))
-                orderids = self.sell(self.symbols[0], price, sell_volume)
-            else:  # 无仓位或持有空仓
-                orderids = self.short(self.symbols[0], price, volume)
-
-        self.active_orderids.extend(orderids)

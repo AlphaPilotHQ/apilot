@@ -70,7 +70,7 @@ select = [
     "PT",   # flake8-pytest-style
     "RUF",  # Ruff特有规则
 ]
-ignore = ["E501"]  # 忽略行长度警告，由格式化器处理
+ignore = ["E501", "B027"]  
 
 [tool.ruff.lint.isort]
 known-first-party = ["apilot"]
@@ -87,3 +87,4 @@ classmethod-decorators = ["classmethod", "validator", "root_validator"]
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]  # 允许在 __init__.py 中导入未使用的模块
+"apilot/strategy/template.py" = ["B027"]  # 允许抽象基类中有空方法使用@virtual装饰器
