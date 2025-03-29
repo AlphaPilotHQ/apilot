@@ -1,12 +1,12 @@
 """
 核心引擎模块
 
-包含交易平台主引擎和基础引擎类，负责管理事件、网关和应用程序。
+包含交易平台主引擎和基础引擎类,负责管理事件、网关和应用程序.
 """
 
 import os
-from abc import ABC
-from typing import Any, Dict, List, Optional, Type
+from abc import ABC, abstractmethod
+from typing import Any
 
 from apilot.utils.logger import get_logger
 
@@ -39,12 +39,12 @@ class MainEngine:
             self.event_engine = EventEngine()
         self.event_engine.start()
 
-        self.gateways: Dict[str, BaseGateway] = {}
-        self.engines: Dict[str, BaseEngine] = {}
-        self.exchanges: List[Exchange] = []
+        self.gateways: dict[str, BaseGateway] = {}
+        self.engines: dict[str, BaseEngine] = {}
+        self.exchanges: list[Exchange] = []
 
-        os.chdir(TRADER_DIR)    # Change working directory
-        self.init_engines()     # Initialize function engines
+        os.chdir(TRADER_DIR)  # Change working directory
+        self.init_engines()  # Initialize function engines
 
     def add_engine(self, engine_class: Any) -> "BaseEngine":
         """
@@ -54,7 +54,9 @@ class MainEngine:
         self.engines[engine.engine_name] = engine
         return engine
 
-    def add_gateway(self, gateway_class: Type[BaseGateway], gateway_name: str = "") -> BaseGateway:
+    def add_gateway(
+        self, gateway_class: type[BaseGateway], gateway_name: str = ""
+    ) -> BaseGateway:
         """
         Add gateway.
         """
@@ -87,7 +89,7 @@ class MainEngine:
         """
         gateway: BaseGateway = self.gateways.get(gateway_name, None)
         if not gateway:
-            get_logger().error(f"找不到底层接口：{gateway_name}")
+            get_logger().error(f"找不到底层接口:{gateway_name}")
         return gateway
 
     def get_engine(self, engine_name: str) -> "BaseEngine":
@@ -96,10 +98,10 @@ class MainEngine:
         """
         engine: BaseEngine = self.engines.get(engine_name, None)
         if not engine:
-            get_logger().error(f"找不到引擎：{engine_name}")
+            get_logger().error(f"找不到引擎:{engine_name}")
         return engine
 
-    def get_default_setting(self, gateway_name: str) -> Optional[Dict[str, Any]]:
+    def get_default_setting(self, gateway_name: str) -> dict[str, Any] | None:
         """
         Get default setting dict of a specific gateway.
         """
@@ -108,13 +110,13 @@ class MainEngine:
             return gateway.get_default_setting()
         return None
 
-    def get_all_gateway_names(self) -> List[str]:
+    def get_all_gateway_names(self) -> list[str]:
         """
         Get all names of gateway added in main engine.
         """
         return list(self.gateways.keys())
 
-    def get_all_exchanges(self) -> List[Exchange]:
+    def get_all_exchanges(self) -> list[Exchange]:
         """
         Get all exchanges.
         """
@@ -172,7 +174,9 @@ class MainEngine:
         if gateway:
             gateway.cancel_quote(req)
 
-    def query_history(self, req: HistoryRequest, gateway_name: str) -> Optional[List[BarData]]:
+    def query_history(
+        self, req: HistoryRequest, gateway_name: str
+    ) -> list[BarData] | None:
         """
         Query bar history data from a specific gateway.
         """
@@ -213,6 +217,9 @@ class BaseEngine(ABC):
         self.event_engine: EventEngine = event_engine
         self.engine_name: str = engine_name
 
+    @abstractmethod
     def close(self):
-        """"""
+        """
+        Close the engine and release resources.
+        """
         pass

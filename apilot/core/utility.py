@@ -5,11 +5,12 @@ General utility functions.
 import json
 import logging
 import sys
+from collections.abc import Callable
 from datetime import datetime, time
 from decimal import Decimal
 from math import ceil, floor
 from pathlib import Path
-from typing import Callable, Optional, Tuple, TypeVar, Union
+from typing import TypeVar
 
 import numpy as np
 
@@ -17,17 +18,18 @@ from .constant import Exchange, Interval
 from .object import BarData, TickData
 
 # 定义泛型返回类型
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 # 日志格式定义
 log_formatter: logging.Formatter = logging.Formatter("[%(asctime)s] %(message)s")
 
 
-def extract_symbol(symbol: str) -> Tuple[str, Exchange]:
+def extract_symbol(symbol: str) -> tuple[str, Exchange]:
     """Extract base symbol and exchange from full trading symbol"""
     # 使用新的工具函数实现
-    from apilot.utils import split_symbol, get_exchange
+    from apilot.utils import split_symbol
+
     base_symbol, exchange_str = split_symbol(symbol)
     return base_symbol, Exchange(exchange_str)
 
@@ -37,17 +39,17 @@ def generate_symbol(base_symbol: str, exchange: Exchange) -> str:
     return f"{base_symbol}.{exchange.value}"
 
 
-def _get_trader_dir(temp_name: str) -> Tuple[Path, Path]:
+def _get_trader_dir(temp_name: str) -> tuple[Path, Path]:
     """获取交易程序运行路径
 
-    首先检查当前工作目录是否存在指定的临时目录，
-    如果存在则使用当前目录作为交易路径，
-    否则使用系统主目录。
+    首先检查当前工作目录是否存在指定的临时目录,
+    如果存在则使用当前目录作为交易路径,
+    否则使用系统主目录.
     """
     cwd: Path = Path.cwd()
     temp_path: Path = cwd.joinpath(temp_name)
 
-    # 如果临时目录存在于当前工作目录中，则使用当前目录作为交易路径
+    # 如果临时目录存在于当前工作目录中,则使用当前目录作为交易路径
     if temp_path.exists():
         return cwd, temp_path
 
@@ -55,7 +57,7 @@ def _get_trader_dir(temp_name: str) -> Tuple[Path, Path]:
     home_path: Path = Path.home()
     temp_path: Path = home_path.joinpath(temp_name)
 
-    # 如果主目录下不存在临时目录，则创建
+    # 如果主目录下不存在临时目录,则创建
     if not temp_path.exists():
         temp_path.mkdir()
 
@@ -72,7 +74,7 @@ def get_file_path(filename: str) -> Path:
 
 
 def get_folder_path(folder_name: str) -> Path:
-    """获取文件夹路径，如不存在则创建"""
+    """获取文件夹路径,如不存在则创建"""
     folder_path: Path = TEMP_DIR.joinpath(folder_name)
     if not folder_path.exists():
         folder_path.mkdir()
@@ -87,7 +89,7 @@ def load_json(filename: str) -> dict:
     if not filepath.exists():
         return {}
 
-    with open(filepath, mode="r", encoding="UTF-8") as f:
+    with open(filepath, encoding="UTF-8") as f:
         data: dict = json.load(f)
     return data
 
@@ -98,12 +100,7 @@ def save_json(filename: str, data: dict) -> None:
     """
     filepath: Path = get_file_path(filename)
     with open(filepath, mode="w+", encoding="UTF-8") as f:
-        json.dump(
-            data,
-            f,
-            indent=4,
-            ensure_ascii=False
-        )
+        json.dump(data, f, indent=4, ensure_ascii=False)
 
 
 def round_to(value: float, target: float) -> float:
@@ -112,7 +109,7 @@ def round_to(value: float, target: float) -> float:
     """
     value: Decimal = Decimal(str(value))
     target: Decimal = Decimal(str(target))
-    rounded: float = float(int(round(value / target)) * target)
+    rounded: float = float(round(value / target) * target)
     return rounded
 
 
@@ -122,7 +119,7 @@ def floor_to(value: float, target: float) -> float:
     """
     value: Decimal = Decimal(str(value))
     target: Decimal = Decimal(str(target))
-    result: float = float(int(floor(value / target)) * target)
+    result: float = float(floor(value / target) * target)
     return result
 
 
@@ -132,7 +129,7 @@ def ceil_to(value: float, target: float) -> float:
     """
     value: Decimal = Decimal(str(value))
     target: Decimal = Decimal(str(target))
-    result: float = float(int(ceil(value / target)) * target)
+    result: float = float(ceil(value / target) * target)
     return result
 
 
@@ -166,9 +163,9 @@ class BarGenerator:
         self,
         on_bar: Callable,
         window: int = 0,
-        on_window_bar: Callable = None,
+        on_window_bar: Callable | None = None,
         interval: Interval = Interval.MINUTE,
-        daily_end: time = None
+        daily_end: time | None = None,
     ) -> None:
         """Constructor"""
         self.on_bar: Callable = on_bar
@@ -184,11 +181,11 @@ class BarGenerator:
 
         self.window: int = window
         self.window_bars: dict[str, BarData] = {}
-        self.on_window_bar: Callable = on_window_bar
+        self.on_window_bar: Callable | None = on_window_bar
 
         self.last_dt: datetime = None
 
-        self.daily_end: time = daily_end
+        self.daily_end: time | None = daily_end
         if self.interval == Interval.DAILY and not self.daily_end:
             raise RuntimeError("Daily bar generation requires daily end time")
 
@@ -204,7 +201,7 @@ class BarGenerator:
             self.on_bar(self.bars)
             self.bars = {}
 
-        bar: Optional[BarData] = self.bars.get(tick.symbol, None)
+        bar: BarData | None = self.bars.get(tick.symbol, None)
         if not bar:
             bar = BarData(
                 symbol=tick.symbol,
@@ -216,7 +213,7 @@ class BarGenerator:
                 high_price=tick.last_price,
                 low_price=tick.last_price,
                 close_price=tick.last_price,
-                open_interest=tick.open_interest
+                open_interest=tick.open_interest,
             )
             self.bars[bar.symbol] = bar
         else:
@@ -226,7 +223,7 @@ class BarGenerator:
             bar.open_interest = tick.open_interest
             bar.datetime = tick.datetime
 
-        last_tick: Optional[TickData] = self.last_ticks.get(tick.symbol, None)
+        last_tick: TickData | None = self.last_ticks.get(tick.symbol, None)
         if last_tick:
             bar.volume += max(tick.volume - last_tick.volume, 0)
             bar.turnover += max(tick.turnover - last_tick.turnover, 0)
@@ -244,7 +241,7 @@ class BarGenerator:
     def update_bar_minute_window(self, bars: dict[str, BarData]) -> None:
         """Update minute bar"""
         for symbol, bar in bars.items():
-            window_bar: Optional[BarData] = self.window_bars.get(symbol, None)
+            window_bar: BarData | None = self.window_bars.get(symbol, None)
 
             # 如果没有N分钟K线则创建
             if not window_bar:
@@ -256,20 +253,14 @@ class BarGenerator:
                     gateway_name=bar.gateway_name,
                     open_price=bar.open_price,
                     high_price=bar.high_price,
-                    low_price=bar.low_price
+                    low_price=bar.low_price,
                 )
                 self.window_bars[symbol] = window_bar
 
             # 更新K线内最高价及最低价
             else:
-                window_bar.high_price = max(
-                    window_bar.high_price,
-                    bar.high_price
-                )
-                window_bar.low_price = min(
-                    window_bar.low_price,
-                    bar.low_price
-                )
+                window_bar.high_price = max(window_bar.high_price, bar.high_price)
+                window_bar.low_price = min(window_bar.low_price, bar.low_price)
 
             # 更新K线内收盘价、数量、成交额、持仓量
             window_bar.close_price = bar.close_price
@@ -285,7 +276,7 @@ class BarGenerator:
     def update_bar_hour_window(self, bars: dict[str, BarData]) -> None:
         """Update hour bar"""
         for symbol, bar in bars.items():
-            hour_bar: Optional[BarData] = self.hour_bars.get(symbol, None)
+            hour_bar: BarData | None = self.hour_bars.get(symbol, None)
 
             # 如果没有小时K线则创建
             if not hour_bar:
@@ -301,21 +292,15 @@ class BarGenerator:
                     close_price=bar.close_price,
                     volume=bar.volume,
                     turnover=bar.turnover,
-                    open_interest=bar.open_interest
+                    open_interest=bar.open_interest,
                 )
                 self.hour_bars[symbol] = hour_bar
 
             else:
-                # 如果收到59分的分钟K线，更新小时K线并推送
+                # 如果收到59分的分钟K线,更新小时K线并推送
                 if bar.datetime.minute == 59:
-                    hour_bar.high_price = max(
-                        hour_bar.high_price,
-                        bar.high_price
-                    )
-                    hour_bar.low_price = min(
-                        hour_bar.low_price,
-                        bar.low_price
-                    )
+                    hour_bar.high_price = max(hour_bar.high_price, bar.high_price)
+                    hour_bar.low_price = min(hour_bar.low_price, bar.low_price)
 
                     hour_bar.close_price = bar.close_price
                     hour_bar.volume += bar.volume
@@ -325,11 +310,13 @@ class BarGenerator:
                     self.finished_hour_bars[symbol] = hour_bar
                     self.hour_bars[symbol] = None
 
-                # 如果收到新的小时的分钟K线，直接推送当前的小时K线
+                # 如果收到新的小时的分钟K线,直接推送当前的小时K线
                 elif bar.datetime.hour != hour_bar.datetime.hour:
                     self.finished_hour_bars[symbol] = hour_bar
 
-                    dt: datetime = bar.datetime.replace(minute=0, second=0, microsecond=0)
+                    dt: datetime = bar.datetime.replace(
+                        minute=0, second=0, microsecond=0
+                    )
                     hour_bar = BarData(
                         symbol=bar.symbol,
                         exchange=bar.exchange,
@@ -341,20 +328,14 @@ class BarGenerator:
                         close_price=bar.close_price,
                         volume=bar.volume,
                         turnover=bar.turnover,
-                        open_interest=bar.open_interest
+                        open_interest=bar.open_interest,
                     )
                     self.hour_bars[symbol] = hour_bar
 
                 # 否则直接更新小时K线
                 else:
-                    hour_bar.high_price = max(
-                        hour_bar.high_price,
-                        bar.high_price
-                    )
-                    hour_bar.low_price = min(
-                        hour_bar.low_price,
-                        bar.low_price
-                    )
+                    hour_bar.high_price = max(hour_bar.high_price, bar.high_price)
+                    hour_bar.low_price = min(hour_bar.low_price, bar.low_price)
 
                     hour_bar.close_price = bar.close_price
                     hour_bar.volume += bar.volume
@@ -384,7 +365,7 @@ class BarGenerator:
                 close_price=bar.close_price,
                 volume=bar.volume,
                 turnover=bar.turnover,
-                open_interest=bar.open_interest
+                open_interest=bar.open_interest,
             )
             self.window_bars[symbol] = window_bar
 
@@ -394,7 +375,7 @@ class BarGenerator:
             self.on_window_bar(bars)
         else:
             for symbol, bar in bars.items():
-                window_bar: Optional[BarData] = self.window_bars.get(symbol, None)
+                window_bar: BarData | None = self.window_bars.get(symbol, None)
                 if not window_bar:
                     window_bar = BarData(
                         symbol=bar.symbol,
@@ -403,18 +384,12 @@ class BarGenerator:
                         gateway_name=bar.gateway_name,
                         open_price=bar.open_price,
                         high_price=bar.high_price,
-                        low_price=bar.low_price
+                        low_price=bar.low_price,
                     )
                     self.window_bars[symbol] = window_bar
                 else:
-                    window_bar.high_price = max(
-                        window_bar.high_price,
-                        bar.high_price
-                    )
-                    window_bar.low_price = min(
-                        window_bar.low_price,
-                        bar.low_price
-                    )
+                    window_bar.high_price = max(window_bar.high_price, bar.high_price)
+                    window_bar.low_price = min(window_bar.low_price, bar.low_price)
 
                 window_bar.close_price = bar.close_price
                 window_bar.volume += bar.volume
@@ -427,8 +402,7 @@ class BarGenerator:
                 self.on_window_bar(self.window_bars)
                 self.window_bars = {}
 
-
-    def generate(self) -> Optional[BarData]:
+    def generate(self) -> BarData | None:
         """
         Generate the bar data and call callback immediately.
         """
@@ -442,7 +416,7 @@ class BarGenerator:
         return bar
 
 
-class ArrayManager(object):
+class ArrayManager:
     """
     For:
     1. time series container of bar data
@@ -536,26 +510,44 @@ class ArrayManager(object):
         """
         return self.open_interest_array
 
-    # TODO：改成numpy而非talib计算
-    def sma(self, n: int, array: bool = False) -> Union[float, np.ndarray]:
+    # 使用numpy实现的技术指标
+    def sma(self, n: int, array: bool = False) -> float | np.ndarray:
         """
         Simple moving average.
         """
-        result: np.ndarray = talib.SMA(self.close, n)
+        if not self.close:
+            return 0.0
+
+        # 使用numpy实现
+        weights = np.ones(n) / n
+        result = np.convolve(self.close, weights, mode="valid")
+        # 补齐长度与self.close一致
+        padding = np.full(n - 1, np.nan)
+        result = np.concatenate((padding, result))
+
         if array:
             return result
         return result[-1]
 
-    def ema(self, n: int, array: bool = False) -> Union[float, np.ndarray]:
+    def ema(self, n: int, array: bool = False) -> float | np.ndarray:
         """
         Exponential moving average.
         """
-        result: np.ndarray = talib.EMA(self.close, n)
+        if not self.close:
+            return 0.0
+
+        # 使用numpy实现EMA
+        alpha = 2 / (n + 1)
+        result = np.zeros_like(self.close)
+        result[0] = self.close[0]
+        for i in range(1, len(self.close)):
+            result[i] = alpha * self.close[i] + (1 - alpha) * result[i - 1]
+
         if array:
             return result
         return result[-1]
 
-    def std(self, n: int, nbdev: int = 1, array: bool = False) -> Union[float, np.ndarray]:
+    def std(self, n: int, nbdev: int = 1, array: bool = False) -> float | np.ndarray:
         """
         Calculate standard deviation.
         """
@@ -565,25 +557,70 @@ class ArrayManager(object):
         # Efficiently calculate standard deviation with NumPy
         result = np.std(self.close[-n:], ddof=1) * nbdev
 
-        # np.std 对一维数组返回标量值，不需要索引
+        # np.std 对一维数组返回标量值,不需要索引
         if array:
             return result
-        return result  # 直接返回结果，不使用索引
+        return result  # 直接返回结果,不使用索引
 
-    def atr(self, n: int, array: bool = False) -> Union[float, np.ndarray]:
+    def atr(self, n: int, array: bool = False) -> float | np.ndarray:
         """
         Average True Range (ATR).
         """
-        result: np.ndarray = talib.ATR(self.high, self.low, self.close, n)
+        if not self.close:
+            return 0.0
+
+        # 使用numpy实现ATR
+        tr = np.zeros_like(self.close)
+        for i in range(1, len(self.close)):
+            high_low = self.high[i] - self.low[i]
+            high_close = abs(self.high[i] - self.close[i - 1])
+            low_close = abs(self.low[i] - self.close[i - 1])
+            tr[i] = max(high_low, high_close, low_close)
+        tr[0] = tr[1]  # 第一个值取第二个值
+
+        # 计算ATR
+        result = np.zeros_like(self.close)
+        result[0] = tr[0]
+        for i in range(1, len(tr)):
+            result[i] = (result[i - 1] * (n - 1) + tr[i]) / n
+
         if array:
             return result
         return result[-1]
 
-    def rsi(self, n: int, array: bool = False) -> Union[float, np.ndarray]:
+    def rsi(self, n: int, array: bool = False) -> float | np.ndarray:
         """
         Relative Strenght Index (RSI).
         """
-        result: np.ndarray = talib.RSI(self.close, n)
+        if not self.close:
+            return 0.0
+
+        # 使用numpy实现RSI
+        diff = np.diff(self.close)
+        diff = np.append([0], diff)  # 补齐长度
+
+        # 计算上涨和下跌
+        up = np.where(diff > 0, diff, 0)
+        down = np.where(diff < 0, -diff, 0)
+
+        # 计算平均上涨和平均下跌
+        up_avg = np.zeros_like(self.close)
+        down_avg = np.zeros_like(self.close)
+
+        # 初始值
+        up_avg[n] = np.mean(up[1 : n + 1])
+        down_avg[n] = np.mean(down[1 : n + 1])
+
+        # 计算平均值
+        for i in range(n + 1, len(self.close)):
+            up_avg[i] = (up_avg[i - 1] * (n - 1) + up[i]) / n
+            down_avg[i] = (down_avg[i - 1] * (n - 1) + down[i]) / n
+
+        # 计算相对强度和RSI
+        rs = up_avg / np.where(down_avg == 0, 0.001, down_avg)  # 避免除零
+        result = 100 - (100 / (1 + rs))
+        result[:n] = np.nan  # 前n个值置为NaN
+
         if array:
             return result
         return result[-1]
@@ -593,87 +630,149 @@ class ArrayManager(object):
         fast_period: int,
         slow_period: int,
         signal_period: int,
-        array: bool = False
-    ) -> Union[
-        Tuple[np.ndarray, np.ndarray, np.ndarray],
-        Tuple[float, float, float]
-    ]:
+        array: bool = False,
+    ) -> tuple[float, float, float] | tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         MACD.
         """
-        macd, signal, hist = talib.MACD(
-            self.close, fast_period, slow_period, signal_period
-        )
+        if not self.close:
+            return 0.0, 0.0, 0.0
+
+        # 使用numpy实现MACD
+        # 计算快速和慢速EMA
+        ema_fast = np.zeros_like(self.close)
+        ema_slow = np.zeros_like(self.close)
+
+        # 计算初始EMA
+        ema_fast[0] = self.close[0]
+        ema_slow[0] = self.close[0]
+
+        # EMA权重
+        alpha_fast = 2 / (fast_period + 1)
+        alpha_slow = 2 / (slow_period + 1)
+
+        # 计算EMA序列
+        for i in range(1, len(self.close)):
+            ema_fast[i] = (
+                alpha_fast * self.close[i] + (1 - alpha_fast) * ema_fast[i - 1]
+            )
+            ema_slow[i] = (
+                alpha_slow * self.close[i] + (1 - alpha_slow) * ema_slow[i - 1]
+            )
+
+        # 计算MACD线
+        macd = ema_fast - ema_slow
+
+        # 计算信号线 (MACD的EMA)
+        signal = np.zeros_like(self.close)
+        signal[0] = macd[0]
+        alpha_signal = 2 / (signal_period + 1)
+
+        for i in range(1, len(macd)):
+            signal[i] = alpha_signal * macd[i] + (1 - alpha_signal) * signal[i - 1]
+
+        # 计算直方图
+        hist = macd - signal
+
         if array:
             return macd, signal, hist
         return macd[-1], signal[-1], hist[-1]
 
-
-    def boll(
-        self,
-        n: int,
-        dev: float,
-        array: bool = False
-    ) -> Union[
-        Tuple[np.ndarray, np.ndarray],
-        Tuple[float, float]
-    ]:
-        """
-        Bollinger Channel.
-        """
-        mid: Union[float, np.ndarray] = self.sma(n, array)
-        std: Union[float, np.ndarray] = self.std(n, 1, array)
-
-        up: Union[float, np.ndarray] = mid + std * dev
-        down: Union[float, np.ndarray] = mid - std * dev
-
-        return up, down
-
-    def keltner(
-        self,
-        n: int,
-        dev: float,
-        array: bool = False
-    ) -> Union[
-        Tuple[np.ndarray, np.ndarray],
-        Tuple[float, float]
-    ]:
-        """
-        Keltner Channel.
-        """
-        mid: Union[float, np.ndarray] = self.sma(n, array)
-        atr: Union[float, np.ndarray] = self.atr(n, array)
-
-        up: Union[float, np.ndarray] = mid + atr * dev
-        down: Union[float, np.ndarray] = mid - atr * dev
-
-        return up, down
-
     def donchian(
         self, n: int, array: bool = False
-    ) -> Union[
-        Tuple[np.ndarray, np.ndarray],
-        Tuple[float, float]
-    ]:
+    ) -> tuple[float, float] | tuple[np.ndarray, np.ndarray]:
         """
         Donchian Channel.
         """
-        up: np.ndarray = talib.MAX(self.high, n)
-        down: np.ndarray = talib.MIN(self.low, n)
+        if not self.close:
+            return 0.0, 0.0
+
+        # 使用numpy实现唐奇安通道
+        up = np.zeros_like(self.high)
+        down = np.zeros_like(self.low)
+
+        for i in range(len(self.high)):
+            if i >= n - 1:
+                up[i] = np.max(self.high[i - n + 1 : i + 1])
+                down[i] = np.min(self.low[i - n + 1 : i + 1])
+            else:
+                up[i] = np.nan
+                down[i] = np.nan
 
         if array:
             return up, down
         return up[-1], down[-1]
 
-
-    def mfi(self, n: int, array: bool = False) -> Union[float, np.ndarray]:
+    def mfi(self, n: int, array: bool = False) -> float | np.ndarray:
         """
         Money Flow Index.
         """
-        result: np.ndarray = talib.MFI(self.high, self.low, self.close, self.volume, n)
+        if not self.close or not self.volume:
+            return 0.0
+
+        # 使用numpy实现MFI
+        # 计算典型价格
+        tp = (self.high + self.low + self.close) / 3
+
+        # 计算资金流
+        mf = tp * self.volume
+
+        # 计算正负资金流
+        diff = np.diff(tp)
+        diff = np.append([0], diff)  # 补齐长度
+
+        positive_flow = np.where(diff > 0, mf, 0)
+        negative_flow = np.where(diff < 0, mf, 0)
+
+        # 计算n周期的正负资金流
+        positive_mf = np.zeros_like(self.close)
+        negative_mf = np.zeros_like(self.close)
+
+        for i in range(n, len(self.close)):
+            positive_mf[i] = np.sum(positive_flow[i - n + 1 : i + 1])
+            negative_mf[i] = np.sum(negative_flow[i - n + 1 : i + 1])
+
+        # 计算资金流比率和MFI
+        mfr = np.divide(
+            positive_mf,
+            negative_mf,
+            out=np.ones_like(positive_mf),
+            where=negative_mf != 0,
+        )
+        result = 100 - (100 / (1 + mfr))
+        result[:n] = np.nan  # 前n个值置为NaN
+
         if array:
             return result
         return result[-1]
+
+    def boll(
+        self, n: int, dev: float, array: bool = False
+    ) -> tuple[np.ndarray, np.ndarray] | tuple[float, float]:
+        """
+        Bollinger Channel.
+        """
+        mid: float | np.ndarray = self.sma(n, array)
+        std: float | np.ndarray = self.std(n, 1, array)
+
+        up: float | np.ndarray = mid + std * dev
+        down: float | np.ndarray = mid - std * dev
+
+        return up, down
+
+    def keltner(
+        self, n: int, dev: float, array: bool = False
+    ) -> tuple[np.ndarray, np.ndarray] | tuple[float, float]:
+        """
+        Keltner Channel.
+        """
+        mid: float | np.ndarray = self.sma(n, array)
+        atr: float | np.ndarray = self.atr(n, array)
+
+        up: float | np.ndarray = mid + atr * dev
+        down: float | np.ndarray = mid - atr * dev
+
+        return up, down
 
 
 def virtual(func: Callable) -> Callable:

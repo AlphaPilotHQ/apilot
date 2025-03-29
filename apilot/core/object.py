@@ -5,7 +5,6 @@ Basic data structure used for general trading function in the trading platform.
 from dataclasses import dataclass, field
 from datetime import datetime
 from logging import INFO
-from typing import Optional
 
 from .constant import (
     Direction,
@@ -17,7 +16,7 @@ from .constant import (
     Status,
 )
 
-ACTIVE_STATUSES = set([Status.SUBMITTING, Status.NOTTRADED, Status.PARTTRADED])
+ACTIVE_STATUSES = {Status.SUBMITTING, Status.NOTTRADED, Status.PARTTRADED}
 
 
 @dataclass
@@ -28,7 +27,7 @@ class BaseData:
     """
 
     gateway_name: str = ""
-    extra: Optional[dict] = field(default=None, init=False)
+    extra: dict | None = field(default=None, init=False)
 
 
 @dataclass
@@ -41,8 +40,8 @@ class TickData(BaseData):
     """
 
     symbol: str = ""  # Full symbol with exchange (e.g. "BTC.BINANCE")
-    exchange: Optional[Exchange] = None  # Kept for backward compatibility
-    datetime: Optional[datetime] = None
+    exchange: Exchange | None = None  # Kept for backward compatibility
+    datetime: datetime | None = None
 
     name: str = ""
     volume: float = 0
@@ -88,6 +87,7 @@ class TickData(BaseData):
         """Initialize with exchange from symbol if not provided"""
         if self.exchange is None and "." in self.symbol:
             from apilot.utils import get_exchange
+
             self.exchange = get_exchange(self.symbol)
 
     @staticmethod
@@ -159,6 +159,7 @@ class BarData(BaseData):
         """Initialize with exchange from symbol if not provided"""
         if self.exchange is None and "." in self.symbol:
             from apilot.utils import get_exchange
+
             self.exchange = get_exchange(self.symbol)
 
     @staticmethod
@@ -189,6 +190,7 @@ class OrderData(BaseData):
     Order data contains information for tracking lastest status
     of a specific order.
     """
+
     gateway_name: str = ""
 
     symbol: str = ""  # Full symbol with exchange (e.g. "BTC.BINANCE")
@@ -217,6 +219,7 @@ class OrderData(BaseData):
         """Initialize with exchange from symbol if not provided"""
         if self._exchange is None and "." in self.symbol:
             from apilot.utils import get_exchange
+
             self._exchange = get_exchange(self.symbol)
         self.orderid: str = f"{self.gateway_name}.{self.orderid}"
         self.vt_orderid: str = self.orderid  # Kept for backward compatibility
@@ -231,10 +234,7 @@ class OrderData(BaseData):
         """
         Create cancel request object from order.
         """
-        req: CancelRequest = CancelRequest(
-            orderid=self.orderid,
-            symbol=self.symbol
-        )
+        req: CancelRequest = CancelRequest(orderid=self.orderid, symbol=self.symbol)
         return req
 
 
@@ -260,6 +260,7 @@ class TradeData(BaseData):
         """Initialize with exchange from symbol if not provided"""
         if self.exchange is None and "." in self.symbol:
             from apilot.utils import get_exchange
+
             self.exchange = get_exchange(self.symbol)
 
         self.vt_orderid: str = f"{self.gateway_name}.{self.orderid}"
@@ -286,9 +287,12 @@ class PositionData(BaseData):
         """Initialize with exchange from symbol if not provided"""
         if self.exchange is None and "." in self.symbol:
             from apilot.utils import get_exchange
+
             self.exchange = get_exchange(self.symbol)
 
-        self.vt_positionid: str = f"{self.gateway_name}.{self.symbol}.{self.direction.value}"
+        self.vt_positionid: str = (
+            f"{self.gateway_name}.{self.symbol}.{self.direction.value}"
+        )
 
 
 @dataclass
@@ -313,18 +317,20 @@ class AccountData(BaseData):
 class LogData(BaseData):
     """日志数据结构
 
-    包含日志消息、级别、来源和时间戳等信息，用于事件驱动的日志系统
+    包含日志消息、级别、来源和时间戳等信息,用于事件驱动的日志系统
     """
+
     msg: str = ""  # 日志消息
     level: int = INFO  # 日志级别
     source: str = ""  # 日志来源
     timestamp: datetime = field(default_factory=datetime.now)  # 日志记录时间
-    extra: dict = field(default_factory=dict)  # 额外信息字典，可用于扩展
+    extra: dict = field(default_factory=dict)  # 额外信息字典,可用于扩展
 
     @property
     def level_name(self) -> str:
         """获取日志级别名称"""
         import logging
+
         return logging.getLevelName(self.level)
 
 
@@ -341,22 +347,23 @@ class ContractData(BaseData):
     size: float = 0
     pricetick: float = 0
 
-    min_volume: float = 1           # minimum order volume
-    max_volume: float = None        # maximum order volume
-    stop_supported: bool = False    # whether server supports stop order
-    net_position: bool = False      # whether gateway uses net position volume
-    history_data: bool = False      # whether gateway provides bar history data
+    min_volume: float = 1  # minimum order volume
+    max_volume: float = None  # maximum order volume
+    stop_supported: bool = False  # whether server supports stop order
+    net_position: bool = False  # whether gateway uses net position volume
+    history_data: bool = False  # whether gateway provides bar history data
 
     option_strike: float = 0
-    option_underlying: str = ""     # symbol of underlying contract
+    option_underlying: str = ""  # symbol of underlying contract
     option_expiry: datetime = None
     option_portfolio: str = ""
-    option_index: str = ""          # for identifying options with same strike price
+    option_index: str = ""  # for identifying options with same strike price
 
     def __post_init__(self) -> None:
         """Initialize with exchange from symbol if not provided"""
         if self.exchange is None and "." in self.symbol:
             from apilot.utils import get_exchange
+
             self.exchange = get_exchange(self.symbol)
 
 
@@ -385,6 +392,7 @@ class QuoteData(BaseData):
         """Initialize with exchange from symbol if not provided"""
         if self.exchange is None and "." in self.symbol:
             from apilot.utils import get_exchange
+
             self.exchange = get_exchange(self.symbol)
 
         self.vt_quoteid: str = f"{self.gateway_name}.{self.quoteid}"
@@ -399,9 +407,7 @@ class QuoteData(BaseData):
         """
         Create cancel request object from quote.
         """
-        req: CancelRequest = CancelRequest(
-            orderid=self.quoteid, symbol=self.symbol
-        )
+        req: CancelRequest = CancelRequest(orderid=self.quoteid, symbol=self.symbol)
         return req
 
 
@@ -418,6 +424,7 @@ class SubscribeRequest:
         """Initialize with exchange from symbol if not provided"""
         if self.exchange is None and "." in self.symbol:
             from apilot.utils import get_exchange
+
             self.exchange = get_exchange(self.symbol)
 
 
@@ -440,6 +447,7 @@ class OrderRequest:
         """Initialize with exchange from symbol if not provided"""
         if self.exchange is None and "." in self.symbol:
             from apilot.utils import get_exchange
+
             self.exchange = get_exchange(self.symbol)
 
     def create_order_data(self, orderid: str, gateway_name: str) -> OrderData:
@@ -457,7 +465,7 @@ class OrderRequest:
             volume=self.volume,
             status=Status.SUBMITTING,
             gateway_name=gateway_name,
-            reference=self.reference
+            reference=self.reference,
         )
         return order
 
@@ -475,6 +483,7 @@ class CancelRequest:
     def exchange(self) -> Exchange:
         """Get exchange from full symbol"""
         from apilot.utils import get_exchange
+
         return get_exchange(self.symbol)
 
 
@@ -494,6 +503,7 @@ class HistoryRequest:
         """Initialize with exchange from symbol if not provided"""
         if self.exchange is None and "." in self.symbol:
             from apilot.utils import get_exchange
+
             self.exchange = get_exchange(self.symbol)
 
 
@@ -517,6 +527,7 @@ class QuoteRequest:
         """Initialize with exchange from symbol if not provided"""
         if self.exchange is None and "." in self.symbol:
             from apilot.utils import get_exchange
+
             self.exchange = get_exchange(self.symbol)
 
     def create_quote_data(self, quoteid: str, gateway_name: str) -> QuoteData:
@@ -534,6 +545,6 @@ class QuoteRequest:
             ask_offset=self.ask_offset,
             reference=self.reference,
             gateway_name=gateway_name,
-            status=Status.SUBMITTING
+            status=Status.SUBMITTING,
         )
         return quote

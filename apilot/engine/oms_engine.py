@@ -4,8 +4,6 @@
 负责订单全生命周期管理、仓位跟踪和交易事件处理
 """
 
-from typing import Dict, List, Optional
-
 from apilot.core import (
     # 事件常量
     EVENT_ACCOUNT,
@@ -41,18 +39,18 @@ class OmsEngine(BaseEngine):
 
     def __init__(self, main_engine: MainEngine, event_engine: EventEngine) -> None:
         """"""
-        super(OmsEngine, self).__init__(main_engine, event_engine, "oms")
+        super().__init__(main_engine, event_engine, "oms")
 
-        self.ticks: Dict[str, TickData] = {}
-        self.orders: Dict[str, OrderData] = {}
-        self.trades: Dict[str, TradeData] = {}
-        self.positions: Dict[str, PositionData] = {}
-        self.accounts: Dict[str, AccountData] = {}
-        self.contracts: Dict[str, ContractData] = {}
-        self.quotes: Dict[str, QuoteData] = {}
+        self.ticks: dict[str, TickData] = {}
+        self.orders: dict[str, OrderData] = {}
+        self.trades: dict[str, TradeData] = {}
+        self.positions: dict[str, PositionData] = {}
+        self.accounts: dict[str, AccountData] = {}
+        self.contracts: dict[str, ContractData] = {}
+        self.quotes: dict[str, QuoteData] = {}
 
-        self.active_orders: Dict[str, OrderData] = {}
-        self.active_quotes: Dict[str, QuoteData] = {}
+        self.active_orders: dict[str, OrderData] = {}
+        self.active_quotes: dict[str, QuoteData] = {}
 
         self.add_function()
         self.register_event()
@@ -140,91 +138,91 @@ class OmsEngine(BaseEngine):
         elif quote.quoteid in self.active_quotes:
             self.active_quotes.pop(quote.quoteid)
 
-    def get_tick(self, symbol: str) -> Optional[TickData]:
+    def get_tick(self, symbol: str) -> TickData | None:
         """
         Get latest market tick data by symbol.
         """
         return self.ticks.get(symbol, None)
 
-    def get_order(self, orderid: str) -> Optional[OrderData]:
+    def get_order(self, orderid: str) -> OrderData | None:
         """
         Get latest order data by orderid.
         """
         return self.orders.get(orderid, None)
 
-    def get_trade(self, tradeid: str) -> Optional[TradeData]:
+    def get_trade(self, tradeid: str) -> TradeData | None:
         """
         Get trade data by tradeid.
         """
         return self.trades.get(tradeid, None)
 
-    def get_position(self, positionid: str) -> Optional[PositionData]:
+    def get_position(self, positionid: str) -> PositionData | None:
         """
         Get latest position data by positionid.
         """
         return self.positions.get(positionid, None)
 
-    def get_account(self, accountid: str) -> Optional[AccountData]:
+    def get_account(self, accountid: str) -> AccountData | None:
         """
         Get latest account data by accountid.
         """
         return self.accounts.get(accountid, None)
 
-    def get_contract(self, symbol: str) -> Optional[ContractData]:
+    def get_contract(self, symbol: str) -> ContractData | None:
         """
         Get contract data by symbol.
         """
         return self.contracts.get(symbol, None)
 
-    def get_quote(self, quoteid: str) -> Optional[QuoteData]:
+    def get_quote(self, quoteid: str) -> QuoteData | None:
         """
         Get latest quote data by quoteid.
         """
         return self.quotes.get(quoteid, None)
 
-    def get_all_ticks(self) -> List[TickData]:
+    def get_all_ticks(self) -> list[TickData]:
         """
         Get all tick data.
         """
         return list(self.ticks.values())
 
-    def get_all_orders(self) -> List[OrderData]:
+    def get_all_orders(self) -> list[OrderData]:
         """
         Get all order data.
         """
         return list(self.orders.values())
 
-    def get_all_trades(self) -> List[TradeData]:
+    def get_all_trades(self) -> list[TradeData]:
         """
         Get all trade data.
         """
         return list(self.trades.values())
 
-    def get_all_positions(self) -> List[PositionData]:
+    def get_all_positions(self) -> list[PositionData]:
         """
         Get all position data.
         """
         return list(self.positions.values())
 
-    def get_all_accounts(self) -> List[AccountData]:
+    def get_all_accounts(self) -> list[AccountData]:
         """
         Get all account data.
         """
         return list(self.accounts.values())
 
-    def get_all_contracts(self) -> List[ContractData]:
+    def get_all_contracts(self) -> list[ContractData]:
         """
         Get all contract data.
         """
         return list(self.contracts.values())
 
-    def get_all_quotes(self) -> List[QuoteData]:
+    def get_all_quotes(self) -> list[QuoteData]:
         """
         Get all quote data.
         """
         return list(self.quotes.values())
 
-    def get_all_active_orders(self, symbol: str = "") -> List[OrderData]:
+    def get_all_active_orders(self, symbol: str = "") -> list[OrderData]:
         """
         Get all active orders by symbol.
 
@@ -233,14 +231,12 @@ class OmsEngine(BaseEngine):
         if not symbol:
             return list(self.active_orders.values())
         else:
-            active_orders: List[OrderData] = [
-                order
-                for order in self.active_orders.values()
-                if order.symbol == symbol
+            active_orders: list[OrderData] = [
+                order for order in self.active_orders.values() if order.symbol == symbol
             ]
             return active_orders
 
-    def get_all_active_quotes(self, symbol: str = "") -> List[QuoteData]:
+    def get_all_active_quotes(self, symbol: str = "") -> list[QuoteData]:
         """
         Get all active quotes by symbol.
         If symbol is empty, return all active qutoes.
@@ -248,25 +244,22 @@ class OmsEngine(BaseEngine):
         if not symbol:
             return list(self.active_quotes.values())
         else:
-            active_quotes: List[QuoteData] = [
-                quote
-                for quote in self.active_quotes.values()
-                if quote.symbol == symbol
+            active_quotes: list[QuoteData] = [
+                quote for quote in self.active_quotes.values() if quote.symbol == symbol
             ]
             return active_quotes
 
-    def update_order_request(self, req: OrderRequest, orderid: str, gateway_name: str) -> None:
+    def update_order_request(
+        self, req: OrderRequest, orderid: str, gateway_name: str
+    ) -> None:
         """
         Update order request (simple version for crypto/US markets without offset conversion)
         """
         pass
 
     def convert_order_request(
-        self,
-        req: OrderRequest,
-        gateway_name: str,
-        net: bool = False
-    ) -> List[OrderRequest]:
+        self, req: OrderRequest, gateway_name: str, net: bool = False
+    ) -> list[OrderRequest]:
         """
         Simple version for crypto/US markets without offset conversion
         """

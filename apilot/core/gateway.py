@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List
+from typing import Any, ClassVar
 
 from .event import (
     EVENT_ACCOUNT,
@@ -48,8 +48,8 @@ class BaseGateway(ABC):
     """
 
     default_name: str = ""
-    default_setting: Dict[str, Any] = {}
-    exchanges: List[Exchange] = []
+    default_setting: ClassVar[dict[str, Any]] = {}
+    exchanges: ClassVar[list[Exchange]] = []
 
     def __init__(self, event_engine: EventEngine, gateway_name: str = "") -> None:
         """
@@ -206,9 +206,7 @@ class BaseGateway(ABC):
 
     def send_quote(self, req: QuoteRequest) -> str:
         """
-        Send two-sided quote to server.
-
-        Not required for all gateways.
+        Send quote to server.
 
         Args:
             req: Quote request object
@@ -218,6 +216,7 @@ class BaseGateway(ABC):
         """
         return ""
 
+    @abstractmethod
     def cancel_quote(self, req: CancelRequest) -> None:
         """
         Cancel existing quote.
@@ -241,7 +240,8 @@ class BaseGateway(ABC):
         """
         pass
 
-    def query_history(self, req: HistoryRequest) -> List[BarData]:
+    @abstractmethod
+    def query_history(self, req: HistoryRequest) -> list[BarData]:
         """
         Query bar history data from server.
 
@@ -253,7 +253,7 @@ class BaseGateway(ABC):
         """
         pass
 
-    def get_default_setting(self) -> Dict[str, Any]:
+    def get_default_setting(self) -> dict[str, Any]:
         """
         Get default connection settings.
 

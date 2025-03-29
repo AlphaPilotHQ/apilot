@@ -1,28 +1,28 @@
 """
 实时交易引擎模块
 
-实现交易策略的实时运行与管理，包括信号处理、订单执行与风控
+实现交易策略的实时运行与管理,包括信号处理、订单执行与风控
 """
 
 import copy
 import traceback
 from collections import defaultdict
+from collections.abc import Callable
 from concurrent.futures import Future, ThreadPoolExecutor
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Type
+from typing import Any
 
 from apilot.core import (
     # 常量和工具函数
     APP_NAME,
-    # 事件常量
     EVENT_ORDER,
     EVENT_TICK,
     EVENT_TRADE,
     # 数据类和常量
     BarData,
-    # 核心类
     BaseEngine,
+    CancelRequest,
     ContractData,
     Direction,
     EngineType,
@@ -38,6 +38,7 @@ from apilot.core import (
     SubscribeRequest,
     TickData,
     TradeData,
+    # 工具函数
     extract_symbol,
     load_json,
     round_to,
@@ -49,6 +50,7 @@ from apilot.utils.logger import get_logger
 
 # 模块级初始化日志器
 logger = get_logger("LiveTrading")
+
 
 class CtaEngine(BaseEngine):
     engine_type: EngineType = EngineType.LIVE
@@ -102,7 +104,7 @@ class CtaEngine(BaseEngine):
     def process_order_event(self, event: Event) -> None:
         order = event.data
 
-        strategy: Optional[type] = self.orderid_strategy_map.get(order.orderid, None)
+        strategy: type | None = self.orderid_strategy_map.get(order.orderid, None)
         if not strategy:
             return
 
@@ -125,7 +127,9 @@ class CtaEngine(BaseEngine):
             return
         self.tradeids.add(trade.tradeid)
 
-        strategy: Optional[type] = self.orderid_strategy_map.get(trade.orderid, None)
+        strategy: CtaTemplate | None = self.orderid_strategy_map.get(
+            trade.orderid, None
+        )
         if not strategy:
             return
 
@@ -150,7 +154,7 @@ class CtaEngine(BaseEngine):
         price: float,
         volume: float,
         type: OrderType,
-        net: bool
+        net: bool,
     ) -> list:
         # Create request and send order.
         original_req: OrderRequest = OrderRequest(
@@ -161,14 +165,12 @@ class CtaEngine(BaseEngine):
             type=type,
             price=price,
             volume=volume,
-            reference=f"{APP_NAME}_{strategy.strategy_name}"
+            reference=f"{APP_NAME}_{strategy.strategy_name}",
         )
 
         # Convert with offset converter
-        req_list: List[OrderRequest] = self.main_engine.convert_order_request(
-            original_req,
-            contract.gateway_name,
-            net
+        req_list: list = self.main_engine.convert_order_request(
+            original_req, contract.gateway_name, net
         )
 
         # Send Orders
@@ -199,17 +201,10 @@ class CtaEngine(BaseEngine):
         offset: Offset,
         price: float,
         volume: float,
-        net: bool
+        net: bool,
     ) -> list:
         return self.send_server_order(
-            strategy,
-            contract,
-            direction,
-            offset,
-            price,
-            volume,
-            OrderType.LIMIT,
-            net
+            strategy, contract, direction, offset, price, volume, OrderType.LIMIT, net
         )
 
     def send_order(
@@ -219,12 +214,14 @@ class CtaEngine(BaseEngine):
         offset: Offset,
         price: float,
         volume: float,
+        net: bool,
         stop: bool = False,
-        net: bool = False
     ) -> list:
-        contract: Optional[ContractData] = self.main_engine.get_contract(strategy.symbol)
+        contract: ContractData | None = self.main_engine.get_contract(strategy.symbol)
         if not contract:
-            error_msg = f"[{strategy.strategy_name}] 委托失败，找不到合约：{strategy.symbol}"
+            error_msg = (
+                f"[{strategy.strategy_name}] 委托失败,找不到合约:{strategy.symbol}"
+            )
             logger.error(f"[{APP_NAME}] {error_msg}")
             return ""
 
@@ -236,17 +233,17 @@ class CtaEngine(BaseEngine):
             strategy, contract, direction, offset, price, volume, net
         )
 
-    def cancel_server_order(self, strategy: CtaTemplate, orderid: str) -> None:
+    def cancel_server_order(self, orderid: str, strategy=None) -> None:
         """
         Cancel existing order by orderid.
         """
-        order: Optional[OrderData] = self.main_engine.get_order(orderid)
+        order: OrderData | None = self.main_engine.get_order(orderid)
         if not order:
             if strategy:
-                error_msg = f"[{strategy.strategy_name}] 撤单失败，找不到委托{orderid}"
+                error_msg = f"[{strategy.strategy_name}] 撤单失败,找不到委托{orderid}"
                 logger.error(f"[{APP_NAME}] {error_msg}")
             else:
-                error_msg = f"撤单失败，找不到委托{orderid}"
+                error_msg = f"撤单失败,找不到委托{orderid}"
                 logger.error(f"[{APP_NAME}] {error_msg}")
             return
 
@@ -254,7 +251,10 @@ class CtaEngine(BaseEngine):
         self.main_engine.cancel_order(req, order.gateway_name)
 
     def cancel_order(self, strategy: CtaTemplate, orderid: str) -> None:
-        self.cancel_server_order(strategy, orderid)
+        """
+        取消策略委托
+        """
+        self.cancel_server_order(orderid, strategy)
 
     def cancel_all(self, strategy: CtaTemplate) -> None:
         orderids: set = self.strategy_orderid_map[strategy.strategy_name]
@@ -268,7 +268,7 @@ class CtaEngine(BaseEngine):
         return self.engine_type
 
     def get_pricetick(self, strategy: CtaTemplate) -> float:
-        contract: Optional[ContractData] = self.main_engine.get_contract(strategy.symbol)
+        contract: ContractData | None = self.main_engine.get_contract(strategy.symbol)
 
         if contract:
             return contract.pricetick
@@ -276,7 +276,7 @@ class CtaEngine(BaseEngine):
             return None
 
     def get_size(self, strategy: CtaTemplate) -> int:
-        contract: Optional[ContractData] = self.main_engine.get_contract(strategy.symbol)
+        contract: ContractData | None = self.main_engine.get_contract(strategy.symbol)
 
         if contract:
             return contract.size
@@ -289,66 +289,65 @@ class CtaEngine(BaseEngine):
         days: int,
         interval: Interval,
         callback: Callable[[BarData], None],
-        use_database: bool
-    ) -> List[BarData]:
+        use_database: bool,
+    ) -> list:
         symbol_str, exchange_str = extract_symbol(symbol)
         end: datetime = datetime.now()
         start: datetime = end - timedelta(days)
-        bars: List[BarData] = []
+        bars: list = []
 
         # Try to query bars from database, if not found, load from database.
-        bars: List[BarData] = self.database.load_bar_data(
+        bars: list = self.database.load_bar_data(
             symbol_str, exchange_str, interval, start, end
         )
 
         return bars
 
     def load_tick(
-        self,
-        symbol: str,
-        days: int,
-        callback: Callable[[TickData], None]
-    ) -> List[TickData]:
+        self, symbol: str, days: int, callback: Callable[[TickData], None]
+    ) -> list:
         symbol_str, exchange_str = extract_symbol(symbol)
         end: datetime = datetime.now()
         start: datetime = end - timedelta(days)
 
-        ticks: List[TickData] = self.database.load_tick_data(
-            symbol_str, exchange_str, start, end
-        )
+        ticks: list = self.database.load_tick_data(symbol_str, exchange_str, start, end)
 
         return ticks
 
-    def call_strategy_func(self, strategy: CtaTemplate, func: Callable, params: Any = None) -> None:
+    def call_strategy_func(
+        self, strategy: CtaTemplate, func: Callable, params: Any = None
+    ) -> None:
         try:
             func(params) if params is not None else func()
         except Exception:
             strategy.trading = strategy.inited = False
-            error_msg = f"[{strategy.strategy_name}] 触发异常已停止\n{traceback.format_exc()}"
+            error_msg = (
+                f"[{strategy.strategy_name}] 触发异常已停止\n{traceback.format_exc()}"
+            )
             logger.critical(f"[{APP_NAME}] {error_msg}")
 
     def add_strategy(
         self, class_name: str, strategy_name: str, symbol: str, setting: dict
     ) -> None:
         if strategy_name in self.strategies:
-            error_msg = f"创建策略失败，存在重名{strategy_name}"
+            error_msg = f"创建策略失败,存在重名{strategy_name}"
             logger.error(f"[{APP_NAME}] {error_msg}")
             return
 
-        strategy_class: Optional[Type[CtaTemplate]] = self.classes.get(class_name, None)
+        strategy_class: type | None = self.classes.get(class_name, None)
         if not strategy_class:
-            error_msg = f"创建策略失败，找不到策略类{class_name}"
+            error_msg = f"创建策略失败,找不到策略类{class_name}"
             logger.error(f"[{APP_NAME}] {error_msg}")
             return
 
         if "." not in symbol:
-            error_msg = "创建策略失败，本地代码缺失交易所后缀"
+            error_msg = "创建策略失败,本地代码缺失交易所后缀"
             logger.error(f"[{APP_NAME}] {error_msg}")
             return
 
         symbol_str, exchange_str = extract_symbol(symbol)
         if exchange_str not in Exchange.__members__:
-            error_msg = "创建策略失败，本地代码的交易所后缀不正确"
+            error_msg = "创建策略失败,本地代码的交易所后缀不正确"
             logger.error(f"[{APP_NAME}] {error_msg}")
             return
 
@@ -372,7 +371,7 @@ class CtaEngine(BaseEngine):
         strategy: CtaTemplate = self.strategies[strategy_name]
 
         if strategy.inited:
-            error_msg = f"{strategy_name}已经完成初始化，禁止重复操作"
+            error_msg = f"{strategy_name}已经完成初始化,禁止重复操作"
             logger.error(f"[{APP_NAME}] {error_msg}")
             return
 
@@ -382,7 +381,7 @@ class CtaEngine(BaseEngine):
         self.call_strategy_func(strategy, strategy.on_init)
 
         # Restore strategy data(variables)
-        data: Optional[dict] = self.strategy_data.get(strategy_name, None)
+        data: dict | None = self.strategy_data.get(strategy_name, None)
         if data:
             for name in strategy.variables:
                 value = data.get(name, None)
@@ -390,13 +389,14 @@ class CtaEngine(BaseEngine):
                     setattr(strategy, name, value)
 
         # Subscribe market data
-        contract: Optional[ContractData] = self.main_engine.get_contract(strategy.symbol)
+        contract: ContractData | None = self.main_engine.get_contract(strategy.symbol)
         if contract:
             req: SubscribeRequest = SubscribeRequest(
-                symbol=contract.symbol, exchange=contract.exchange)
+                symbol=contract.symbol, exchange=contract.exchange
+            )
             self.main_engine.subscribe(req, contract.gateway_name)
         else:
-            error_msg = f"行情订阅失败，找不到合约{strategy.symbol}"
+            error_msg = f"行情订阅失败,找不到合约{strategy.symbol}"
             logger.error(f"[{APP_NAME}] {error_msg}")
 
         # Put event to update init completed status.
@@ -406,12 +406,12 @@ class CtaEngine(BaseEngine):
     def start_strategy(self, strategy_name: str) -> None:
         strategy: CtaTemplate = self.strategies[strategy_name]
         if not strategy.inited:
-            error_msg = f"策略{strategy_name}启动失败，请先初始化"
+            error_msg = f"策略{strategy_name}启动失败,请先初始化"
             logger.error(f"[{APP_NAME}] {error_msg}")
             return
 
         if strategy.trading:
-            error_msg = f"{strategy_name}已经启动，请勿重复操作"
+            error_msg = f"{strategy_name}已经启动,请勿重复操作"
             logger.error(f"[{APP_NAME}] {error_msg}")
             return
         self.call_strategy_func(strategy, strategy.on_start)
@@ -443,7 +443,7 @@ class CtaEngine(BaseEngine):
     def remove_strategy(self, strategy_name: str) -> bool:
         strategy: CtaTemplate = self.strategies[strategy_name]
         if strategy.trading:
-            error_msg = f"策略{strategy_name}移除失败，请先停止"
+            error_msg = f"策略{strategy_name}移除失败,请先停止"
             logger.error(f"[{APP_NAME}] {error_msg}")
             return
 
@@ -471,23 +471,25 @@ class CtaEngine(BaseEngine):
 
     def load_strategy_class(self) -> None:
         """
-        加载策略类（简化版本，脚本环境不需要动态加载）
+        加载策略类(简化版本,脚本环境不需要动态加载)
         """
-        # 在脚本环境中，策略类通常通过直接导入获取，无需动态加载
+        # 在脚本环境中,策略类通常通过直接导入获取,无需动态加载
         pass
 
-    def load_strategy_class_from_folder(self, path: Path, module_name: str = "") -> None:
+    def load_strategy_class_from_folder(
+        self, path: Path, module_name: str = ""
+    ) -> None:
         """
-        从特定文件夹加载策略类（简化版本，脚本环境不需要）
+        从特定文件夹加载策略类(简化版本,脚本环境不需要)
         """
-        # 在脚本环境中，通常直接导入策略类，此方法可删除
+        # 在脚本环境中,通常直接导入策略类,此方法可删除
         pass
 
     def load_strategy_class_from_module(self, module_name: str) -> None:
         """
-        从模块加载策略类（简化版本，脚本环境不需要）
+        从模块加载策略类(简化版本,脚本环境不需要)
         """
-        # 在脚本环境中，通常直接导入策略类，此方法可删除
+        # 在脚本环境中,通常直接导入策略类,此方法可删除
         pass
 
     def load_strategy_data(self) -> None:
@@ -498,59 +500,61 @@ class CtaEngine(BaseEngine):
         Sync strategy data into json file.
         """
         data: dict = strategy.get_variables()
-        data.pop("inited")      # Strategy status (inited, trading) should not be synced.
+        data.pop("inited")  # Strategy status (inited, trading) should not be synced.
         data.pop("trading")
 
         self.strategy_data[strategy.strategy_name] = data
         save_json(self.data_filename, self.strategy_data)
 
     def get_all_strategy_class_names(self) -> list:
-        """获取所有已加载的策略类名（简化版）"""
-        # 在脚本环境中，可以直接引用策略类，无需此方法
+        """获取所有已加载的策略类名(简化版)"""
+        # 在脚本环境中,可以直接引用策略类,无需此方法
         return list(self.classes.keys())
 
     def get_strategy_class_parameters(self, class_name: str) -> dict:
-        """获取策略类默认参数（简化版）"""
-        # 在脚本环境中，可以直接从策略类获取默认参数
-        strategy_class: Type[CtaTemplate] = self.classes[class_name]
-        return {name: getattr(strategy_class, name) for name in strategy_class.parameters}
+        """获取策略类默认参数(简化版)"""
+        # 在脚本环境中,可以直接从策略类获取默认参数
+        strategy_class: type = self.classes[class_name]
+        return {
+            name: getattr(strategy_class, name) for name in strategy_class.parameters
+        }
 
     def get_strategy_parameters(self, strategy_name) -> dict:
-        """获取策略实例参数（简化版）"""
-        # 在脚本环境中，可以直接访问策略实例获取参数
+        """获取策略实例参数(简化版)"""
+        # 在脚本环境中,可以直接访问策略实例获取参数
         strategy: CtaTemplate = self.strategies[strategy_name]
         return strategy.get_parameters()
 
-    def init_all_strategies(self) -> Dict[str, Future]:
-        """初始化所有策略（简化版）"""
+    def init_all_strategies(self) -> dict:
+        """初始化所有策略(简化版)"""
         # 在脚本环境中通常会显式初始化每个策略
         # 此方法主要用于GUI批量操作
-        futures: Dict[str, Future] = {}
+        futures: dict = {}
         for strategy_name in self.strategies.keys():
             futures[strategy_name] = self.init_strategy(strategy_name)
         return futures
 
     def start_all_strategies(self) -> None:
-        """启动所有策略（简化版）"""
+        """启动所有策略(简化版)"""
         # 在脚本环境中通常会显式启动每个策略
         for strategy_name in self.strategies.keys():
             self.start_strategy(strategy_name)
 
     def stop_all_strategies(self) -> None:
-        """停止所有策略（简化版）"""
+        """停止所有策略(简化版)"""
         # 在关闭引擎时仍然需要调用此方法
         for strategy_name in self.strategies.keys():
             self.stop_strategy(strategy_name)
 
     def load_strategy_setting(self) -> None:
         """
-        加载策略设置（简化版）
+        加载策略设置(简化版)
         """
-        # 在脚本环境中，策略设置通常直接在代码中定义，而不是从文件加载
+        # 在脚本环境中,策略设置通常直接在代码中定义,而不是从文件加载
         # 但保留此方法可以支持从配置文件恢复
         self.strategy_setting = load_json(self.setting_filename)
 
-        # 在脚本环境中通常不自动添加策略，注释掉自动加载的代码
+        # 在脚本环境中通常不自动添加策略,注释掉自动加载的代码
         # for strategy_name, strategy_config in self.strategy_setting.items():
         #     self.add_strategy(
         #         strategy_config["class_name"],
@@ -561,9 +565,9 @@ class CtaEngine(BaseEngine):
 
     def update_strategy_setting(self, strategy_name: str, setting: dict) -> None:
         """
-        更新策略设置（简化版）
+        更新策略设置(简化版)
         """
-        # 在脚本环境中，策略参数通常直接在代码中修改，而不是动态更新
+        # 在脚本环境中,策略参数通常直接在代码中修改,而不是动态更新
         # 但保留文件保存功能以便记录
         strategy: CtaTemplate = self.strategies[strategy_name]
 
@@ -576,9 +580,9 @@ class CtaEngine(BaseEngine):
 
     def remove_strategy_setting(self, strategy_name: str) -> None:
         """
-        移除策略设置（简化版）
+        移除策略设置(简化版)
         """
-        # 在脚本环境中，通常不需要动态移除策略
+        # 在脚本环境中,通常不需要动态移除策略
         # 但保留此方法以便在需要时清理配置文件
         if strategy_name not in self.strategy_setting:
             return
@@ -590,6 +594,6 @@ class CtaEngine(BaseEngine):
         save_json(self.data_filename, self.strategy_data)
 
     def put_strategy_event(self, strategy: CtaTemplate) -> None:
-        """发送策略状态更新事件（GUI用，可删除）"""
+        """发送策略状态更新事件(GUI用,可删除)"""
         # 在无GUI环境下不需要此方法
         pass

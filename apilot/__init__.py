@@ -1,7 +1,7 @@
 """
 AlphaPilot (apilot) - 量化交易平台
 
-这个包提供了一套完整的量化交易工具，包括数据获取、策略开发、回测和实盘交易功能。
+这个包提供了一套完整的量化交易工具,包括数据获取、策略开发、回测和实盘交易功能.
 
 推荐导入方式:
     import apilot as ap                     # 一般用法
@@ -15,26 +15,39 @@ __version__ = "0.1.0"
 
 # 定义公共API
 __all__ = [
-    # 核心数据对象
-    "BarData", "TickData", "OrderData", "TradeData", "AccountData", "PositionData", "ContractData",
-
-    # 工具类
-    "BarGenerator", "ArrayManager", "LocalOrderManager",
-
-    # 策略模板
-    "CtaTemplate", "TargetPosTemplate",
-
-    # 回测和优化
-    "BacktestingEngine", "OptimizationSetting", "run_ga_optimization",
-
-    # 常量
-    "Direction", "Offset", "Exchange", "Interval", "Status", "Product", "OrderType",
-
-    # 日志系统
-    "get_logger", "set_level", "log_exceptions",
-
-    # 模块包
-    "core", "engine", "execution", "optimizer", "risk", "strategy", "utils", "datafeed"
+    "AccountData",
+    "ArrayManager",
+    "BacktestingEngine",
+    "BarData",
+    "BarGenerator",
+    "ContractData",
+    "CtaTemplate",
+    "Direction",
+    "Exchange",
+    "Interval",
+    "LocalOrderManager",
+    "Offset",
+    "OptimizationSetting",
+    "OrderData",
+    "OrderType",
+    "PositionData",
+    "Product",
+    "Status",
+    "TargetPosTemplate",
+    "TickData",
+    "TradeData",
+    "core",
+    "datafeed",
+    "engine",
+    "execution",
+    "get_logger",
+    "log_exceptions",
+    "optimizer",
+    "risk",
+    "run_ga_optimization",
+    "set_level",
+    "strategy",
+    "utils",
 ]
 
 # 导出子模块 (包级别)
