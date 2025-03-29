@@ -9,10 +9,10 @@ from apilot.core.object import BarData, OrderData, TickData, TradeData
 from apilot.utils.logger import get_logger
 
 # 模块级别初始化日志器
-logger = get_logger("CtaStrategy")
+logger = get_logger("PAStrategy")
 
 
-class CtaTemplate(ABC):
+class PATemplate(ABC):
     """
     PA策略模板
     统一采用多币种设计,单币种只是特殊情况
@@ -23,12 +23,12 @@ class CtaTemplate(ABC):
 
     def __init__(
         self,
-        cta_engine: Any,
+        pa_engine: Any,
         strategy_name: str,
         symbols: str | list[str],
         setting: dict,
     ) -> None:
-        self.cta_engine = cta_engine
+        self.pa_engine = pa_engine
         self.strategy_name = strategy_name
 
         # 统一处理为列表形式
@@ -181,7 +181,7 @@ class CtaTemplate(ABC):
         try:
             if self.trading:
                 # 根据是否为多币种模式调用不同的发单接口
-                orderids: list[str] = self.cta_engine.send_order(
+                orderids: list[str] = self.pa_engine.send_order(
                     self, symbol, direction, offset, price, volume, net
                 )
 
@@ -200,7 +200,7 @@ class CtaTemplate(ABC):
     def cancel_order(self, orderid: str) -> None:
         """撤销委托"""
         if self.trading:
-            self.cta_engine.cancel_order(self, orderid)
+            self.pa_engine.cancel_order(self, orderid)
 
     def cancel_all(self) -> None:
         """全撤活动委托"""
@@ -224,19 +224,19 @@ class CtaTemplate(ABC):
 
     def get_engine_type(self) -> EngineType:
         """查询引擎类型"""
-        return self.cta_engine.get_engine_type()
+        return self.pa_engine.get_engine_type()
 
     def get_pricetick(self, symbol: str) -> float:
         """
         获取合约最小价格跳动
         """
-        return self.cta_engine.get_pricetick(self, symbol)
+        return self.pa_engine.get_pricetick(self, symbol)
 
     def get_size(self, symbol: str) -> int:
         """
         获取合约乘数
         """
-        return self.cta_engine.get_size(self, symbol)
+        return self.pa_engine.get_size(self, symbol)
 
     def load_bar(
         self,
@@ -249,7 +249,7 @@ class CtaTemplate(ABC):
         if not callback:
             callback = self.on_bar
 
-        bars: list[BarData] = self.cta_engine.load_bar(
+        bars: list[BarData] = self.pa_engine.load_bar(
             self.symbols[0], days, interval, callback, use_database
         )
 
@@ -262,14 +262,14 @@ class CtaTemplate(ABC):
         适用于多币种策略
         """
         if self.symbols:
-            self.cta_engine.load_bars(self, days, interval)
+            self.pa_engine.load_bars(self, days, interval)
         else:
             # 无币种模式下,使用传统load_bar
             self.load_bar(days, interval)
 
     def load_tick(self, days: int) -> None:
         """加载历史Tick数据初始化策略"""
-        ticks: list[TickData] = self.cta_engine.load_tick(
+        ticks: list[TickData] = self.pa_engine.load_tick(
             self.symbols[0], days, self.on_tick
         )
 
@@ -279,7 +279,7 @@ class CtaTemplate(ABC):
     def sync_data(self) -> None:
         """同步策略变量值到磁盘存储"""
         if self.trading:
-            self.cta_engine.sync_strategy_data(self)
+            self.pa_engine.sync_strategy_data(self)
 
     def calculate_price(
         self, symbol: str, direction: Direction, reference: float
@@ -354,15 +354,15 @@ class CtaTemplate(ABC):
         return list(self.active_orderids)
 
 
-class TargetPosTemplate(CtaTemplate):
+class TargetPosTemplate(PATemplate):
     tick_add = 1
 
     last_tick: TickData = None
     last_bar: BarData = None
     target_pos = 0
 
-    def __init__(self, cta_engine, strategy_name, symbols, setting) -> None:
-        super().__init__(cta_engine, strategy_name, symbols, setting)
+    def __init__(self, pa_engine, strategy_name, symbols, setting) -> None:
+        super().__init__(pa_engine, strategy_name, symbols, setting)
 
         self.active_orderids: list = []
         self.cancel_orderids: list = []
