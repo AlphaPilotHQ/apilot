@@ -1,27 +1,24 @@
-from apilot_ctastrategy import (
-    CtaTemplate,
-    TickData,
-    BarData,
-    TradeData,
-    OrderData
-)
-
 from time import time
+from typing import ClassVar
+
+from apilot_ctastrategy import BarData, CtaTemplate, OrderData, TickData, TradeData
 from apilot.utils.logger import get_logger
 
 # Initialize logger for this strategy
-logger = get_logger("TestStrategy")
+logger = get_logger(__name__)
 
 
 class TestStrategy(CtaTemplate):
-    """"""
-    test_trigger = 10
+    """
+    测试策略
+    """
+    # 类变量
+    test_trigger: ClassVar[int] = 1
+    tick_count: ClassVar[int] = 0
+    test_all_done: ClassVar[bool] = False
 
-    tick_count = 0
-    test_all_done = False
-
-    parameters = ["test_trigger"]
-    variables = ["tick_count", "test_all_done"]
+    parameters: ClassVar[list[str]] = ["test_trigger"]
+    variables: ClassVar[list[str]] = ["tick_count", "test_all_done"]
 
     def __init__(self, cta_engine, strategy_name, symbol, setting):
         """"""
