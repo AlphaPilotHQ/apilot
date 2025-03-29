@@ -1,8 +1,9 @@
 from collections import defaultdict
+from collections.abc import Callable
 from queue import Empty, Queue
 from threading import Thread
 from time import sleep
-from typing import Any, Callable, List
+from typing import Any
 
 # 事件类型
 EVENT_TIMER = "eTimer"
@@ -60,7 +61,7 @@ class EventEngine:
         self._thread: Thread = Thread(target=self._run)
         self._timer: Thread = Thread(target=self._run_timer)
         self._handlers: defaultdict = defaultdict(list)
-        self._general_handlers: List = []
+        self._general_handlers: list = []
 
     def _run(self) -> None:
         """
