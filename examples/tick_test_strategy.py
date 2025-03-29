@@ -1,17 +1,18 @@
 from time import time
 from typing import ClassVar
 
-from apilot_ctastrategy import BarData, CtaTemplate, OrderData, TickData, TradeData
+import apilot as ap
 from apilot.utils.logger import get_logger
 
 # Initialize logger for this strategy
 logger = get_logger(__name__)
 
 
-class TestStrategy(CtaTemplate):
+class TestStrategy(ap.PATemplate):
     """
     测试策略
     """
+
     # 类变量
     test_trigger: ClassVar[int] = 1
     tick_count: ClassVar[int] = 0
@@ -20,9 +21,9 @@ class TestStrategy(CtaTemplate):
     parameters: ClassVar[list[str]] = ["test_trigger"]
     variables: ClassVar[list[str]] = ["tick_count", "test_all_done"]
 
-    def __init__(self, cta_engine, strategy_name, symbol, setting):
+    def __init__(self, pa_engine, strategy_name, symbol, setting):
         """"""
-        super().__init__(cta_engine, strategy_name, symbol, setting)
+        super().__init__(pa_engine, strategy_name, symbol, setting)
 
         self.test_funcs = [
             self.test_market_order,
@@ -49,7 +50,7 @@ class TestStrategy(CtaTemplate):
         """
         logger.info(f"[{self.strategy_name}] Strategy stopped")
 
-    def on_tick(self, tick: TickData):
+    def on_tick(self, tick: ap.TickData):
         """
         Callback of new tick data update.
         """
@@ -75,24 +76,23 @@ class TestStrategy(CtaTemplate):
 
         self.put_event()
 
-    def on_bar(self, bar: BarData):
+    def on_bar(self, bar: ap.BarData):
         """
         Callback of new bar data update.
         """
         pass
 
-    def on_order(self, order: OrderData):
+    def on_order(self, order: ap.OrderData):
         """
         Callback of new order data update.
         """
         self.put_event()
 
-    def on_trade(self, trade: TradeData):
+    def on_trade(self, trade: ap.TradeData):
         """
         Callback of new trade data update.
         """
         self.put_event()
-
 
     def test_market_order(self):
         """"""

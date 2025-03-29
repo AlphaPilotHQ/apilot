@@ -18,7 +18,7 @@ from apilot.utils.logger import get_logger
 logger = get_logger(__name__)
 
 
-class TurtleSignalStrategy(ap.CtaTemplate):
+class TurtleSignalStrategy(ap.PATemplate):
     """
     海龟交易信号策略
 
@@ -59,9 +59,9 @@ class TurtleSignalStrategy(ap.CtaTemplate):
         "atr_value",
     ]
 
-    def __init__(self, cta_engine, strategy_name, symbol, setting):
-        """初始化策略"""
-        super().__init__(cta_engine, strategy_name, symbol, setting)
+    def __init__(self, pa_engine, strategy_name, symbol, setting):
+        """初始化"""
+        super().__init__(pa_engine, strategy_name, symbol, setting)
 
         # 创建K线生成器和数据管理器
         self.bg = ap.BarGenerator(self.on_bar)

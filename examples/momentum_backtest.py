@@ -16,7 +16,7 @@ logger = get_logger("momentum_strategy")
 set_level("debug", "momentum_strategy")
 
 
-class StdMomentumStrategy(ap.CtaTemplate):
+class StdMomentumStrategy(ap.PATemplate):
     """
     策略逻辑:
 
@@ -39,11 +39,20 @@ class StdMomentumStrategy(ap.CtaTemplate):
     mom_threshold = 0.5
     trailing_std_scale = 4
 
-    parameters: ClassVar[list[str]] = ["std_period", "mom_threshold", "trailing_std_scale"]
-    variables: ClassVar[list[str]] = ["momentum", "intra_trade_high", "intra_trade_low", "pos"]
+    parameters: ClassVar[list[str]] = [
+        "std_period",
+        "mom_threshold",
+        "trailing_std_scale",
+    ]
+    variables: ClassVar[list[str]] = [
+        "momentum",
+        "intra_trade_high",
+        "intra_trade_low",
+        "pos",
+    ]
 
-    def __init__(self, cta_engine, strategy_name, symbols, setting):
-        super().__init__(cta_engine, strategy_name, symbols, setting)
+    def __init__(self, pa_engine, strategy_name, symbols, setting):
+        super().__init__(pa_engine, strategy_name, symbols, setting)
 
         # 为每个交易对创建数据生成器和管理器
         self.bgs = {}
@@ -135,11 +144,11 @@ class StdMomentumStrategy(ap.CtaTemplate):
 
                 # 限制每次交易的资金比例,最多使用资金的10%
                 risk_percent = 0.1
-                capital_to_use = self.cta_engine.capital * risk_percent
+                capital_to_use = self.pa_engine.capital * risk_percent
                 size = max(1, int(capital_to_use / bar.close_price))
 
                 logger.debug(
-                    f"{symbol} 资金情况: 可用 {self.cta_engine.capital}, 使用 {capital_to_use}, 数量 {size}"
+                    f"{symbol} 资金情况: 可用 {self.pa_engine.capital}, 使用 {capital_to_use}, 数量 {size}"
                 )
 
                 # 基于动量信号开仓
