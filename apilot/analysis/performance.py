@@ -3,7 +3,6 @@ Performance calculation module for strategy backtesting.
 """
 
 from datetime import date
-from typing import Dict, List
 
 import numpy as np
 from pandas import DataFrame
@@ -20,14 +19,14 @@ class DailyResult:
         Initialize daily result
         """
         self.date: date = date
-        self.close_prices: Dict[str, float] = {}
-        self.pre_closes: Dict[str, float] = {}
+        self.close_prices: dict[str, float] = {}
+        self.pre_closes: dict[str, float] = {}
 
-        self.trades: List[TradeData] = []
+        self.trades: list[TradeData] = []
         self.trade_count: int = 0
 
-        self.start_poses: Dict[str, float] = {}
-        self.end_poses: Dict[str, float] = {}
+        self.start_poses: dict[str, float] = {}
+        self.end_poses: dict[str, float] = {}
 
         self.turnover: float = 0
 
@@ -50,9 +49,9 @@ class DailyResult:
 
     def calculate_pnl(
         self,
-        pre_closes: Dict[str, float],
-        start_poses: Dict[str, float],
-        sizes: Dict[str, float],
+        pre_closes: dict[str, float],
+        start_poses: dict[str, float],
+        sizes: dict[str, float],
     ) -> None:
         """
         Calculate profit and loss
@@ -117,7 +116,9 @@ class PerformanceCalculator:
         self.annual_days = annual_days
         self.daily_df = None
 
-    def calculate_result(self, trades: Dict, daily_results: Dict, sizes: Dict) -> DataFrame:
+    def calculate_result(
+        self, trades: dict, daily_results: dict, sizes: dict
+    ) -> DataFrame:
         """
         Calculate backtest results
 
@@ -164,8 +165,12 @@ class PerformanceCalculator:
         return self.daily_df
 
 
-def calculate_statistics(df: DataFrame = None, capital: float = 0,
-                        annual_days: int = 240, output: bool = True) -> tuple:
+def calculate_statistics(
+    df: DataFrame = None,
+    capital: float = 0,
+    annual_days: int = 240,
+    output: bool = True,
+) -> tuple:
     """
     Calculate statistics from performance data
 
@@ -239,28 +244,21 @@ def calculate_statistics(df: DataFrame = None, capital: float = 0,
 
     # Calculate return metrics
     stats["total_return"] = (stats["end_balance"] / capital - 1) * 100
-    stats["annual_return"] = (
-        stats["total_return"] / stats["total_days"] * annual_days
-    )
+    stats["annual_return"] = stats["total_return"] / stats["total_days"] * annual_days
 
     # Calculate risk-adjusted metrics
     daily_returns = df["return"].values
     if len(daily_returns) > 0 and np.std(daily_returns) > 0:
         stats["sharpe_ratio"] = (
-            np.mean(daily_returns)
-            / np.std(daily_returns)
-            * np.sqrt(annual_days)
+            np.mean(daily_returns) / np.std(daily_returns) * np.sqrt(annual_days)
         )
 
     if stats["max_ddpercent"] < 0:
-        stats["return_drawdown_ratio"] = (
-            -stats["total_return"] / stats["max_ddpercent"]
-        )
+        stats["return_drawdown_ratio"] = -stats["total_return"] / stats["max_ddpercent"]
 
     # Clean up invalid values
     stats = {
-        k: np.nan_to_num(v, nan=0.0, posinf=0.0, neginf=0.0)
-        for k, v in stats.items()
+        k: np.nan_to_num(v, nan=0.0, posinf=0.0, neginf=0.0) for k, v in stats.items()
     }
 
     if output:
