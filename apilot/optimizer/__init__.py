@@ -23,14 +23,12 @@
 # 定义公共API
 __all__ = [
     "OptimizationSetting",
-    "check_optimization_setting",
     "ga_evaluate",
     "run_ga_optimization",
 ]
 
 from .optimizer import (
     OptimizationSetting,
-    check_optimization_setting,
     ga_evaluate,
     run_ga_optimization,
 )

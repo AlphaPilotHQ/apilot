@@ -41,7 +41,7 @@ class TickData(BaseData):
 
     symbol: str = ""  # Full symbol with exchange (e.g. "BTC.BINANCE")
     exchange: Exchange | None = None  # Kept for backward compatibility
-    datetime: datetime | None = None
+    dt: datetime | None = None
 
     name: str = ""
     volume: float = 0
@@ -81,7 +81,7 @@ class TickData(BaseData):
     ask_volume_4: float = 0
     ask_volume_5: float = 0
 
-    localtime: datetime = None
+    localtime: datetime | None = None
 
     def __post_init__(self) -> None:
         """Initialize with exchange from symbol if not provided"""
@@ -98,7 +98,7 @@ class TickData(BaseData):
         tick = TickData(
             symbol=data["symbol"],
             exchange=data.get("exchange"),
-            datetime=data.get("datetime"),
+            dt=data.get("dt"),
             gateway_name=data.get("gateway_name", ""),
             name=data.get("name", ""),
             volume=data.get("volume", 0),
@@ -143,10 +143,9 @@ class BarData(BaseData):
     """
 
     symbol: str = ""  # Full symbol with exchange (e.g. "BTC.BINANCE")
-    exchange: Exchange = None  # Kept for backward compatibility
-    datetime: datetime = None
-
-    interval: Interval = None
+    exchange: Exchange | None = None  # Kept for backward compatibility
+    dt: datetime | None = None
+    interval: Interval | None = None
     volume: float = 0
     turnover: float = 0
     open_interest: float = 0
@@ -170,7 +169,7 @@ class BarData(BaseData):
         bar = BarData(
             symbol=data["symbol"],
             exchange=data.get("exchange"),
-            datetime=data.get("datetime"),
+            dt=data.get("dt"),
             gateway_name=data.get("gateway_name", ""),
             interval=data.get("interval", None),
             volume=data.get("volume", 0),
@@ -194,16 +193,16 @@ class OrderData(BaseData):
     gateway_name: str = ""
 
     symbol: str = ""  # Full symbol with exchange (e.g. "BTC.BINANCE")
-    _exchange: Exchange = None  # Kept for backward compatibility
+    _exchange: Exchange | None = None  # Kept for backward compatibility
     orderid: str = ""
     type: OrderType = OrderType.LIMIT
-    direction: Direction = None
+    direction: Direction | None = None
     offset: Offset = Offset.NONE
     price: float = 0
     volume: float = 0
     traded: float = 0
     status: Status = Status.SUBMITTING
-    datetime: datetime = None
+    dt: datetime | None = None
     reference: str = ""
 
     @property
@@ -246,15 +245,15 @@ class TradeData(BaseData):
     """
 
     symbol: str = ""  # Full symbol with exchange (e.g. "BTC.BINANCE")
-    exchange: Exchange = None  # Kept for backward compatibility
+    exchange: Exchange | None = None  # Kept for backward compatibility
     orderid: str = ""
     tradeid: str = ""
-    direction: Direction = None
+    direction: Direction | None = None
 
     offset: Offset = Offset.NONE
     price: float = 0
     volume: float = 0
-    datetime: datetime = None
+    dt: datetime | None = None
 
     def __post_init__(self) -> None:
         """Initialize with exchange from symbol if not provided"""
@@ -274,8 +273,8 @@ class PositionData(BaseData):
     """
 
     symbol: str = ""  # Full symbol with exchange (e.g. "BTC.BINANCE")
-    exchange: Exchange = None  # Kept for backward compatibility
-    direction: Direction = None
+    exchange: Exchange | None = None  # Kept for backward compatibility
+    direction: Direction | None = None
 
     volume: float = 0
     frozen: float = 0
@@ -341,21 +340,21 @@ class ContractData(BaseData):
     """
 
     symbol: str = ""  # Full symbol with exchange (e.g. "BTC.BINANCE")
-    exchange: Exchange = None  # Kept for backward compatibility
+    exchange: Exchange | None = None  # Kept for backward compatibility
     name: str = ""
-    product: Product = None
+    product: Product | None = None
     size: float = 0
     pricetick: float = 0
 
     min_volume: float = 1  # minimum order volume
-    max_volume: float = None  # maximum order volume
+    max_volume: float | None = None  # maximum order volume
     stop_supported: bool = False  # whether server supports stop order
     net_position: bool = False  # whether gateway uses net position volume
     history_data: bool = False  # whether gateway provides bar history data
 
     option_strike: float = 0
     option_underlying: str = ""  # symbol of underlying contract
-    option_expiry: datetime = None
+    option_expiry: datetime | None = None
     option_portfolio: str = ""
     option_index: str = ""  # for identifying options with same strike price
 
@@ -375,7 +374,7 @@ class QuoteData(BaseData):
     """
 
     symbol: str = ""  # Full symbol with exchange (e.g. "BTC.BINANCE")
-    exchange: Exchange = None  # Kept for backward compatibility
+    exchange: Exchange | None = None  # Kept for backward compatibility
     quoteid: str = ""
 
     bid_price: float = 0.0
@@ -385,7 +384,7 @@ class QuoteData(BaseData):
     bid_offset: Offset = Offset.NONE
     ask_offset: Offset = Offset.NONE
     status: Status = Status.SUBMITTING
-    datetime: datetime = None
+    dt: datetime | None = None
     reference: str = ""
 
     def __post_init__(self) -> None:
@@ -418,7 +417,7 @@ class SubscribeRequest:
     """
 
     symbol: str = ""  # Full symbol with exchange (e.g. "BTC.BINANCE")
-    exchange: Exchange = None  # Kept for backward compatibility
+    exchange: Exchange | None = None  # Kept for backward compatibility
 
     def __post_init__(self) -> None:
         """Initialize with exchange from symbol if not provided"""
@@ -435,9 +434,9 @@ class OrderRequest:
     """
 
     symbol: str = ""  # Full symbol with exchange (e.g. "BTC.BINANCE")
-    exchange: Exchange = None
-    direction: Direction = None
-    type: OrderType = None
+    exchange: Exchange | None = None
+    direction: Direction | None = None
+    type: OrderType | None = None
     volume: float = 0
     price: float = 0
     offset: Offset = Offset.NONE
@@ -494,10 +493,10 @@ class HistoryRequest:
     """
 
     symbol: str = ""  # Full symbol with exchange (e.g. "BTC.BINANCE")
-    exchange: Exchange = None  # Kept for backward compatibility
-    start: datetime = None
-    end: datetime = None
-    interval: Interval = None
+    exchange: Exchange | None = None  # Kept for backward compatibility
+    start: datetime | None = None
+    end: datetime | None = None
+    interval: Interval | None = None
 
     def __post_init__(self) -> None:
         """Initialize with exchange from symbol if not provided"""
@@ -514,7 +513,7 @@ class QuoteRequest:
     """
 
     symbol: str = ""  # Full symbol with exchange (e.g. "BTC.BINANCE")
-    exchange: Exchange = None  # Kept for backward compatibility
+    exchange: Exchange | None = None  # Kept for backward compatibility
     bid_price: float = 0
     bid_volume: int = 0
     ask_price: float = 0
