@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import ClassVar
 
 from apilot.portfolio_strategy.engine import StrategyEngine
 from apilot.portfolio_strategy.template import StrategyTemplate
@@ -24,26 +25,23 @@ class TrendFollowingStrategy(StrategyTemplate):
     rsi_buy = 0
     rsi_sell = 0
 
-    parameters = [
+    parameters: ClassVar[list[str]] = [
         "price_add",
         "atr_window",
         "atr_ma_window",
         "rsi_window",
         "rsi_entry",
         "trailing_percent",
-        "fixed_size"
+        "fixed_size",
     ]
-    variables = [
-        "rsi_buy",
-        "rsi_sell"
-    ]
+    variables: ClassVar[list[str]] = ["rsi_buy", "rsi_sell"]
 
     def __init__(
         self,
         strategy_engine: StrategyEngine,
         strategy_name: str,
         symbols: list[str],
-        setting: dict
+        setting: dict,
     ) -> None:
         """构造函数"""
         super().__init__(strategy_engine, strategy_name, symbols, setting)
@@ -98,7 +96,7 @@ class TrendFollowingStrategy(StrategyTemplate):
 
             atr_array = am.atr(self.atr_window, array=True)
             self.atr_data[symbol] = atr_array[-1]
-            self.atr_ma[symbol] = atr_array[-self.atr_ma_window:].mean()
+            self.atr_ma[symbol] = atr_array[-self.atr_ma_window :].mean()
             self.rsi_data[symbol] = am.rsi(self.rsi_window)
 
             current_pos = self.get_pos(symbol)
@@ -115,19 +113,27 @@ class TrendFollowingStrategy(StrategyTemplate):
                         self.set_target(symbol, 0)
 
             elif current_pos > 0:
-                self.intra_trade_high[symbol] = max(self.intra_trade_high[symbol], bar.high_price)
+                self.intra_trade_high[symbol] = max(
+                    self.intra_trade_high[symbol], bar.high_price
+                )
                 self.intra_trade_low[symbol] = bar.low_price
 
-                long_stop = self.intra_trade_high[symbol] * (1 - self.trailing_percent / 100)
+                long_stop = self.intra_trade_high[symbol] * (
+                    1 - self.trailing_percent / 100
+                )
 
                 if bar.close_price <= long_stop:
                     self.set_target(symbol, 0)
 
             elif current_pos < 0:
-                self.intra_trade_low[symbol] = min(self.intra_trade_low[symbol], bar.low_price)
+                self.intra_trade_low[symbol] = min(
+                    self.intra_trade_low[symbol], bar.low_price
+                )
                 self.intra_trade_high[symbol] = bar.high_price
 
-                short_stop = self.intra_trade_low[symbol] * (1 + self.trailing_percent / 100)
+                short_stop = self.intra_trade_low[symbol] * (
+                    1 + self.trailing_percent / 100
+                )
 
                 if bar.close_price >= short_stop:
                     self.set_target(symbol, 0)
@@ -136,8 +142,10 @@ class TrendFollowingStrategy(StrategyTemplate):
 
         self.put_event()
 
-    def calculate_price(self, symbol: str, direction: Direction, reference: float) -> float:
-        """计算调仓委托价格（支持按需重载实现）"""
+    def calculate_price(
+        self, symbol: str, direction: Direction, reference: float
+    ) -> float:
+        """计算调仓委托价格(支持按需重载实现)"""
         if direction == Direction.LONG:
             price: float = reference + self.price_add
         else:

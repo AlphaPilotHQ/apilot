@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import ClassVar
 
 from apilot_portfoliostrategy import StrategyEngine, StrategyTemplate
 
@@ -27,12 +28,8 @@ class PcpArbitrageStrategy(StrategyTemplate):
     call_target = 0
     put_target = 0
 
-    parameters = [
-        "entry_level",
-        "price_add",
-        "fixed_size"
-    ]
-    variables = [
+    parameters: ClassVar[list[str]] = ["entry_level", "price_add", "fixed_size"]
+    variables: ClassVar[list[str]] = [
         "strike_price",
         "futures_price",
         "synthetic_price",
@@ -50,7 +47,7 @@ class PcpArbitrageStrategy(StrategyTemplate):
         strategy_engine: StrategyEngine,
         strategy_name: str,
         symbols: list[str],
-        setting: dict
+        setting: dict,
     ) -> None:
         """构造函数"""
         super().__init__(strategy_engine, strategy_name, symbols, setting)
@@ -64,7 +61,7 @@ class PcpArbitrageStrategy(StrategyTemplate):
 
             if "C" in base_symbol:
                 self.call_symbol = symbol
-                _, strike_str = base_symbol.split("-C-")     # CFFEX/DCE
+                _, strike_str = base_symbol.split("-C-")  # CFFEX/DCE
                 self.strike_price = int(strike_str)
             elif "P" in base_symbol:
                 self.put_symbol = symbol
@@ -93,10 +90,7 @@ class PcpArbitrageStrategy(StrategyTemplate):
 
     def on_tick(self, tick: TickData):
         """行情推送回调"""
-        if (
-            self.last_tick_time
-            and self.last_tick_time.minute != tick.datetime.minute
-        ):
+        if self.last_tick_time and self.last_tick_time.minute != tick.datetime.minute:
             bars = {}
             for symbol, bg in self.bgs.items():
                 bars[symbol] = bg.generate()
@@ -117,7 +111,9 @@ class PcpArbitrageStrategy(StrategyTemplate):
         futures_bar = bars[self.futures_symbol]
 
         self.futures_price = futures_bar.close_price
-        self.synthetic_price = call_bar.close_price - put_bar.close_price + self.strike_price
+        self.synthetic_price = (
+            call_bar.close_price - put_bar.close_price + self.strike_price
+        )
         self.current_spread = self.synthetic_price - self.futures_price
 
         # 计算目标仓位
@@ -157,8 +153,10 @@ class PcpArbitrageStrategy(StrategyTemplate):
 
         self.put_event()
 
-    def calculate_price(self, symbol: str, direction: Direction, reference: float) -> float:
-        """计算调仓委托价格（支持按需重载实现）"""
+    def calculate_price(
+        self, symbol: str, direction: Direction, reference: float
+    ) -> float:
+        """计算调仓委托价格(支持按需重载实现)"""
         if direction == Direction.LONG:
             price: float = reference + self.price_add
         else:

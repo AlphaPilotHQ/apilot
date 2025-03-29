@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import ClassVar
 
 import numpy as np
 from apilot_portfoliostrategy import StrategyEngine, StrategyTemplate
@@ -27,7 +28,7 @@ class PairTradingStrategy(StrategyTemplate):
     boll_down = 0.0
     boll_up = 0.0
 
-    parameters = [
+    parameters: ClassVar[list[str]] = [
         "tick_add",
         "boll_window",
         "boll_dev",
@@ -35,7 +36,7 @@ class PairTradingStrategy(StrategyTemplate):
         "leg1_ratio",
         "leg2_ratio",
     ]
-    variables = [
+    variables: ClassVar[list[str]] = [
         "leg1_symbol",
         "leg2_symbol",
         "current_spread",
@@ -49,7 +50,7 @@ class PairTradingStrategy(StrategyTemplate):
         strategy_engine: StrategyEngine,
         strategy_name: str,
         symbols: list[str],
-        setting: dict
+        setting: dict,
     ) -> None:
         """构造函数"""
         super().__init__(strategy_engine, strategy_name, symbols, setting)
@@ -86,10 +87,7 @@ class PairTradingStrategy(StrategyTemplate):
 
     def on_tick(self, tick: TickData) -> None:
         """行情推送回调"""
-        if (
-            self.last_tick_time
-            and self.last_tick_time.minute != tick.datetime.minute
-        ):
+        if self.last_tick_time and self.last_tick_time.minute != tick.datetime.minute:
             bars = {}
             for symbol, bg in self.bgs.items():
                 bars[symbol] = bg.generate()
@@ -115,7 +113,10 @@ class PairTradingStrategy(StrategyTemplate):
             return
 
         # 计算当前价差
-        self.current_spread = leg1_bar.close_price * self.leg1_ratio - leg2_bar.close_price * self.leg2_ratio
+        self.current_spread = (
+            leg1_bar.close_price * self.leg1_ratio
+            - leg2_bar.close_price * self.leg2_ratio
+        )
 
         # 更新到价差序列
         self.spread_data[:-1] = self.spread_data[1:]
@@ -126,7 +127,7 @@ class PairTradingStrategy(StrategyTemplate):
             return
 
         # 计算布林带
-        buf: np.array = self.spread_data[-self.boll_window:]
+        buf: np.array = self.spread_data[-self.boll_window :]
 
         std = buf.std()
         self.boll_mid = buf.mean()
@@ -158,8 +159,10 @@ class PairTradingStrategy(StrategyTemplate):
         # 推送更新事件
         self.put_event()
 
-    def calculate_price(self, symbol: str, direction: Direction, reference: float) -> float:
-        """计算调仓委托价格（支持按需重载实现）"""
+    def calculate_price(
+        self, symbol: str, direction: Direction, reference: float
+    ) -> float:
+        """计算调仓委托价格(支持按需重载实现)"""
         pricetick: float = self.get_pricetick(symbol)
 
         if direction == Direction.LONG:

@@ -1,33 +1,33 @@
-from abc import ABC
+from abc import ABC, abstractmethod
 from collections import defaultdict
+from collections.abc import Callable
 from copy import copy
-from typing import Any, Callable, Dict, List, Optional, Set, Union
+from typing import Any, ClassVar
 
 from apilot.core.constant import Direction, EngineType, Interval, Offset
 from apilot.core.object import BarData, OrderData, TickData, TradeData
-from apilot.core.utility import virtual
 from apilot.utils.logger import get_logger
 
 # 模块级别初始化日志器
 logger = get_logger("CtaStrategy")
 
+
 class CtaTemplate(ABC):
     """
     PA策略模板
-    统一采用多币种设计，单币种只是特殊情况
+    统一采用多币种设计,单币种只是特殊情况
     """
 
-    parameters: list = []
-    variables: list = []
+    parameters: ClassVar[list] = []
+    variables: ClassVar[list] = []
 
     def __init__(
         self,
         cta_engine: Any,
         strategy_name: str,
-        symbols: Union[str, List[str]],
-        setting: dict
+        symbols: str | list[str],
+        setting: dict,
     ) -> None:
-
         self.cta_engine = cta_engine
         self.strategy_name = strategy_name
 
@@ -41,12 +41,12 @@ class CtaTemplate(ABC):
         self.trading: bool = False
 
         # 统一使用字典管理持仓和目标
-        self.pos_dict: Dict[str, int] = defaultdict(int)  # 实际持仓
-        self.target_dict: Dict[str, int] = defaultdict(int)  # 目标持仓
+        self.pos_dict: dict[str, int] = defaultdict(int)  # 实际持仓
+        self.target_dict: dict[str, int] = defaultdict(int)  # 目标持仓
 
         # 委托缓存容器
-        self.orders: Dict[str, OrderData] = {}
-        self.active_orderids: Set[str] = set()
+        self.orders: dict[str, OrderData] = {}
+        self.active_orderids: set[str] = set()
 
         # 复制变量列表并插入默认变量
         self.variables = copy(self.variables)
@@ -80,104 +80,89 @@ class CtaTemplate(ABC):
             "class_name": self.__class__.__name__,
             "parameters": self.get_parameters(),
             "variables": self.get_variables(),
-            "symbols": self.symbols
+            "symbols": self.symbols,
         }
         return data
 
-    @virtual
+    @abstractmethod
     def on_init(self) -> None:
         """策略初始化回调"""
         pass
 
-    @virtual
+    @abstractmethod
     def on_start(self) -> None:
         """策略启动回调"""
         pass
 
-    @virtual
+    @abstractmethod
     def on_stop(self) -> None:
         """策略停止回调"""
         pass
 
-    @virtual
+    @abstractmethod
     def on_tick(self, tick: TickData) -> None:
         """行情Tick推送回调"""
         pass
 
-    @virtual
+    @abstractmethod
     def on_bar(self, bar: BarData) -> None:
         """K线推送回调"""
         pass
 
-    @virtual
-    def on_bars(self, bars: Dict[str, BarData]) -> None:
-        """
-        收到多个币种的K线数据时调用，由子类实现
-        """
-        # 遍历每个币种的K线并调用on_bar，保持向后兼容性
-        for symbol, bar in bars.items():
+    def on_bars(self, bars: dict[str, BarData]) -> None:
+        """K线字典推送回调"""
+        # 遍历每个币种的K线并调用on_bar,保持向后兼容性
+        for _symbol, bar in bars.items():
             self.on_bar(bar)
 
-    @virtual
+    @abstractmethod
     def on_trade(self, trade: TradeData) -> None:
         """成交回调"""
         # 更新持仓数据
-        self.pos_dict[trade.symbol] += trade.volume if trade.direction == Direction.LONG else -trade.volume
+        self.pos_dict[trade.symbol] += (
+            trade.volume if trade.direction == Direction.LONG else -trade.volume
+        )
 
-    @virtual
+    @abstractmethod
     def on_order(self, order: OrderData) -> None:
         """委托回调"""
         # 更新委托缓存
         self.orders[order.orderid] = order
 
-        # 如果委托不再活跃，从活跃委托集合中移除
+        # 如果委托不再活跃,从活跃委托集合中移除
         if not order.is_active() and order.orderid in self.active_orderids:
             self.active_orderids.remove(order.orderid)
 
-    # TODO：应该改成long short close三种状态比较好
+    # TODO:应该改成long short close三种状态比较好
     def buy(
-        self,
-        symbol: str,
-        price: float,
-        volume: float,
-        net: bool = False
-    ) -> List[str]:
+        self, symbol: str, price: float, volume: float, net: bool = False
+    ) -> list[str]:
         """
         买入开仓
         """
         return self.send_order(symbol, Direction.LONG, Offset.OPEN, price, volume, net)
 
     def sell(
-        self,
-        symbol: str,
-        price: float,
-        volume: float,
-        net: bool = False
-    ) -> List[str]:
+        self, symbol: str, price: float, volume: float, net: bool = False
+    ) -> list[str]:
         """
         卖出平仓
         """
-        return self.send_order(symbol, Direction.SHORT, Offset.CLOSE, price, volume, net)
+        return self.send_order(
+            symbol, Direction.SHORT, Offset.CLOSE, price, volume, net
+        )
 
     def short(
-        self,
-        symbol: str,
-        price: float,
-        volume: float,
-        net: bool = False
-    ) -> List[str]:
+        self, symbol: str, price: float, volume: float, net: bool = False
+    ) -> list[str]:
         """
         卖出开仓
         """
         return self.send_order(symbol, Direction.SHORT, Offset.OPEN, price, volume, net)
 
     def cover(
-        self,
-        symbol: str,
-        price: float,
-        volume: float,
-        net: bool = False
-    ) -> List[str]:
+        self, symbol: str, price: float, volume: float, net: bool = False
+    ) -> list[str]:
         """
         买入平仓
         """
@@ -190,13 +175,13 @@ class CtaTemplate(ABC):
         offset: Offset,
         price: float,
         volume: float,
-        net: bool = False
-    ) -> List[str]:
+        net: bool = False,
+    ) -> list[str]:
         """发送委托"""
         try:
             if self.trading:
                 # 根据是否为多币种模式调用不同的发单接口
-                orderids: List[str] = self.cta_engine.send_order(
+                orderids: list[str] = self.cta_engine.send_order(
                     self, symbol, direction, offset, price, volume, net
                 )
 
@@ -206,10 +191,10 @@ class CtaTemplate(ABC):
 
                 return orderids
             else:
-                logger.warning(f"[{self.strategy_name}] 策略未启动交易，订单未发送")
+                logger.warning(f"[{self.strategy_name}] 策略未启动交易,订单未发送")
                 return []
         except Exception as e:
-            logger.error(f"[{self.strategy_name}] 发送订单异常: {str(e)}")
+            logger.error(f"[{self.strategy_name}] 发送订单异常: {e!s}")
             return []
 
     def cancel_order(self, orderid: str) -> None:
@@ -257,19 +242,15 @@ class CtaTemplate(ABC):
         self,
         days: int,
         interval: Interval = Interval.MINUTE,
-        callback: Callable = None,
-        use_database: bool = False
+        callback: Callable | None = None,
+        use_database: bool = False,
     ) -> None:
         """加载历史K线数据初始化策略"""
         if not callback:
             callback = self.on_bar
 
-        bars: List[BarData] = self.cta_engine.load_bar(
-            self.symbols[0],
-            days,
-            interval,
-            callback,
-            use_database
+        bars: list[BarData] = self.cta_engine.load_bar(
+            self.symbols[0], days, interval, callback, use_database
         )
 
         for bar in bars:
@@ -283,16 +264,17 @@ class CtaTemplate(ABC):
         if self.symbols:
             self.cta_engine.load_bars(self, days, interval)
         else:
-            # 无币种模式下，使用传统load_bar
+            # 无币种模式下,使用传统load_bar
             self.load_bar(days, interval)
 
     def load_tick(self, days: int) -> None:
         """加载历史Tick数据初始化策略"""
-        ticks: List[TickData] = self.cta_engine.load_tick(self.symbols[0], days, self.on_tick)
+        ticks: list[TickData] = self.cta_engine.load_tick(
+            self.symbols[0], days, self.on_tick
+        )
 
         for tick in ticks:
             self.on_tick(tick)
-
 
     def sync_data(self) -> None:
         """同步策略变量值到磁盘存储"""
@@ -300,15 +282,12 @@ class CtaTemplate(ABC):
             self.cta_engine.sync_strategy_data(self)
 
     def calculate_price(
-        self,
-        symbol: str,
-        direction: Direction,
-        reference: float
+        self, symbol: str, direction: Direction, reference: float
     ) -> float:
-        """计算调仓委托价格（支持按需重载实现）"""
+        """计算调仓委托价格(支持按需重载实现)"""
         return reference
 
-    def rebalance_portfolio(self, bars: Dict[str, BarData]) -> None:
+    def rebalance_portfolio(self, bars: dict[str, BarData]) -> None:
         """基于目标执行调仓交易"""
         self.cancel_all()
 
@@ -323,9 +302,7 @@ class CtaTemplate(ABC):
             if diff > 0:
                 # 计算多头委托价
                 order_price: float = self.calculate_price(
-                    symbol,
-                    Direction.LONG,
-                    bar.close_price
+                    symbol, Direction.LONG, bar.close_price
                 )
 
                 # 计算买平和买开数量
@@ -348,9 +325,7 @@ class CtaTemplate(ABC):
             elif diff < 0:
                 # 计算空头委托价
                 order_price: float = self.calculate_price(
-                    symbol,
-                    Direction.SHORT,
-                    bar.close_price
+                    symbol, Direction.SHORT, bar.close_price
                 )
 
                 # 计算卖平和卖开数量
@@ -370,11 +345,11 @@ class CtaTemplate(ABC):
                 if short_volume:
                     self.short(symbol, order_price, short_volume)
 
-    def get_order(self, orderid: str) -> Optional[OrderData]:
+    def get_order(self, orderid: str) -> OrderData | None:
         """查询委托数据"""
         return self.orders.get(orderid, None)
 
-    def get_all_active_orderids(self) -> List[str]:
+    def get_all_active_orderids(self) -> list[str]:
         """获取全部活动状态的委托号"""
         return list(self.active_orderids)
 
@@ -394,15 +369,15 @@ class TargetPosTemplate(CtaTemplate):
 
         self.variables.append("target_pos")
 
-    @virtual
+    @abstractmethod
     def on_tick(self, tick: TickData) -> None:
         self.last_tick = tick
 
-    @virtual
+    @abstractmethod
     def on_bar(self, bar: BarData) -> None:
         self.last_bar = bar
 
-    @virtual
+    @abstractmethod
     def on_order(self, order: OrderData) -> None:
         orderid: str = order.orderid
 
@@ -457,7 +432,9 @@ class TargetPosTemplate(CtaTemplate):
                 if self.last_tick.limit_down:
                     price = max(price, self.last_tick.limit_down)
         elif self.last_bar:
-            price = self.last_bar.close_price + (self.tick_add if is_long else -self.tick_add)
+            price = self.last_bar.close_price + (
+                self.tick_add if is_long else -self.tick_add
+            )
         else:
             return  # 无法确定价格时不交易
 
@@ -468,7 +445,7 @@ class TargetPosTemplate(CtaTemplate):
             self.active_orderids.extend(orderids)
             return
 
-        # 实盘模式，有活动订单时不交易
+        # 实盘模式,有活动订单时不交易
         if self.active_orderids:
             return
 
