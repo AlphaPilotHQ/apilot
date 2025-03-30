@@ -32,6 +32,7 @@ from apilot.core.object import (
     TradeData,
 )
 from apilot.core.utility import round_to
+from apilot.datafeed.config import DataSourceConfig
 from apilot.datafeed.data_manager import DataManager
 from apilot.plotting.chart import plot_backtest_results
 from apilot.strategy.template import PATemplate
@@ -597,3 +598,22 @@ class BacktestingEngine:
         获取所有日结果
         """
         return list(self.daily_results.values())
+
+    def add_data(self, config: DataSourceConfig):
+        """
+        Add data source from configuration object
+
+        Args:
+            config: Data source configuration object
+
+        Returns:
+            BacktestingEngine instance
+        """
+        # Add symbol if not already in the list
+        if config.symbol not in self.symbols:
+            self.symbols.append(config.symbol)
+
+        # Delegate to data manager's add_data method
+        self.data_manager.add_data(config)
+
+        return self

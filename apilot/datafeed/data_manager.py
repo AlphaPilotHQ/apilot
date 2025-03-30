@@ -9,6 +9,7 @@ import logging
 from apilot.core.constant import Exchange, Interval
 from apilot.core.object import BarData, TickData
 from apilot.core.utility import extract_symbol
+from apilot.datafeed.config import CsvSourceConfig, MongoSourceConfig
 
 logger = logging.getLogger(__name__)
 
@@ -133,6 +134,87 @@ class DataManager:
         # 如果在引擎模式下且提供了symbol_name, 则加载数据
         if self.engine and symbol_name:
             self._load_data_from_source(symbol_name)
+
+        return self.engine if self.engine else self
+
+    def add_data(self, config):
+        """
+        根据配置对象添加数据源
+
+        参数:
+            config: 数据源配置对象, 可以是CsvSourceConfig或MongoSourceConfig
+
+        返回:
+            如果在引擎模式下返回引擎实例, 否则返回数据管理器实例
+        """
+        if isinstance(config, CsvSourceConfig):
+            return self._add_csv_data(config)
+        elif isinstance(config, MongoSourceConfig):
+            return self._add_mongodb_data(config)
+        else:
+            raise TypeError(f"不支持的数据源配置类型: {type(config)}")
+
+    def _add_csv_data(self, config: CsvSourceConfig):
+        """
+        Add CSV data source from configuration
+
+        Args:
+            config: CSV source configuration object
+
+        Returns:
+            Engine instance if in engine mode, otherwise data manager instance
+        """
+        from apilot.datafeed.providers.csv_provider import CsvDatabase
+
+        # Create CSV database instance from config
+        database = CsvDatabase.from_config(config)
+        self.set_database(database)
+
+        # Load data if in engine mode
+        if self.engine:
+            self._load_data_from_source(config.symbol)
+
+        return self.engine if self.engine else self
+
+    def _add_mongodb_data(self, config: MongoSourceConfig):
+        """
+        Add MongoDB data source from configuration
+
+        Args:
+            config: MongoDB source configuration object
+
+        Returns:
+            Engine instance if in engine mode, otherwise data manager instance
+        """
+        # Check if MongoDB provider is registered
+        from apilot.core.database import _DATABASE_REGISTRY
+
+        if "mongodb" not in _DATABASE_REGISTRY:
+            raise ValueError(
+                "MongoDB provider not registered, please install MongoDB provider first"
+            )
+
+        # Get MongoDB database class and create instance from config
+        mongodb_class = _DATABASE_REGISTRY["mongodb"]
+
+        # Check if from_config method exists, otherwise use parameters directly
+        if hasattr(mongodb_class, "from_config"):
+            database = mongodb_class.from_config(config)
+        else:
+            # Fall back to traditional instantiation
+            database = mongodb_class(
+                host=config.host,
+                port=config.port,
+                database=config.database,
+                collection=config.collection,
+                **config.extra_params,
+            )
+
+        self.set_database(database)
+
+        # Load data if in engine mode
+        if self.engine:
+            self._load_data_from_source(config.symbol)
 
         return self.engine if self.engine else self
 

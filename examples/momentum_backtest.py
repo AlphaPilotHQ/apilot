@@ -53,7 +53,6 @@ class StdMomentumStrategy(ap.PATemplate):
 
     def __init__(self, pa_engine, strategy_name, symbols, setting):
         super().__init__(pa_engine, strategy_name, symbols, setting)
-
         # 为每个交易对创建数据生成器和管理器
         self.bgs = {}
         self.ams = {}
@@ -81,7 +80,6 @@ class StdMomentumStrategy(ap.PATemplate):
         self.load_bar(self.std_period * 2)
 
     def on_bar(self, bar: ap.BarData):
-        """原始K线数据更新"""
         symbol = bar.symbol
         if symbol in self.bgs:
             # 创建正确的字典格式:{symbol: bar}
@@ -89,7 +87,6 @@ class StdMomentumStrategy(ap.PATemplate):
             self.bgs[symbol].update_bars(bars_dict)
 
     def on_5min_bar(self, bars: dict):
-        """5分钟K线数据更新,包含交易逻辑"""
         self.cancel_all()  # 取消之前的所有订单
 
         # 首先更新所有交易对的数据
@@ -241,7 +238,7 @@ def run_backtesting(
     start=datetime(2023, 1, 1),
     end=datetime(2023, 1, 30),
     std_period=20,
-    mom_threshold=0.005,  # 降低动量阈值到0.5%以便更容易触发信号
+    mom_threshold=0.005,
     trailing_std_scale=2.0,
 ):
     logger.debug(
@@ -270,28 +267,28 @@ def run_backtesting(
         },
     )
 
-    # 4 添加数据
-    # 一个简单的回调函数占位符
-    def on_bar_data(bar):
-        pass
-
-    # 为SOL-USDT添加数据
-    engine.load_bar(
+    # 4 添加数据 - 使用新的数据源配置架构
+    # 为SOL-USDT创建数据源配置
+    sol_config = ap.create_csv_data(
         symbol="SOL-USDT.LOCAL",
-        days=30,  # 足够覆盖回测时间段
-        interval=ap.Interval.MINUTE,
-        callback=on_bar_data,
-        use_database=True,
+        dataname="data/SOL-USDT_LOCAL_1m.csv",  # 本地CSV文件路径
+        start_date=start,
+        end_date=end,
+        # 使用默认的列索引配置
     )
 
-    # 为BTC-USDT添加数据
-    engine.load_bar(
+    # 为BTC-USDT创建数据源配置
+    btc_config = ap.create_csv_data(
         symbol="BTC-USDT.LOCAL",
-        days=30,  # 足够覆盖回测时间段
-        interval=ap.Interval.MINUTE,
-        callback=on_bar_data,
-        use_database=True,
+        dataname="data/BTC-USDT_LOCAL_1m.csv",  # 本地CSV文件路径
+        start_date=start,
+        end_date=end,
+        # 使用默认的列索引配置
     )
+
+    # 将配置添加到引擎
+    engine.add_data(sol_config)
+    engine.add_data(btc_config)
 
     # 5 运行回测
     engine.run_backtesting()
@@ -315,7 +312,6 @@ def run_backtesting(
 
             traceback.print_exc()
 
-    # return engine, df
     # 参数优化示例 (注释掉,需要时可以解开使用)
     """
     # 设置优化参数
@@ -334,5 +330,4 @@ def run_backtesting(
 
 
 if __name__ == "__main__":
-    # 单次回测 - 利用所有函数默认参数
     run_backtesting()
