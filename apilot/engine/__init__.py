@@ -23,7 +23,7 @@ __all__ = [
 ]
 
 # 导入回测相关引擎
-from apilot.strategy.template import PATemplate, TargetPosTemplate
+from apilot.strategy.template import PATemplate
 
 from .backtest import BacktestingEngine
 

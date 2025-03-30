@@ -47,14 +47,7 @@ BACKTEST_CONFIG = {
     "risk_free": 0.0,
     "size": 1,
     "pricetick": 0.0,
-    # "capital": 1000000,
 }
-
-# 设置文件名
-# SETTING_FILENAME: str = "apilot_setting.json"
-
-# # 从JSON文件加载配置
-# json_config = load_json(SETTING_FILENAME)
 
 
 class BacktestingEngine:
@@ -430,19 +423,6 @@ class BacktestingEngine:
         callback: Callable,
         use_database: bool = False,
     ) -> list[BarData]:
-        """
-        加载K线数据
-
-        参数:
-            symbol: 交易对,形式为 "基础符号.交易所"
-            days: 加载的天数
-            interval: K线周期
-            callback: 回调函数
-            use_database: 是否使用数据库(保留兼容性,已不再使用)
-
-        返回:
-            BarData对象列表
-        """
         logger.debug(f"加载K线数据: {symbol}, 天数: {days}")
 
         # 计算初始日期范围

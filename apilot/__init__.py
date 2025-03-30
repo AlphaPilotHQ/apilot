@@ -33,7 +33,6 @@ __all__ = [
     "PositionData",
     "Product",
     "Status",
-    "TargetPosTemplate",
     "TickData",
     "TradeData",
     "core",
@@ -83,7 +82,7 @@ from .engine.backtest import BacktestingEngine
 from .optimizer import OptimizationSetting, run_ga_optimization
 
 # 导出策略模板
-from .strategy.template import PATemplate, TargetPosTemplate
+from .strategy.template import PATemplate
 
 # 导出日志系统
 from .utils.logger import get_logger, log_exceptions, set_level
