@@ -144,7 +144,7 @@ class BarData(BaseData):
 
     symbol: str = ""  # Full symbol with exchange (e.g. "BTC.BINANCE")
     exchange: Exchange | None = None  # Kept for backward compatibility
-    dt: datetime | None = None
+    datetime: datetime | None = None
     interval: Interval | None = None
     volume: float = 0
     turnover: float = 0
@@ -169,7 +169,7 @@ class BarData(BaseData):
         bar = BarData(
             symbol=data["symbol"],
             exchange=data.get("exchange"),
-            dt=data.get("dt"),
+            datetime=data.get("datetime"),
             gateway_name=data.get("gateway_name", ""),
             interval=data.get("interval", None),
             volume=data.get("volume", 0),
@@ -449,7 +449,7 @@ class OrderRequest:
 
             self.exchange = get_exchange(self.symbol)
 
-    def create_order_data(self, orderid: str, gateway_name: str) -> OrderData:
+    def create_order_data(self, orderid: str, gateway_name: str) -> "OrderData":
         """
         Create order data from request.
         """
@@ -529,7 +529,7 @@ class QuoteRequest:
 
             self.exchange = get_exchange(self.symbol)
 
-    def create_quote_data(self, quoteid: str, gateway_name: str) -> QuoteData:
+    def create_quote_data(self, quoteid: str, gateway_name: str) -> "QuoteData":
         """
         Create quote data from request.
         """

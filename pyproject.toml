@@ -70,7 +70,7 @@ select = [
     "PT",   # flake8-pytest-style
     "RUF",  # Ruff特有规则
 ]
-ignore = ["E501", "RUF003"]  # 忽略行长度警告和全角半角检查
+ignore = ["E501", "RUF003", "F404"]  # 忽略行长度警告、全角半角检查和__future__导入位置
 
 [tool.ruff.lint.isort]
 known-first-party = ["apilot"]

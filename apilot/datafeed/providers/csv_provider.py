@@ -11,6 +11,7 @@ import pandas as pd
 
 from apilot.core import BarData, Exchange, Interval, TickData
 from apilot.core.database import BaseDatabase
+from apilot.datafeed.config import CsvSourceConfig
 from apilot.utils.logger import get_logger, set_level
 
 # 获取CSV数据库专用日志记录器
@@ -44,6 +45,43 @@ class CsvDatabase(BaseDatabase):
 
         # 日期格式
         self.dtformat = "%Y-%m-%d %H:%M:%S"
+
+    @classmethod
+    def from_config(cls, config: CsvSourceConfig):
+        """Create a CSV database instance from configuration
+
+        Args:
+            config: CSV source configuration object
+
+        Returns:
+            CsvDatabase instance configured according to the provided config
+        """
+        instance = cls(csv_path=config.dataname)
+
+        # Set column mode based on configuration
+        if config.use_column_names:
+            # Use column names mode
+            instance.use_column_index = False
+            instance.datetime_field = config.datetime_field
+            instance.open_field = config.open_field
+            instance.high_field = config.high_field
+            instance.low_field = config.low_field
+            instance.close_field = config.close_field
+            instance.volume_field = config.volume_field
+        else:
+            # Use column index mode
+            instance.set_index_mapping(
+                datetime=config.datetime_index,
+                open=config.open_index,
+                high=config.high_index,
+                low=config.low_index,
+                close=config.close_index,
+                volume=config.volume_index,
+                openinterest=config.openinterest_index,
+                dtformat=config.dtformat,
+            )
+
+        return instance
 
     def set_column_mode(self, use_index: bool = False):
         """设置使用列索引还是列名模式"""
