@@ -210,15 +210,9 @@ class PATemplate(ABC):
         return self.pa_engine.get_engine_type()
 
     def get_pricetick(self, symbol: str) -> float:
-        """
-        获取合约最小价格跳动
-        """
         return self.pa_engine.get_pricetick(self, symbol)
 
     def get_size(self, symbol: str) -> int:
-        """
-        获取合约乘数
-        """
         return self.pa_engine.get_size(self, symbol)
 
     def load_bar(
@@ -228,27 +222,26 @@ class PATemplate(ABC):
         callback: Callable | None = None,
         use_database: bool = False,
     ) -> None:
-        """加载历史K线数据初始化策略"""
+        """
+        加载历史K线数据
+        适用于单币种和多币种策略
+        """
         if not callback:
             callback = self.on_bar
 
-        bars: list[BarData] = self.pa_engine.load_bar(
-            self.symbols[0], days, interval, callback, use_database
-        )
+        if not self.symbols:
+            return  # 如果没有定义交易品种, 则直接返回
 
-        for bar in bars:
-            callback(bar)
+        # 遍历所有交易品种加载数据
+        for symbol in self.symbols:
+            bars: list[BarData] = self.pa_engine.load_bar(
+                symbol, days, interval, callback, use_database
+            )
 
-    def load_bars(self, days: int, interval: Interval = Interval.MINUTE) -> None:
-        """
-        加载多币种历史K线数据
-        适用于多币种策略
-        """
-        if self.symbols:
-            self.pa_engine.load_bars(self, days, interval)
-        else:
-            # 无币种模式下,使用传统load_bar
-            self.load_bar(days, interval)
+            # 如果有回调函数, 处理每个K线数据
+            if bars and callback:
+                for bar in bars:
+                    callback(bar)
 
     def load_tick(self, days: int) -> None:
         """加载历史Tick数据初始化策略"""
