@@ -98,9 +98,6 @@ class BacktestingEngine:
         self.data_manager = DataManager(self)  # 数据管理器实例
 
     def clear_data(self) -> None:
-        """
-        清空回测数据
-        """
         self.strategy = None
         self.tick = None
         self.bars = {}
@@ -128,14 +125,11 @@ class BacktestingEngine:
         mode: BacktestingMode = BacktestingMode.BAR,
         annual_days: int = 240,
     ) -> None:
-        """
-        设置回测参数
-        """
         self.mode = mode
         self.symbols = symbols
         self.interval = Interval(interval)
-        self.sizes = sizes
-        self.priceticks = priceticks
+        self.sizes = sizes if sizes is not None else {}
+        self.priceticks = priceticks if priceticks is not None else {}
         self.start = start
 
         # 缓存交易所对象以提高性能
@@ -510,9 +504,6 @@ class BacktestingEngine:
         price: float,
         volume: float,
     ) -> str:
-        """
-        发送限价单
-        """
         self.limit_order_count += 1
 
         logger.debug(
@@ -520,7 +511,7 @@ class BacktestingEngine:
         )
 
         order: OrderData = OrderData(
-            symbol=symbol,  # 直接使用完整交易符号
+            symbol=symbol,
             orderid=str(self.limit_order_count),
             direction=direction,
             offset=offset,

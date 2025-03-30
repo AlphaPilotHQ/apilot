@@ -253,7 +253,9 @@ class TradeData(BaseData):
     offset: Offset = Offset.NONE
     price: float = 0
     volume: float = 0
-    dt: datetime | None = None
+    datetime: datetime = (
+        None  # TODO：这里如果用 datetime: datetime | None = None 会报错
+    )
 
     def __post_init__(self) -> None:
         """Initialize with exchange from symbol if not provided"""

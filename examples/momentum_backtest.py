@@ -274,7 +274,6 @@ def run_backtesting(
         dataname="data/SOL-USDT_LOCAL_1m.csv",  # 本地CSV文件路径
         start_date=start,
         end_date=end,
-        # 使用默认的列索引配置
     )
 
     # 为BTC-USDT创建数据源配置
@@ -283,7 +282,6 @@ def run_backtesting(
         dataname="data/BTC-USDT_LOCAL_1m.csv",  # 本地CSV文件路径
         start_date=start,
         end_date=end,
-        # 使用默认的列索引配置
     )
 
     # 将配置添加到引擎
