@@ -23,6 +23,10 @@ dependencies = [
     "plotly",
     "tqdm",
     "ccxt",
+    "pymongo>=4.6.2",  # MongoDB数据库支持
+    "requests",  # HTTP请求
+    "python-dateutil",  # 日期处理
+    "colorama",  # 终端彩色输出
 ]
 
 [project.optional-dependencies]
@@ -32,15 +36,11 @@ dev = [
     "ruff",
     "mypy",
 ]
-mongodb = [
-    "apilot_mongodb>=0.1.0",
-]
 all = [
     "pytest",
     "pytest-cov",
     "ruff",
     "mypy",
-    "apilot_mongodb>=0.1.0",
 ]
 
 [project.urls]

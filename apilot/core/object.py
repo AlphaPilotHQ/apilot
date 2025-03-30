@@ -144,7 +144,7 @@ class BarData(BaseData):
 
     symbol: str = ""  # Full symbol with exchange (e.g. "BTC.BINANCE")
     exchange: Exchange | None = None  # Kept for backward compatibility
-    datetime: datetime | None = None
+    datetime: datetime = None
     interval: Interval | None = None
     volume: float = 0
     turnover: float = 0
@@ -202,7 +202,7 @@ class OrderData(BaseData):
     volume: float = 0
     traded: float = 0
     status: Status = Status.SUBMITTING
-    dt: datetime | None = None
+    datetime: datetime | None = None
     reference: str = ""
 
     @property
