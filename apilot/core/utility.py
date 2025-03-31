@@ -2,27 +2,15 @@
 General utility functions.
 """
 
-import json
-import logging
-import sys
 from collections.abc import Callable
 from datetime import datetime, time
 from decimal import Decimal
 from math import ceil, floor
-from pathlib import Path
-from typing import TypeVar
 
 import numpy as np
 
 from .constant import Exchange, Interval
 from .object import BarData, TickData
-
-# 定义泛型返回类型
-T = TypeVar("T")
-
-
-# 日志格式定义
-log_formatter: logging.Formatter = logging.Formatter("[%(asctime)s] %(message)s")
 
 
 def extract_symbol(symbol: str) -> tuple[str, Exchange]:
@@ -37,70 +25,6 @@ def extract_symbol(symbol: str) -> tuple[str, Exchange]:
 def generate_symbol(base_symbol: str, exchange: Exchange) -> str:
     """Generate full trading symbol from base symbol and exchange"""
     return f"{base_symbol}.{exchange.value}"
-
-
-def _get_trader_dir(temp_name: str) -> tuple[Path, Path]:
-    """获取交易程序运行路径
-
-    首先检查当前工作目录是否存在指定的临时目录,
-    如果存在则使用当前目录作为交易路径,
-    否则使用系统主目录.
-    """
-    cwd: Path = Path.cwd()
-    temp_path: Path = cwd.joinpath(temp_name)
-
-    # 如果临时目录存在于当前工作目录中,则使用当前目录作为交易路径
-    if temp_path.exists():
-        return cwd, temp_path
-
-    # 否则使用系统主目录
-    home_path: Path = Path.home()
-    temp_path: Path = home_path.joinpath(temp_name)
-
-    # 如果主目录下不存在临时目录,则创建
-    if not temp_path.exists():
-        temp_path.mkdir()
-
-    return home_path, temp_path
-
-
-TRADER_DIR, TEMP_DIR = _get_trader_dir(".apilot")
-sys.path.append(str(TRADER_DIR))
-
-
-def get_file_path(filename: str) -> Path:
-    """获取临时文件完整路径"""
-    return TEMP_DIR.joinpath(filename)
-
-
-def get_folder_path(folder_name: str) -> Path:
-    """获取文件夹路径,如不存在则创建"""
-    folder_path: Path = TEMP_DIR.joinpath(folder_name)
-    if not folder_path.exists():
-        folder_path.mkdir()
-    return folder_path
-
-
-def load_json(filename: str) -> dict:
-    """
-    Load data from json file in temp path.
-    """
-    filepath: Path = get_file_path(filename)
-    if not filepath.exists():
-        return {}
-
-    with open(filepath, encoding="UTF-8") as f:
-        data: dict = json.load(f)
-    return data
-
-
-def save_json(filename: str, data: dict) -> None:
-    """
-    Save data into json file in temp path.
-    """
-    filepath: Path = get_file_path(filename)
-    with open(filepath, mode="w+", encoding="UTF-8") as f:
-        json.dump(data, f, indent=4, ensure_ascii=False)
 
 
 def round_to(value: float, target: float) -> float:

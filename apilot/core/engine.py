@@ -4,7 +4,6 @@
 包含交易平台主引擎和基础引擎类,负责管理事件、网关和应用程序.
 """
 
-import os
 from abc import ABC, abstractmethod
 from typing import Any
 
@@ -23,7 +22,6 @@ from .object import (
     QuoteRequest,
     SubscribeRequest,
 )
-from .utility import TRADER_DIR
 
 
 class MainEngine:
@@ -43,7 +41,6 @@ class MainEngine:
         self.engines: dict[str, BaseEngine] = {}
         self.exchanges: list[Exchange] = []
 
-        os.chdir(TRADER_DIR)  # Change working directory
         self.init_engines()  # Initialize function engines
 
     def add_engine(self, engine_class: Any) -> "BaseEngine":
