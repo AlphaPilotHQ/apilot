@@ -1,12 +1,12 @@
 """
 回测引擎模块
 
-提供策略的历史回测、性能分析和参数优化功能
+实现了回测引擎,用于策略回测和优化.
 """
 
 import traceback
 from collections.abc import Callable
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 
 from pandas import DataFrame
 
@@ -16,7 +16,6 @@ from apilot.analysis.performance import (
     calculate_statistics,
 )
 from apilot.core.constant import (
-    INTERVAL_DELTA_MAP,
     BacktestingMode,
     Direction,
     EngineType,
@@ -32,8 +31,6 @@ from apilot.core.object import (
     TradeData,
 )
 from apilot.core.utility import round_to
-from apilot.datafeed.config import DataSourceConfig
-from apilot.datafeed.data_manager import DataManager
 from apilot.plotting.chart import plot_backtest_results
 from apilot.strategy.template import PATemplate
 from apilot.utils.logger import get_logger, set_level
@@ -75,7 +72,7 @@ class BacktestingEngine:
 
         self.interval: Interval = None
         self.days: int = 0
-        self.callback: Callable = None
+        self.callback: Callable | None = None
         self.history_data = {}
         self.dts: list[datetime] = []
 
@@ -90,9 +87,6 @@ class BacktestingEngine:
 
         self.daily_results: dict[date, DailyResult] = {}
         self.daily_df: DataFrame = None
-
-        # 添加数据管理器
-        self.data_manager = DataManager(self)  # 数据管理器实例
 
     def clear_data(self) -> None:
         self.strategy = None
@@ -156,11 +150,66 @@ class BacktestingEngine:
             self, strategy_class.__name__, self.symbols, setting
         )
 
+    def add_data(self, provider_type, symbol, **kwargs):
+        """添加数据源
+
+        Args:
+            provider_type: 数据提供者类型 ("csv", "mongodb", 等)
+            symbol: 交易对符号
+            **kwargs: 传递给数据提供者的参数
+        """
+        from apilot.datafeed import DATA_PROVIDERS
+        from apilot.utils.symbol import split_symbol
+
+        # 获取数据提供者类
+        if provider_type not in DATA_PROVIDERS:
+            raise ValueError(f"未知的数据提供者类型: {provider_type}")
+
+        provider_class = DATA_PROVIDERS[provider_type]
+
+        # 创建数据提供者实例
+        provider = provider_class(**kwargs)
+
+        # 加载数据
+        base_symbol, exchange_str = split_symbol(symbol)
+
+        # 确保symbol在symbols列表中
+        if symbol not in self.symbols:
+            self.symbols.append(symbol)
+
+        # 加载数据
+        bars = provider.load_bar_data(
+            symbol=base_symbol,
+            exchange=exchange_str,
+            interval=self.interval,
+            start=self.start,
+            end=self.end,
+        )
+
+        # 处理数据
+        for bar in bars:
+            bar.symbol = symbol
+            self.dts.append(bar.datetime)
+            self.history_data.setdefault(bar.datetime, {})[symbol] = bar
+
+        # 排序时间点
+        self.dts = sorted(set(self.dts))
+        return self
+
+    def add_csv_data(self, symbol, filepath, **kwargs):
+        """添加CSV数据源"""
+        return self.add_data("csv", symbol, filepath=filepath, **kwargs)
+
+    def add_mongodb_data(self, symbol, database, collection, **kwargs):
+        """添加MongoDB数据源"""
+        return self.add_data(
+            "mongodb", symbol, database=database, collection=collection, **kwargs
+        )
+
     def run_backtesting(self) -> None:
         """
         开始回测
         """
-        logger.debug("=== 开始回测过程 ===")
         self.strategy.on_init()
         logger.debug("策略on_init()调用完成")
 
@@ -168,7 +217,6 @@ class BacktestingEngine:
         day_count: int = 0
         ix: int = 0
 
-        logger.debug(f"准备初始化,时间点数量: {len(self.dts)}")
         for _ix, dt in enumerate(self.dts):
             if self.datetime and dt.day != self.datetime.day:
                 day_count += 1
@@ -291,6 +339,25 @@ class BacktestingEngine:
             self.daily_results[d] = DailyResult(d)
             self.daily_results[d].add_close_price(symbol, price)
 
+    def load_bar(
+        self,
+        symbol: str,
+        days: int,
+        interval: Interval = Interval.MINUTE,
+        callback: Callable | None = None,
+        use_database: bool = False,
+    ) -> list[BarData]:
+        """
+        加载历史K线数据,返回对应的K线列表
+        这个方法在回测引擎中仅为兼容策略模板而存在
+
+        在回测环境中,数据已通过add_csv_data等方法预先加载
+        这里简单返回空列表,因为回测初始化在其他地方完成
+        """
+        logger.debug(f"回测引擎的load_bar被调用: 品种={symbol}, 天数={days}")
+        # 在回测引擎中,不需要额外加载历史数据,返回空列表
+        return []
+
     def new_bar(self, bar: BarData) -> None:
         """
         处理新bar数据
@@ -406,73 +473,6 @@ class BacktestingEngine:
 
             self.strategy.on_trade(trade)
 
-    def load_bar(
-        self,
-        symbol: str,
-        days: int,
-        interval: Interval,
-        callback: Callable,
-        use_database: bool = False,
-    ) -> list[BarData]:
-        logger.debug(f"加载K线数据: {symbol}, 天数: {days}")
-
-        # 计算初始日期范围
-        init_end = self.start - INTERVAL_DELTA_MAP[interval]
-        init_start = self.start - timedelta(days=days)
-
-        # 从符号中提取基础符号和交易所
-        from apilot.utils import split_symbol
-
-        base_symbol, exchange_str = split_symbol(symbol)
-        self.exchanges[symbol] = Exchange(exchange_str)
-
-        # 使用数据管理器加载数据
-        bars: list[BarData] = self.data_manager.load_bar_data(
-            symbol=base_symbol,
-            exchange=exchange_str,
-            interval=interval,
-            start=init_start,
-            end=init_end,
-            gateway_name=self.gateway_name,
-        )
-
-        return bars
-
-    def load_tick(self, symbol: str, days: int, callback: Callable) -> list[TickData]:
-        """
-        加载tick数据
-
-        参数:
-            symbol: 交易对,形式为 "基础符号.交易所"
-            days: 加载的天数
-            callback: 回调函数
-
-        返回:
-            TickData对象列表
-        """
-        logger.debug(f"加载Tick数据: {symbol}, 天数: {days}")
-
-        # 计算初始日期范围
-        init_end = self.start - timedelta(minutes=1)
-        init_start = self.start - timedelta(days=days)
-
-        # 从符号中提取基础符号和交易所
-        from apilot.utils import split_symbol
-
-        base_symbol, exchange_str = split_symbol(symbol)
-        self.exchanges[symbol] = Exchange(exchange_str)
-
-        # 使用数据管理器加载数据
-        ticks: list[TickData] = self.data_manager.load_tick_data(
-            symbol=base_symbol,
-            exchange=exchange_str,
-            start=init_start,
-            end=init_end,
-            gateway_name=self.gateway_name,
-        )
-
-        return ticks
-
     def send_order(
         self,
         strategy: PATemplate,
@@ -585,11 +585,3 @@ class BacktestingEngine:
         获取所有日结果
         """
         return list(self.daily_results.values())
-
-    def add_data(self, config: DataSourceConfig):
-        if config.symbol not in self.symbols:
-            self.symbols.append(config.symbol)
-
-        self.data_manager.add_data(config)
-
-        return self
