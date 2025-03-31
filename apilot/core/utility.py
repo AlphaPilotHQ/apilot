@@ -3,7 +3,7 @@ General utility functions.
 """
 
 from collections.abc import Callable
-from datetime import datetime, time
+from datetime import datetime
 from decimal import Decimal
 from math import ceil, floor
 
@@ -75,12 +75,16 @@ def get_digits(value: float) -> int:
 
 class BarGenerator:
     """
-    For:
-    1. generating 1 minute bar data from tick data
-    2. generating x minute bar/x hour bar data from 1 minute data
-    Notice:
-    1. for x minute bar, x must be able to divide 60: 2, 3, 5, 6, 10, 15, 20, 30
-    2. for x hour bar, x can be any number
+    Enhanced bar generator for time-based bar aggregation.
+
+    Key features:
+    1. Generate 1-minute bars from tick data
+    2. Generate x-minute bars from 1-minute bars
+    3. Generate hourly bars from 1-minute bars
+
+    Time intervals:
+    - Minute: x must divide 60 evenly (2, 3, 5, 6, 10, 15, 20, 30)
+    - Hour: any positive integer is valid
     """
 
     def __init__(
@@ -89,43 +93,70 @@ class BarGenerator:
         window: int = 0,
         on_window_bar: Callable | None = None,
         interval: Interval = Interval.MINUTE,
-        daily_end: time | None = None,
     ) -> None:
-        """Constructor"""
-        self.on_bar: Callable = on_bar
+        """
+        Initialize bar generator with callbacks and configuration.
 
+        Args:
+            on_bar: Callback when bar is generated
+            window: Number of source bars to aggregate (0 means no aggregation)
+            on_window_bar: Callback when window bar is complete
+            interval: Bar interval type (minute or hour)
+        """
+        # Callbacks
+        self.on_bar: Callable = on_bar
+        self.on_window_bar: Callable | None = on_window_bar
+
+        # Configuration
+        self.window: int = window
         self.interval: Interval = interval
         self.interval_count: int = 0
 
+        # State tracking
+        self.last_dt: datetime = None
+
+        # For tick to bar conversion
         self.bars: dict[str, BarData] = {}
         self.last_ticks: dict[str, TickData] = {}
 
+        # For bar aggregation
+        self.window_bars: dict[str, BarData] = {}
+
+        # For hourly bar handling
         self.hour_bars: dict[str, BarData] = {}
         self.finished_hour_bars: dict[str, BarData] = {}
 
-        self.window: int = window
-        self.window_bars: dict[str, BarData] = {}
-        self.on_window_bar: Callable | None = on_window_bar
-
-        self.last_dt: datetime = None
-
-        self.daily_end: time | None = daily_end
-        if self.interval == Interval.DAILY and not self.daily_end:
-            raise RuntimeError("Daily bar generation requires daily end time")
-
     def update_tick(self, tick: TickData) -> None:
-        """Update tick data"""
+        """
+        Update tick data and generate 1-minute bars.
+
+        Args:
+            tick: The tick data to process
+        """
         if not tick.last_price:
             return
 
+        # Check if we need to finish the current bar
         if self.last_dt and self.last_dt.minute != tick.datetime.minute:
             for bar in self.bars.values():
                 bar.datetime = bar.datetime.replace(second=0, microsecond=0)
 
+            # Call the callback with the current bars
             self.on_bar(self.bars)
             self.bars = {}
 
-        bar: BarData | None = self.bars.get(tick.symbol, None)
+        # Get or create bar for this symbol
+        bar = self._get_or_create_tick_bar(tick)
+
+        # Update the bar with this tick
+        self._update_tick_bar(bar, tick)
+
+        # Update tracking state
+        self.last_dt = tick.datetime
+
+    def _get_or_create_tick_bar(self, tick: TickData) -> BarData:
+        """Get existing bar or create a new one for this tick."""
+        bar: BarData | None = self.bars.get(tick.symbol)
         if not bar:
             bar = BarData(
                 symbol=tick.symbol,
@@ -140,166 +171,184 @@ class BarGenerator:
                 open_interest=tick.open_interest,
             )
             self.bars[bar.symbol] = bar
-        else:
-            bar.high_price = max(bar.high_price, tick.last_price)
-            bar.low_price = min(bar.low_price, tick.last_price)
-            bar.close_price = tick.last_price
-            bar.open_interest = tick.open_interest
-            bar.datetime = tick.datetime
+        return bar
 
-        last_tick: TickData | None = self.last_ticks.get(tick.symbol, None)
+    def _update_tick_bar(self, bar: BarData, tick: TickData) -> None:
+        """Update a bar with new tick data."""
+        # Update OHLC
+        bar.high_price = max(bar.high_price, tick.last_price)
+        bar.low_price = min(bar.low_price, tick.last_price)
+        bar.close_price = tick.last_price
+        bar.open_interest = tick.open_interest
+        bar.datetime = tick.datetime
+
+        # Update volume and turnover based on the difference from last tick
+        last_tick: TickData | None = self.last_ticks.get(tick.symbol)
         if last_tick:
             bar.volume += max(tick.volume - last_tick.volume, 0)
             bar.turnover += max(tick.turnover - last_tick.turnover, 0)
 
+        # Store the tick for the next update
         self.last_ticks[tick.symbol] = tick
-        self.last_dt = tick.datetime
 
     def update_bars(self, bars: dict[str, BarData]) -> None:
-        """Update bars"""
+        """
+        Update with new bar data and generate aggregated bars.
+
+        Args:
+            bars: Dictionary of bar data to process
+        """
         if self.interval == Interval.MINUTE:
-            self.update_bar_minute_window(bars)
+            self._update_minute_window(bars)
         else:
-            self.update_bar_hour_window(bars)
+            self._update_hour_window(bars)
 
-    def update_bar_minute_window(self, bars: dict[str, BarData]) -> None:
-        """Update minute bar"""
+    def _update_minute_window(self, bars: dict[str, BarData]) -> None:
+        """Process bars for minute-based aggregation."""
+        self._process_window_bars(bars)
+
+        # Check if window is complete (based on minute count)
+        if bars and any(bars.values()):
+            # Get any bar to check the time
+            sample_bar = next(iter(bars.values()))
+            # Check if we completed a window
+            if not (sample_bar.datetime.minute + 1) % self.window:
+                self._finalize_window_bars()
+
+    def _update_hour_window(self, bars: dict[str, BarData]) -> None:
+        """Process bars for hourly aggregation."""
+        # Process each bar
         for symbol, bar in bars.items():
-            window_bar: BarData | None = self.window_bars.get(symbol, None)
+            hour_bar = self._get_or_create_hour_bar(symbol, bar)
 
-            # 如果没有N分钟K线则创建
-            if not window_bar:
-                dt: datetime = bar.datetime.replace(second=0, microsecond=0)
-                window_bar = BarData(
-                    symbol=bar.symbol,
-                    exchange=bar.exchange,
-                    datetime=dt,
-                    gateway_name=bar.gateway_name,
-                    open_price=bar.open_price,
-                    high_price=bar.high_price,
-                    low_price=bar.low_price,
-                )
-                self.window_bars[symbol] = window_bar
+            # Check for hour boundary conditions
+            if bar.datetime.minute == 59:
+                # End of hour - update and finalize
+                self._update_bar_data(hour_bar, bar)
+                self.finished_hour_bars[symbol] = hour_bar
+                self.hour_bars[symbol] = None
+            elif hour_bar and bar.datetime.hour != hour_bar.datetime.hour:
+                # New hour - finalize old bar and create new one
+                self.finished_hour_bars[symbol] = hour_bar
 
-            # 更新K线内最高价及最低价
+                # Create new hour bar
+                dt = bar.datetime.replace(minute=0, second=0, microsecond=0)
+                new_hour_bar = self._create_new_bar(bar, dt)
+                self.hour_bars[symbol] = new_hour_bar
             else:
-                window_bar.high_price = max(window_bar.high_price, bar.high_price)
-                window_bar.low_price = min(window_bar.low_price, bar.low_price)
+                # Within same hour - just update
+                self._update_bar_data(hour_bar, bar)
 
-            # 更新K线内收盘价、数量、成交额、持仓量
-            window_bar.close_price = bar.close_price
-            window_bar.volume += bar.volume
-            window_bar.turnover += bar.turnover
-            window_bar.open_interest = bar.open_interest
-
-        # 检查K线是否合成完毕
-        if not (bar.datetime.minute + 1) % self.window:
-            self.on_window_bar(self.window_bars)
-            self.window_bars = {}
-
-    def update_bar_hour_window(self, bars: dict[str, BarData]) -> None:
-        """Update hour bar"""
-        for symbol, bar in bars.items():
-            hour_bar: BarData | None = self.hour_bars.get(symbol, None)
-
-            # 如果没有小时K线则创建
-            if not hour_bar:
-                dt: datetime = bar.datetime.replace(minute=0, second=0, microsecond=0)
-                hour_bar = BarData(
-                    symbol=bar.symbol,
-                    exchange=bar.exchange,
-                    datetime=dt,
-                    gateway_name=bar.gateway_name,
-                    open_price=bar.open_price,
-                    high_price=bar.high_price,
-                    low_price=bar.low_price,
-                    close_price=bar.close_price,
-                    volume=bar.volume,
-                    turnover=bar.turnover,
-                    open_interest=bar.open_interest,
-                )
-                self.hour_bars[symbol] = hour_bar
-
-            else:
-                # 如果收到59分的分钟K线,更新小时K线并推送
-                if bar.datetime.minute == 59:
-                    hour_bar.high_price = max(hour_bar.high_price, bar.high_price)
-                    hour_bar.low_price = min(hour_bar.low_price, bar.low_price)
-
-                    hour_bar.close_price = bar.close_price
-                    hour_bar.volume += bar.volume
-                    hour_bar.turnover += bar.turnover
-                    hour_bar.open_interest = bar.open_interest
-
-                    self.finished_hour_bars[symbol] = hour_bar
-                    self.hour_bars[symbol] = None
-
-                # 如果收到新的小时的分钟K线,直接推送当前的小时K线
-                elif bar.datetime.hour != hour_bar.datetime.hour:
-                    self.finished_hour_bars[symbol] = hour_bar
-
-                    dt: datetime = bar.datetime.replace(
-                        minute=0, second=0, microsecond=0
-                    )
-                    hour_bar = BarData(
-                        symbol=bar.symbol,
-                        exchange=bar.exchange,
-                        datetime=dt,
-                        gateway_name=bar.gateway_name,
-                        open_price=bar.open_price,
-                        high_price=bar.high_price,
-                        low_price=bar.low_price,
-                        close_price=bar.close_price,
-                        volume=bar.volume,
-                        turnover=bar.turnover,
-                        open_interest=bar.open_interest,
-                    )
-                    self.hour_bars[symbol] = hour_bar
-
-                # 否则直接更新小时K线
-                else:
-                    hour_bar.high_price = max(hour_bar.high_price, bar.high_price)
-                    hour_bar.low_price = min(hour_bar.low_price, bar.low_price)
-
-                    hour_bar.close_price = bar.close_price
-                    hour_bar.volume += bar.volume
-                    hour_bar.turnover += bar.turnover
-                    hour_bar.open_interest = bar.open_interest
-
-        # 推送合成完毕的小时K线
+        # Send completed hour bars
         if self.finished_hour_bars:
             self.on_hour_bar(self.finished_hour_bars)
             self.finished_hour_bars = {}
 
-    def update_bar_daily_window(self, bar: BarData) -> None:
-        """Update daily bar"""
-        symbol = bar.symbol
+    def _get_or_create_hour_bar(self, symbol: str, bar: BarData) -> BarData:
+        """Get existing hour bar or create a new one."""
+        hour_bar = self.hour_bars.get(symbol)
+        if not hour_bar:
+            dt = bar.datetime.replace(minute=0, second=0, microsecond=0)
+            hour_bar = self._create_new_bar(bar, dt)
+            self.hour_bars[symbol] = hour_bar
+        return hour_bar
 
-        window_bar = self.window_bars.get(symbol, None)
-        if not window_bar:
-            # Create if not exists
-            window_bar = BarData(
-                symbol=bar.symbol,
-                exchange=bar.exchange,
-                datetime=bar.datetime,
-                gateway_name=bar.gateway_name,
-                open_price=bar.open_price,
-                high_price=bar.high_price,
-                low_price=bar.low_price,
-                close_price=bar.close_price,
-                volume=bar.volume,
-                turnover=bar.turnover,
-                open_interest=bar.open_interest,
-            )
-            self.window_bars[symbol] = window_bar
+    def _process_window_bars(self, bars: dict[str, BarData]) -> None:
+        """Process bars for window aggregation."""
+        for symbol, bar in bars.items():
+            window_bar = self.window_bars.get(symbol)
+
+            # Create window bar if it doesn't exist
+            if not window_bar:
+                # Align time to window start
+                dt = self._align_bar_datetime(bar)
+                window_bar = self._create_window_bar(bar, dt)
+                self.window_bars[symbol] = window_bar
+            else:
+                # Update existing window bar
+                self._update_window_bar(window_bar, bar)
+
+    def _align_bar_datetime(self, bar: BarData) -> datetime:
+        """Align datetime to appropriate window boundary."""
+        dt = bar.datetime.replace(second=0, microsecond=0)
+        if self.interval == Interval.HOUR:
+            dt = dt.replace(minute=0)
+        elif self.window > 1:
+            # For X-minute bars, align to the window start
+            minute = (dt.minute // self.window) * self.window
+            dt = dt.replace(minute=minute)
+        return dt
+
+    def _create_window_bar(self, source: BarData, dt: datetime) -> BarData:
+        """Create a new window bar from source bar."""
+        return BarData(
+            symbol=source.symbol,
+            exchange=source.exchange,
+            datetime=dt,
+            gateway_name=source.gateway_name,
+            open_price=source.open_price,
+            high_price=source.high_price,
+            low_price=source.low_price,
+        )
+
+    def _create_new_bar(self, source: BarData, dt: datetime) -> BarData:
+        """Create a complete new bar from source bar."""
+        return BarData(
+            symbol=source.symbol,
+            exchange=source.exchange,
+            datetime=dt,
+            gateway_name=source.gateway_name,
+            open_price=source.open_price,
+            high_price=source.high_price,
+            low_price=source.low_price,
+            close_price=source.close_price,
+            volume=source.volume,
+            turnover=source.turnover,
+            open_interest=source.open_interest,
+        )
+
+    def _update_window_bar(self, target: BarData, source: BarData) -> None:
+        """Update window bar with new source bar data."""
+        # Update OHLC
+        target.high_price = max(target.high_price, source.high_price)
+        target.low_price = min(target.low_price, source.low_price)
+        target.close_price = source.close_price
+
+        # Accumulate volume, turnover, etc.
+        target.volume = getattr(target, "volume", 0) + source.volume
+        target.turnover = getattr(target, "turnover", 0) + source.turnover
+        target.open_interest = source.open_interest
+
+    def _update_bar_data(self, target: BarData, source: BarData) -> None:
+        """Update bar data with new source values."""
+        if target:
+            target.high_price = max(target.high_price, source.high_price)
+            target.low_price = min(target.low_price, source.low_price)
+            target.close_price = source.close_price
+            target.volume += source.volume
+            target.turnover += source.turnover
+            target.open_interest = source.open_interest
+
+    def _finalize_window_bars(self) -> None:
+        """Finalize and send window bars, then reset."""
+        if self.window_bars and self.on_window_bar:
+            self.on_window_bar(self.window_bars)
+            self.window_bars = {}
 
     def on_hour_bar(self, bars: dict[str, BarData]) -> None:
-        """Push hour bar"""
+        """
+        Process completed hour bars.
+
+        Args:
+            bars: Dictionary of hour bars
+        """
         if self.window == 1:
+            # Direct pass-through for 1-hour window
             self.on_window_bar(bars)
         else:
+            # Process for X-hour window
             for symbol, bar in bars.items():
-                window_bar: BarData | None = self.window_bars.get(symbol, None)
+                window_bar = self.window_bars.get(symbol)
                 if not window_bar:
                     window_bar = BarData(
                         symbol=bar.symbol,
@@ -320,24 +369,12 @@ class BarGenerator:
                 window_bar.turnover += bar.turnover
                 window_bar.open_interest = bar.open_interest
 
+            # Check if window is complete
             self.interval_count += 1
             if not self.interval_count % self.window:
                 self.interval_count = 0
                 self.on_window_bar(self.window_bars)
                 self.window_bars = {}
-
-    def generate(self) -> BarData | None:
-        """
-        Generate the bar data and call callback immediately.
-        """
-        bar: BarData = self.bar
-
-        if self.bar:
-            bar.datetime = bar.datetime.replace(second=0, microsecond=0)
-            self.on_bar(bar)
-
-        self.bar = None
-        return bar
 
 
 class ArrayManager:

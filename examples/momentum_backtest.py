@@ -19,15 +19,12 @@ set_level("debug", "momentum_strategy")
 class StdMomentumStrategy(ap.PATemplate):
     """
     策略逻辑:
-
     1. 核心思路:结合动量信号与标准差动态止损的中长期趋势跟踪策略
-
     2. 入场信号:
        - 基于动量指标(当前价格/N周期前价格-1)生成交易信号
        - 动量 > 阈值(5%)时做多
        - 动量 < -阈值(-5%)时做空
        - 使用全部账户资金进行头寸管理
-
     3. 风险管理:
        - 使用基于标准差的动态追踪止损
        - 多头持仓:止损设置在最高价-4倍标准差
@@ -36,7 +33,7 @@ class StdMomentumStrategy(ap.PATemplate):
 
     # 策略参数
     std_period = 30
-    mom_threshold = 0.5
+    mom_threshold = 0.05
     trailing_std_scale = 4
 
     parameters: ClassVar[list[str]] = [
