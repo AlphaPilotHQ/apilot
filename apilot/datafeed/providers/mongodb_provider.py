@@ -7,8 +7,6 @@ MongoDB数据库提供者
 from datetime import datetime
 
 from pymongo import ASCENDING, MongoClient
-from pymongo.collection import Collection
-from pymongo.database import Database as MongoDatabase
 
 from apilot.core.constant import Exchange, Interval
 from apilot.core.database import BarOverview, BaseDatabase, TickOverview
@@ -20,106 +18,56 @@ logger = get_logger("MongoDB")
 
 
 class MongoDBDatabase(BaseDatabase):
-    """
-    MongoDB数据提供者
-
-    实现了BaseDatabase接口, 支持从MongoDB读取和写入量化交易数据.
-
-    特性:
-    1. 自动管理数据库连接
-    2. 支持K线和Tick数据的存储与查询
-    3. 针对交易数据的时间序列优化
-
-    用法示例:
-    ```python
-    # 创建MongoDB数据库实例
-    db = MongoDBDatabase(host="localhost", port=27017, database="apilot")
-
-    # 加载K线数据
-    bars = db.load_bar_data(
-        symbol="BTCUSDT",
-        exchange="BINANCE",
-        interval="1m",
-        start=datetime(2023, 1, 1),
-        end=datetime(2023, 1, 31)
-    )
-
-    # 保存K线数据
-    db.save_bar_data(bars)
-    ```
-    """
+    """MongoDB数据库提供者"""
 
     def __init__(
         self,
+        database: str,
+        collection: str,
         host: str = "localhost",
         port: int = 27017,
         username: str = "",
         password: str = "",
-        database: str = "apilot",
         **kwargs,
     ):
-        """
-        初始化MongoDB数据库连接
+        """初始化MongoDB数据库连接
 
-        参数:
+        Args:
+            database: 数据库名称
+            collection: 集合名称
             host: MongoDB服务器地址
             port: MongoDB服务器端口
-            username: 用户名(如需身份验证)
-            password: 密码(如需身份验证)
-            database: 数据库名称
+            username: 用户名
+            password: 密码
+            **kwargs: 其他参数
         """
         self.host = host
         self.port = port
-        self.database = database
+        self.database_name = database
+        self.collection_name = collection
         self.username = username
         self.password = password
+        self.kwargs = kwargs
 
         # 创建MongoDB客户端
-        if username and password:
+        self._create_client()
+
+    def _create_client(self):
+        """创建MongoDB客户端"""
+        if self.username and self.password:
             self.client = MongoClient(
-                host=host, port=port, username=username, password=password, **kwargs
+                host=self.host,
+                port=self.port,
+                username=self.username,
+                password=self.password,
+                **self.kwargs,
             )
         else:
-            self.client = MongoClient(host=host, port=port, **kwargs)
+            self.client = MongoClient(host=self.host, port=self.port, **self.kwargs)
 
-        # 获取数据库
-        self.db: MongoDatabase = self.client[database]
-
-        # 确保创建必要的索引
-        self._create_indexes()
-
-    def _create_indexes(self) -> None:
-        """创建必要的索引以提高查询性能"""
-        # 为K线数据集合创建索引
-        bar_collection = self.db["bar_data"]
-        bar_collection.create_index(
-            [
-                ("symbol", ASCENDING),
-                ("exchange", ASCENDING),
-                ("interval", ASCENDING),
-                ("datetime", ASCENDING),
-            ],
-            unique=True,
-        )
-
-        # 为Tick数据集合创建索引
-        tick_collection = self.db["tick_data"]
-        tick_collection.create_index(
-            [
-                ("symbol", ASCENDING),
-                ("exchange", ASCENDING),
-                ("datetime", ASCENDING),
-            ],
-            unique=True,
-        )
-
-    def _get_bar_collection(self) -> Collection:
-        """获取K线数据集合"""
-        return self.db["bar_data"]
-
-    def _get_tick_collection(self) -> Collection:
-        """获取Tick数据集合"""
-        return self.db["tick_data"]
+        # 获取数据库和集合
+        self.db = self.client[self.database_name]
+        self.collection = self.db[self.collection_name]
 
     def load_bar_data(
         self,
@@ -130,27 +78,12 @@ class MongoDBDatabase(BaseDatabase):
         end: datetime,
         **kwargs,
     ) -> list[BarData]:
-        """
-        从MongoDB加载K线数据
-
-        参数:
-            symbol: 交易对名称
-            exchange: 交易所, 可以是Exchange枚举或字符串
-            interval: K线周期, 可以是Interval枚举或字符串
-            start: 开始时间
-            end: 结束时间
-
-        返回:
-            BarData对象列表
-        """
+        """从MongoDB加载K线数据"""
         # 转换参数类型
         if isinstance(exchange, str):
             exchange = Exchange(exchange)
         if isinstance(interval, str):
             interval = Interval(interval)
-
-        # 获取集合
-        collection = self._get_bar_collection()
 
         # 构建查询条件
         filter_dict = {
@@ -164,7 +97,7 @@ class MongoDBDatabase(BaseDatabase):
         }
 
         # 执行查询
-        cursor = collection.find(filter_dict).sort("datetime", ASCENDING)
+        cursor = self.collection.find(filter_dict).sort("datetime", ASCENDING)
 
         # 将文档转换为BarData对象
         bars: list[BarData] = []
