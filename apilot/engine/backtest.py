@@ -56,9 +56,6 @@ class BacktestingEngine:
     gateway_name: str = "BACKTESTING"
 
     def __init__(self, main_engine=None) -> None:
-        """
-        初始化回测引擎
-        """
         self.main_engine = main_engine
         self.symbols: list[str] = []  # Full trading symbols (e.g. "BTC.BINANCE")
         self.exchanges: dict[str, Exchange] = {}  # 可选缓存,加速访问
@@ -66,7 +63,7 @@ class BacktestingEngine:
         self.end: datetime = None
         self.sizes: dict[str, float] | None = None
         self.priceticks: dict[str, float] | None = None
-        self.capital: int = 1_000_000
+        self.capital: int = 100_000
         self.annual_days: int = 240
         self.mode: BacktestingMode = BacktestingMode.BAR
 
@@ -120,7 +117,7 @@ class BacktestingEngine:
         start: datetime,
         sizes: dict[str, float] | None = None,
         priceticks: dict[str, float] | None = None,
-        capital: int = 0,
+        capital: int = 100_000,
         end: datetime | None = None,
         mode: BacktestingMode = BacktestingMode.BAR,
         annual_days: int = 240,
@@ -279,7 +276,6 @@ class BacktestingEngine:
         if df is None:
             return
 
-        # 使用新的绘图模块
         plot_backtest_results(df)
 
     def update_daily_close(self, price: float, symbol: str) -> None:
@@ -591,20 +587,9 @@ class BacktestingEngine:
         return list(self.daily_results.values())
 
     def add_data(self, config: DataSourceConfig):
-        """
-        Add data source from configuration object
-
-        Args:
-            config: Data source configuration object
-
-        Returns:
-            BacktestingEngine instance
-        """
-        # Add symbol if not already in the list
         if config.symbol not in self.symbols:
             self.symbols.append(config.symbol)
 
-        # Delegate to data manager's add_data method
         self.data_manager.add_data(config)
 
         return self
