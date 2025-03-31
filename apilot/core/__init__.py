@@ -70,7 +70,6 @@ from .database import (
     BarOverview,  # type: class
     BaseDatabase,  # type: class
     TickOverview,  # type: class
-    get_database,  # type: function
     use_database,  # type: function
 )
 

@@ -10,7 +10,6 @@ from collections import defaultdict
 from collections.abc import Callable
 from concurrent.futures import Future, ThreadPoolExecutor
 from datetime import datetime, timedelta
-from pathlib import Path
 from typing import Any
 
 from apilot.core import (
@@ -44,7 +43,7 @@ from apilot.core import (
     round_to,
     save_json,
 )
-from apilot.core.database import BaseDatabase, get_database
+from apilot.core.database import DATABASE_CONFIG, BaseDatabase, use_database
 from apilot.strategy import PATemplate
 from apilot.utils.logger import get_logger
 
@@ -69,7 +68,9 @@ class PAEngine(BaseEngine):
         self.strategy_orderid_map = defaultdict(set)
         self.init_executor = ThreadPoolExecutor(max_workers=1)
         self.tradeids = set()
-        self.database: BaseDatabase = get_database()
+        self.database: BaseDatabase = use_database(
+            DATABASE_CONFIG.get("name", ""), **DATABASE_CONFIG.get("params", {})
+        )
 
     def init_engine(self) -> None:
         """
@@ -467,29 +468,6 @@ class PAEngine(BaseEngine):
         logger.info(f"[{APP_NAME}] 策略{strategy_name}移除成功")
         return True
 
-    def load_strategy_class(self) -> None:
-        """
-        加载策略类(简化版本,脚本环境不需要动态加载)
-        """
-        # 在脚本环境中,策略类通常通过直接导入获取,无需动态加载
-        pass
-
-    def load_strategy_class_from_folder(
-        self, path: Path, module_name: str = ""
-    ) -> None:
-        """
-        从特定文件夹加载策略类(简化版本,脚本环境不需要)
-        """
-        # 在脚本环境中,通常直接导入策略类,此方法可删除
-        pass
-
-    def load_strategy_class_from_module(self, module_name: str) -> None:
-        """
-        从模块加载策略类(简化版本,脚本环境不需要)
-        """
-        # 在脚本环境中,通常直接导入策略类,此方法可删除
-        pass
-
     def load_strategy_data(self) -> None:
         self.strategy_data = load_json(self.data_filename)
 
@@ -575,23 +553,3 @@ class PAEngine(BaseEngine):
             "setting": setting,
         }
         save_json(self.setting_filename, self.strategy_setting)
-
-    def remove_strategy_setting(self, strategy_name: str) -> None:
-        """
-        移除策略设置(简化版)
-        """
-        # 在脚本环境中,通常不需要动态移除策略
-        # 但保留此方法以便在需要时清理配置文件
-        if strategy_name not in self.strategy_setting:
-            return
-
-        self.strategy_setting.pop(strategy_name)
-        save_json(self.setting_filename, self.strategy_setting)
-
-        self.strategy_data.pop(strategy_name, None)
-        save_json(self.data_filename, self.strategy_data)
-
-    def put_strategy_event(self, strategy: PATemplate) -> None:
-        """发送策略状态更新事件(GUI用,可删除)"""
-        # 在无GUI环境下不需要此方法
-        pass
