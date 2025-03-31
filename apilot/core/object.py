@@ -2,8 +2,9 @@
 Basic data structure used for general trading function in the trading platform.
 """
 
+import datetime
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime as dt  # 模块名冲突错误
 from logging import INFO
 
 from .constant import (
@@ -41,7 +42,7 @@ class TickData(BaseData):
 
     symbol: str = ""  # Full symbol with exchange (e.g. "BTC.BINANCE")
     exchange: Exchange | None = None  # Kept for backward compatibility
-    dt: datetime | None = None
+    datetime: dt | None = None
 
     name: str = ""
     volume: float = 0
@@ -80,8 +81,6 @@ class TickData(BaseData):
     ask_volume_3: float = 0
     ask_volume_4: float = 0
     ask_volume_5: float = 0
-
-    localtime: datetime | None = None
 
     def __post_init__(self) -> None:
         """Initialize with exchange from symbol if not provided"""
@@ -144,7 +143,7 @@ class BarData(BaseData):
 
     symbol: str = ""  # Full symbol with exchange (e.g. "BTC.BINANCE")
     exchange: Exchange | None = None  # Kept for backward compatibility
-    datetime: datetime = None
+    datetime: dt = None
     interval: Interval | None = None
     volume: float = 0
     turnover: float = 0
@@ -202,7 +201,7 @@ class OrderData(BaseData):
     volume: float = 0
     traded: float = 0
     status: Status = Status.SUBMITTING
-    datetime: datetime | None = None
+    datetime: dt = None
     reference: str = ""
 
     @property
@@ -253,9 +252,7 @@ class TradeData(BaseData):
     offset: Offset = Offset.NONE
     price: float = 0
     volume: float = 0
-    datetime: datetime = (
-        None  # TODO：这里如果用 datetime: datetime | None = None 会报错
-    )
+    datetime: dt = None
 
     def __post_init__(self) -> None:
         """Initialize with exchange from symbol if not provided"""
@@ -324,7 +321,7 @@ class LogData(BaseData):
     msg: str = ""  # 日志消息
     level: int = INFO  # 日志级别
     source: str = ""  # 日志来源
-    timestamp: datetime = field(default_factory=datetime.now)  # 日志记录时间
+    timestamp: dt = field(default_factory=datetime.datetime.now)  # 日志记录时间
     extra: dict = field(default_factory=dict)  # 额外信息字典,可用于扩展
 
     @property
@@ -356,7 +353,7 @@ class ContractData(BaseData):
 
     option_strike: float = 0
     option_underlying: str = ""  # symbol of underlying contract
-    option_expiry: datetime | None = None
+    option_expiry: dt | None = None
     option_portfolio: str = ""
     option_index: str = ""  # for identifying options with same strike price
 
@@ -386,7 +383,7 @@ class QuoteData(BaseData):
     bid_offset: Offset = Offset.NONE
     ask_offset: Offset = Offset.NONE
     status: Status = Status.SUBMITTING
-    dt: datetime | None = None
+    datetime: dt | None = None
     reference: str = ""
 
     def __post_init__(self) -> None:
@@ -496,8 +493,8 @@ class HistoryRequest:
 
     symbol: str = ""  # Full symbol with exchange (e.g. "BTC.BINANCE")
     exchange: Exchange | None = None  # Kept for backward compatibility
-    start: datetime | None = None
-    end: datetime | None = None
+    start: dt | None = None
+    end: dt | None = None
     interval: Interval | None = None
 
     def __post_init__(self) -> None:
