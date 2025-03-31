@@ -39,26 +39,24 @@ class CsvDatabase(BaseDatabase):
     ) -> list[BarData]:
         try:
             df = pd.read_csv(self.csv_path)
-            logger.info(f"CSV{symbol} 已加载,区间 {interval},行数: {len(df)}")
-
-            bars = []
+            logger.debug(f"CSV{symbol} 已加载,区间 {interval},行数: {len(df)}")
 
             if self.datetime_index >= 0:
-                logger.info(
-                    f"转换日期时间字段: 索引{self.datetime_index}, 格式{self.dtformat}"
-                )
+                logger.debug(f"转换日期时间字段格式{self.dtformat}")
                 df["datetime"] = pd.to_datetime(
                     df.iloc[:, self.datetime_index], format=self.dtformat
                 )
 
             df = df[(df["datetime"] >= start) & (df["datetime"] <= end)]
-            logger.info(f"筛选后数据行数: {len(df)}")
+            logger.debug(f"筛选后数据行数: {len(df)}")
+
+            bars = []
 
             # 转换为BarData对象
             for _, row in df.iterrows():
                 bar = BarData(
                     symbol=symbol,
-                    exchange="LOCAL",
+                    exchange="LOCAL",  # TODO： 是否可以删除
                     datetime=row["datetime"],
                     interval=interval,
                     volume=float(row.iloc[self.volume_index])
@@ -83,7 +81,7 @@ class CsvDatabase(BaseDatabase):
                 )
                 bars.append(bar)
 
-            logger.info(f"成功创建 {len(bars)} 个Bar对象")
+            logger.debug(f"成功创建 {len(bars)} 个Bar对象")
             return bars
 
         except Exception as e:
@@ -93,8 +91,8 @@ class CsvDatabase(BaseDatabase):
     def load_tick_data(
         self, symbol: str, start: datetime, end: datetime
     ) -> list[TickData]:
-        """Load tick data (not implemented)"""
-        return []
+        """Load tick data from CSV (not implemented yet)"""
+        raise NotImplementedError("CSV provider does not support tick data yet")
 
     def delete_bar_data(self, symbol: str, interval: Interval) -> int:
         """Delete bar data (not implemented)"""

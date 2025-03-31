@@ -77,12 +77,11 @@ class StdMomentumStrategy(ap.PATemplate):
             self.pos[symbol] = 0
 
     def on_init(self):
-        self.load_bar(self.std_period * 2)
+        self.load_bar(self.std_period)
 
     def on_bar(self, bar: ap.BarData):
         symbol = bar.symbol
         if symbol in self.bgs:
-            # 创建正确的字典格式:{symbol: bar}
             bars_dict = {symbol: bar}
             self.bgs[symbol].update_bars(bars_dict)
 
@@ -108,12 +107,6 @@ class StdMomentumStrategy(ap.PATemplate):
                     self.momentum[symbol] = (current_price / old_price) - 1
                 else:
                     self.momentum[symbol] = 0.0
-
-            logger.debug(
-                f"{symbol} 生成5分钟K线: {bar.datetime} O:{bar.open_price} "
-                f"H:{bar.high_price} L:{bar.low_price} C:{bar.close_price} V:{bar.volume}"
-                f" 动量: {self.momentum.get(symbol, 0):.4f}"
-            )
 
         # 然后执行交易逻辑
         for symbol, bar in bars.items():
@@ -188,7 +181,6 @@ class StdMomentumStrategy(ap.PATemplate):
 
     def on_order(self, order: ap.OrderData):
         """委托回调"""
-        # 记录委托状态变化
         logger.info(f"Order {order.vt_orderid} status: {order.status}")
 
     def on_trade(self, trade: ap.TradeData):
@@ -241,12 +233,9 @@ def run_backtesting(
     mom_threshold=0.005,
     trailing_std_scale=2.0,
 ):
-    logger.debug(
-        f"运行回测 - 参数: {std_period}, {mom_threshold}, {trailing_std_scale}"
-    )
-
     # 1 创建回测引擎
     engine = ap.BacktestingEngine()
+    logger.info("1 创建回测引擎完成")
 
     # 2 设置引擎参数
     symbols = ["SOL-USDT.LOCAL", "BTC-USDT.LOCAL"]
@@ -256,6 +245,7 @@ def run_backtesting(
         start=start,
         end=end,
     )
+    logger.info("2 设置引擎参数完成")
 
     # 3 添加策略
     engine.add_strategy(
@@ -266,6 +256,7 @@ def run_backtesting(
             "trailing_std_scale": trailing_std_scale,
         },
     )
+    logger.info("3 添加策略完成")
 
     # 4 添加数据 - 使用新的数据源配置架构
     # 为SOL-USDT创建数据源配置
@@ -280,23 +271,26 @@ def run_backtesting(
         volume_index=5,
     )
 
-    engine.add_csv_data(
-        symbol="BTC-USDT.LOCAL",
-        filepath="data/BTC-USDT_LOCAL_1m.csv",
-        datetime_index=0,
-        open_index=1,
-        high_index=2,
-        low_index=3,
-        close_index=4,
-        volume_index=5,
-    )
+    # engine.add_csv_data(
+    #     symbol="BTC-USDT.LOCAL",
+    #     filepath="data/BTC-USDT_LOCAL_1m.csv",
+    #     datetime_index=0,
+    #     open_index=1,
+    #     high_index=2,
+    #     low_index=3,
+    #     close_index=4,
+    #     volume_index=5,
+    # )
+    logger.info("4 添加数据完成")
 
     # 5 运行回测
     engine.run_backtesting()
+    logger.info("5 运行回测完成")
 
     # 6 计算和输出结果
     engine.calculate_result()
     stats = engine.calculate_statistics()
+    logger.info("6 计算和输出结果完成")
 
     # 打印统计结果字典键
     print(f"统计结果字典键: {list(stats.keys())}")
@@ -312,6 +306,7 @@ def run_backtesting(
             import traceback
 
             traceback.print_exc()
+    logger.info("7 显示图表完成")
 
     # 参数优化示例 (注释掉,需要时可以解开使用)
     """

@@ -196,7 +196,6 @@ class BacktestingEngine:
         self.strategy.on_init()
         logger.debug("策略on_init()调用完成")
 
-        # 使用指定时间的历史数据初始化策略
         day_count: int = 0
         ix: int = 0
 
@@ -207,7 +206,6 @@ class BacktestingEngine:
                     break
 
             try:
-                logger.debug(f"初始化阶段处理时间点: {dt}")
                 self.new_bars(dt)
             except Exception as e:
                 logger.error(f"触发异常,回测终止: {e}")
@@ -251,18 +249,17 @@ class BacktestingEngine:
         # 获取当前时间点上所有交易品种的bar
         bars = self.history_data.get(dt, {})
 
-        if bars:
-            logger.debug(f"时间点 {dt} 获取到K线数据: {list(bars.keys())}")
-        else:
-            logger.debug(f"时间点 {dt} 没有可用的K线数据")
-            return
+        # if bars:
+        #     logger.debug(f"时间点 {dt} 获取到K线数据: {list(bars.keys())}")
+        # else:
+        #     logger.debug(f"时间点 {dt} 没有可用的K线数据")
+        # return
 
         # 更新策略的多个bar数据
         self.bars = bars
 
-        logger.debug(f"开始撮合订单,活跃订单数: {len(self.active_limit_orders)}")
         self.cross_limit_order()
-        logger.debug("调用策略on_bars处理K线数据")
+        # logger.debug("调用策略on_bars处理K线数据")
         self.strategy.on_bars(bars)
 
         # 更新每个品种的收盘价
@@ -325,20 +322,13 @@ class BacktestingEngine:
     def load_bar(
         self,
         symbol: str,
-        days: int,
+        count: int,
         interval: Interval = Interval.MINUTE,
         callback: Callable | None = None,
         use_database: bool = False,
     ) -> list[BarData]:
-        """
-        加载历史K线数据,返回对应的K线列表
-        这个方法在回测引擎中仅为兼容策略模板而存在
-
-        在回测环境中,数据已通过add_csv_data等方法预先加载
-        这里简单返回空列表,因为回测初始化在其他地方完成
-        """
-        logger.debug(f"回测引擎的load_bar被调用: 品种={symbol}, 天数={days}")
-        # 在回测引擎中,不需要额外加载历史数据,返回空列表
+        """回测环境中的占位方法,实际数据由add_csv_data等方法预先加载"""
+        logger.debug(f"回测引擎load_bar调用: {symbol}, {count} count bar")
         return []
 
     def new_bar(self, bar: BarData) -> None:

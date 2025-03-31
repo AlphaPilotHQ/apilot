@@ -39,9 +39,7 @@ from apilot.core import (
     TradeData,
     # 工具函数
     extract_symbol,
-    load_json,
     round_to,
-    save_json,
 )
 from apilot.core.database import DATABASE_CONFIG, BaseDatabase, use_database
 from apilot.strategy import PATemplate
@@ -285,14 +283,14 @@ class PAEngine(BaseEngine):
     def load_bar(
         self,
         symbol: str,
-        days: int,
+        count: int,
         interval: Interval,
         callback: Callable[[BarData], None],
         use_database: bool,
     ) -> list:
         symbol_str, exchange_str = extract_symbol(symbol)
         end: datetime = datetime.now()
-        start: datetime = end - timedelta(days)
+        start: datetime = end - timedelta(days=count)
         bars: list = []
 
         # Try to query bars from database, if not found, load from database.
@@ -303,12 +301,11 @@ class PAEngine(BaseEngine):
         return bars
 
     def load_tick(
-        self, symbol: str, days: int, callback: Callable[[TickData], None]
+        self, symbol: str, count: int, callback: Callable[[TickData], None]
     ) -> list:
         symbol_str, exchange_str = extract_symbol(symbol)
         end: datetime = datetime.now()
-        start: datetime = end - timedelta(days)
-
+        start: datetime = end - timedelta(days=count)
         ticks: list = self.database.load_tick_data(symbol_str, exchange_str, start, end)
 
         return ticks
@@ -468,9 +465,6 @@ class PAEngine(BaseEngine):
         logger.info(f"[{APP_NAME}] 策略{strategy_name}移除成功")
         return True
 
-    def load_strategy_data(self) -> None:
-        self.strategy_data = load_json(self.data_filename)
-
     def sync_strategy_data(self, strategy: PATemplate) -> None:
         """
         Sync strategy data into json file.
@@ -480,7 +474,6 @@ class PAEngine(BaseEngine):
         data.pop("trading")
 
         self.strategy_data[strategy.strategy_name] = data
-        save_json(self.data_filename, self.strategy_data)
 
     def get_all_strategy_class_names(self) -> list:
         """获取所有已加载的策略类名(简化版)"""
@@ -521,35 +514,3 @@ class PAEngine(BaseEngine):
         # 在关闭引擎时仍然需要调用此方法
         for strategy_name in self.strategies.keys():
             self.stop_strategy(strategy_name)
-
-    def load_strategy_setting(self) -> None:
-        """
-        加载策略设置(简化版)
-        """
-        # 在脚本环境中,策略设置通常直接在代码中定义,而不是从文件加载
-        # 但保留此方法可以支持从配置文件恢复
-        self.strategy_setting = load_json(self.setting_filename)
-
-        # 在脚本环境中通常不自动添加策略,注释掉自动加载的代码
-        # for strategy_name, strategy_config in self.strategy_setting.items():
-        #     self.add_strategy(
-        #         strategy_config["class_name"],
-        #         strategy_name,
-        #         strategy_config["symbol"],
-        #         strategy_config["setting"]
-        #     )
-
-    def update_strategy_setting(self, strategy_name: str, setting: dict) -> None:
-        """
-        更新策略设置(简化版)
-        """
-        # 在脚本环境中,策略参数通常直接在代码中修改,而不是动态更新
-        # 但保留文件保存功能以便记录
-        strategy: PATemplate = self.strategies[strategy_name]
-
-        self.strategy_setting[strategy_name] = {
-            "class_name": strategy.__class__.__name__,
-            "symbol": strategy.symbol,
-            "setting": setting,
-        }
-        save_json(self.setting_filename, self.strategy_setting)

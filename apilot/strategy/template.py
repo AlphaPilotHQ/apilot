@@ -217,36 +217,29 @@ class PATemplate(ABC):
 
     def load_bar(
         self,
-        days: int,
+        count: int,
         interval: Interval = Interval.MINUTE,
         callback: Callable | None = None,
         use_database: bool = False,
     ) -> None:
-        """
-        加载历史K线数据
-        适用于单币种和多币种策略
-        """
-        if not callback:
-            callback = self.on_bar
-
+        """加载历史数据,适用于回测和实盘"""
         if not self.symbols:
-            return  # 如果没有定义交易品种, 则直接返回
+            return
 
-        # 遍历所有交易品种加载数据
+        callback = callback or self.on_bar
+
         for symbol in self.symbols:
-            bars: list[BarData] = self.pa_engine.load_bar(
-                symbol, days, interval, callback, use_database
+            bars = self.pa_engine.load_bar(
+                symbol, count, interval, callback, use_database
             )
-
-            # 如果有回调函数, 处理每个K线数据
             if bars and callback:
                 for bar in bars:
                     callback(bar)
 
-    def load_tick(self, days: int) -> None:
+    def load_tick(self, count: int) -> None:
         """加载历史Tick数据初始化策略"""
         ticks: list[TickData] = self.pa_engine.load_tick(
-            self.symbols[0], days, self.on_tick
+            self.symbols[0], count, self.on_tick
         )
 
         for tick in ticks:
