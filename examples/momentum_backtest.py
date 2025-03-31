@@ -291,10 +291,6 @@ def run_backtesting(
         volume_index=5,
     )
 
-    # # 将配置添加到引擎
-    # engine.add_data(sol_config)
-    # engine.add_data(btc_config)
-
     # 5 运行回测
     engine.run_backtesting()
 

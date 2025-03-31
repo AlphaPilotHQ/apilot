@@ -8,18 +8,20 @@ from apilot.core.database import BaseDatabase
 
 from .providers.csv_provider import CsvDatabase
 
-# 数据提供者注册表
 DATA_PROVIDERS = {}
 
 
 def register_provider(name, provider_class):
-    """注册数据提供者"""
     DATA_PROVIDERS[name] = provider_class
 
 
-register_provider("csv", CsvDatabase)
+try:
+    from .providers.csv_provider import CsvDatabase
 
-# 尝试导入MongoDB数据库提供者(可选依赖)
+    register_provider("csv", CsvDatabase)
+except ImportError:
+    pass
+
 try:
     from .providers.mongodb_provider import MongoDBDatabase
 

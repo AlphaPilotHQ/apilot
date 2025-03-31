@@ -8,7 +8,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
 
-from .constant import Exchange, Interval
+from .constant import Interval
 from .object import BarData, TickData
 
 # Database default configuration
@@ -25,7 +25,6 @@ class BarOverview:
     """
 
     symbol: str = ""
-    exchange: Exchange = None
     interval: Interval = None
     count: int = 0
     start: int = None
@@ -39,7 +38,6 @@ class TickOverview:
     """
 
     symbol: str = ""
-    exchange: Exchange = None
     count: int = 0
     start: int = None
     end: int = None
@@ -54,7 +52,6 @@ class BaseDatabase(ABC):
     def load_bar_data(
         self,
         symbol: str,
-        exchange: Exchange,
         interval: Interval,
         start: datetime,
         end: datetime,
@@ -63,18 +60,16 @@ class BaseDatabase(ABC):
 
     @abstractmethod
     def load_tick_data(
-        self, symbol: str, exchange: Exchange, start: datetime, end: datetime
+        self, symbol: str, start: datetime, end: datetime
     ) -> list[TickData]:
         pass
 
     @abstractmethod
-    def delete_bar_data(
-        self, symbol: str, exchange: Exchange, interval: Interval
-    ) -> int:
+    def delete_bar_data(self, symbol: str, interval: Interval) -> int:
         pass
 
     @abstractmethod
-    def delete_tick_data(self, symbol: str, exchange: Exchange) -> int:
+    def delete_tick_data(self, symbol: str) -> int:
         pass
 
     @abstractmethod

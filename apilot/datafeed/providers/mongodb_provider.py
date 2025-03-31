@@ -12,6 +12,7 @@ from apilot.core.constant import Exchange, Interval
 from apilot.core.database import BarOverview, BaseDatabase, TickOverview
 from apilot.core.object import BarData, TickData
 from apilot.utils.logger import get_logger
+from apilot.utils.symbol import split_symbol
 
 # 获取日志记录器
 logger = get_logger("MongoDB")
@@ -72,7 +73,6 @@ class MongoDBDatabase(BaseDatabase):
     def load_bar_data(
         self,
         symbol: str,
-        exchange: Exchange | str,
         interval: Interval | str,
         start: datetime,
         end: datetime,
@@ -80,14 +80,16 @@ class MongoDBDatabase(BaseDatabase):
     ) -> list[BarData]:
         """从MongoDB加载K线数据"""
         # 转换参数类型
-        if isinstance(exchange, str):
-            exchange = Exchange(exchange)
         if isinstance(interval, str):
             interval = Interval(interval)
 
+        # 从完整symbol中提取基础符号和交易所
+        base_symbol, exchange_str = split_symbol(symbol)
+        exchange = Exchange(exchange_str)
+
         # 构建查询条件
         filter_dict = {
-            "symbol": symbol,
+            "symbol": base_symbol,
             "exchange": exchange.value,
             "interval": interval.value,
             "datetime": {
@@ -104,8 +106,8 @@ class MongoDBDatabase(BaseDatabase):
         for doc in cursor:
             # 创建K线数据对象
             bar = BarData(
-                symbol=doc["symbol"],
-                exchange=Exchange(doc["exchange"]),
+                symbol=symbol,  # 使用完整交易对符号
+                exchange=exchange,
                 datetime=doc["datetime"],
                 interval=Interval(doc["interval"]),
                 open_price=doc["open_price"],
@@ -121,30 +123,29 @@ class MongoDBDatabase(BaseDatabase):
         return bars
 
     def load_tick_data(
-        self, symbol: str, exchange: Exchange | str, start: datetime, end: datetime
+        self, symbol: str, start: datetime, end: datetime
     ) -> list[TickData]:
         """
         从MongoDB加载Tick数据
 
         参数:
-            symbol: 交易对名称
-            exchange: 交易所, 可以是Exchange枚举或字符串
+            symbol: 交易对名称 (完整格式,如"BTCUSDT.BINANCE")
             start: 开始时间
             end: 结束时间
 
         返回:
             TickData对象列表
         """
-        # 转换参数类型
-        if isinstance(exchange, str):
-            exchange = Exchange(exchange)
+        # 从完整symbol中提取基础符号和交易所
+        base_symbol, exchange_str = split_symbol(symbol)
+        exchange = Exchange(exchange_str)
 
         # 获取集合
         collection = self._get_tick_collection()
 
         # 构建查询条件
         filter_dict = {
-            "symbol": symbol,
+            "symbol": base_symbol,
             "exchange": exchange.value,
             "datetime": {
                 "$gte": start,
@@ -160,8 +161,8 @@ class MongoDBDatabase(BaseDatabase):
         for doc in cursor:
             # 创建Tick数据对象
             tick = TickData(
-                symbol=doc["symbol"],
-                exchange=Exchange(doc["exchange"]),
+                symbol=symbol,  # 使用完整交易对符号
+                exchange=exchange,
                 datetime=doc["datetime"],
                 name=doc.get("name", ""),
                 volume=doc.get("volume", 0.0),
@@ -220,7 +221,7 @@ class MongoDBDatabase(BaseDatabase):
         for bar in bars:
             # 转换为文档
             doc = {
-                "symbol": bar.symbol,
+                "symbol": bar.symbol.split(".")[0],
                 "exchange": bar.exchange.value,
                 "interval": bar.interval.value,
                 "datetime": bar.datetime,
@@ -235,10 +236,10 @@ class MongoDBDatabase(BaseDatabase):
 
             # 构建查询过滤器
             filter_dict = {
-                "symbol": bar.symbol,
-                "exchange": bar.exchange.value,
-                "interval": bar.interval.value,
-                "datetime": bar.datetime,
+                "symbol": doc["symbol"],
+                "exchange": doc["exchange"],
+                "interval": doc["interval"],
+                "datetime": doc["datetime"],
             }
 
             if overwrite:
@@ -275,7 +276,7 @@ class MongoDBDatabase(BaseDatabase):
         for tick in ticks:
             # 转换为文档
             doc = {
-                "symbol": tick.symbol,
+                "symbol": tick.symbol.split(".")[0],
                 "exchange": tick.exchange.value,
                 "datetime": tick.datetime,
                 "name": tick.name,
@@ -313,9 +314,9 @@ class MongoDBDatabase(BaseDatabase):
 
             # 构建查询过滤器
             filter_dict = {
-                "symbol": tick.symbol,
-                "exchange": tick.exchange.value,
-                "datetime": tick.datetime,
+                "symbol": doc["symbol"],
+                "exchange": doc["exchange"],
+                "datetime": doc["datetime"],
             }
 
             if overwrite:
@@ -331,60 +332,58 @@ class MongoDBDatabase(BaseDatabase):
 
         return count
 
-    def delete_bar_data(
-        self, symbol: str, exchange: Exchange | str, interval: Interval | str
-    ) -> int:
+    def delete_bar_data(self, symbol: str, interval: Interval | str) -> int:
         """
         删除K线数据
 
         参数:
-            symbol: 交易对名称
-            exchange: 交易所
+            symbol: 交易对名称 (完整格式,如"BTCUSDT.BINANCE")
             interval: K线周期
 
         返回:
             删除的数据条数
         """
         # 转换参数类型
-        if isinstance(exchange, str):
-            exchange = Exchange(exchange)
         if isinstance(interval, str):
             interval = Interval(interval)
 
-        # 获取集合
-        collection = self._get_bar_collection()
+        # 从完整symbol中提取基础符号和交易所
+        base_symbol, exchange_str = split_symbol(symbol)
+        exchange = Exchange(exchange_str)
 
         # 构建过滤条件
         filter_dict = {
-            "symbol": symbol,
+            "symbol": base_symbol,
             "exchange": exchange.value,
             "interval": interval.value,
         }
 
         # 执行删除
-        result = collection.delete_many(filter_dict)
+        result = self.collection.delete_many(filter_dict)
         return result.deleted_count
 
-    def delete_tick_data(self, symbol: str, exchange: Exchange | str) -> int:
+    def delete_tick_data(self, symbol: str) -> int:
         """
         删除Tick数据
 
         参数:
-            symbol: 交易对名称
-            exchange: 交易所
+            symbol: 交易对名称 (完整格式,如"BTCUSDT.BINANCE")
 
         返回:
             删除的数据条数
         """
-        # 转换参数类型
-        if isinstance(exchange, str):
-            exchange = Exchange(exchange)
+        # 从完整symbol中提取基础符号和交易所
+        base_symbol, exchange_str = split_symbol(symbol)
+        exchange = Exchange(exchange_str)
 
         # 获取集合
         collection = self._get_tick_collection()
 
         # 构建过滤条件
-        filter_dict = {"symbol": symbol, "exchange": exchange.value}
+        filter_dict = {
+            "symbol": base_symbol,
+            "exchange": exchange.value,
+        }
 
         # 执行删除
         result = collection.delete_many(filter_dict)

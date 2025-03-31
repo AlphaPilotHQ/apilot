@@ -151,15 +151,7 @@ class BacktestingEngine:
         )
 
     def add_data(self, provider_type, symbol, **kwargs):
-        """添加数据源
-
-        Args:
-            provider_type: 数据提供者类型 ("csv", "mongodb", 等)
-            symbol: 交易对符号
-            **kwargs: 传递给数据提供者的参数
-        """
         from apilot.datafeed import DATA_PROVIDERS
-        from apilot.utils.symbol import split_symbol
 
         # 获取数据提供者类
         if provider_type not in DATA_PROVIDERS:
@@ -170,17 +162,13 @@ class BacktestingEngine:
         # 创建数据提供者实例
         provider = provider_class(**kwargs)
 
-        # 加载数据
-        base_symbol, exchange_str = split_symbol(symbol)
-
         # 确保symbol在symbols列表中
         if symbol not in self.symbols:
             self.symbols.append(symbol)
 
         # 加载数据
         bars = provider.load_bar_data(
-            symbol=base_symbol,
-            exchange=exchange_str,
+            symbol=symbol,
             interval=self.interval,
             start=self.start,
             end=self.end,
@@ -197,19 +185,14 @@ class BacktestingEngine:
         return self
 
     def add_csv_data(self, symbol, filepath, **kwargs):
-        """添加CSV数据源"""
         return self.add_data("csv", symbol, filepath=filepath, **kwargs)
 
     def add_mongodb_data(self, symbol, database, collection, **kwargs):
-        """添加MongoDB数据源"""
         return self.add_data(
             "mongodb", symbol, database=database, collection=collection, **kwargs
         )
 
     def run_backtesting(self) -> None:
-        """
-        开始回测
-        """
         self.strategy.on_init()
         logger.debug("策略on_init()调用完成")
 
