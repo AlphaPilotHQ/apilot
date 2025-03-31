@@ -79,9 +79,6 @@ from .core.object import (
 # 导出工具类
 from .core.utility import ArrayManager, BarGenerator
 
-# 导出数据源创建函数
-from .datafeed import create_csv_data, create_mongodb_data
-
 # 导出回测和优化组件
 from .engine.backtest import BacktestingEngine
 from .optimizer import OptimizationSetting, run_ga_optimization
