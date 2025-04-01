@@ -13,7 +13,7 @@ from apilot.utils.logger import get_logger, set_level
 
 # 获取日志记录器
 logger = get_logger("momentum_strategy")
-set_level("debug", "momentum_strategy")
+set_level("info", "momentum_strategy")
 
 
 class StdMomentumStrategy(ap.PATemplate):
@@ -128,7 +128,9 @@ class StdMomentumStrategy(ap.PATemplate):
 
                 # 平均分配资金给所有标的（全仓交易）
                 risk_percent = 1 / len(self.symbols)
-                capital_to_use = self.pa_engine.capital * risk_percent
+                # 使用当前账户价值而非初始资本
+                current_capital = self.pa_engine.get_current_capital()
+                capital_to_use = current_capital * risk_percent
                 size = max(1, int(capital_to_use / bar.close_price))
 
                 # 基于动量信号开仓
@@ -171,32 +173,22 @@ class StdMomentumStrategy(ap.PATemplate):
 
     def on_order(self, order: ap.OrderData):
         """委托回调"""
-        logger.info(f"Order {order.vt_orderid} status: {order.status}")
+        pass
 
     def on_trade(self, trade: ap.TradeData):
         """成交回调"""
         symbol = trade.symbol
 
         # 更新持仓
-        if trade.direction == ap.Direction.LONG:
-            # 买入或平空
-            if trade.offset == ap.Offset.OPEN:
-                # 买入开仓
-                self.pos[symbol] = self.pos.get(symbol, 0) + trade.volume
-            else:
-                # 买入平仓
-                self.pos[symbol] = self.pos.get(symbol, 0) + trade.volume
-        else:
-            # 卖出或平多
-            if trade.offset == ap.Offset.OPEN:
-                # 卖出开仓
-                self.pos[symbol] = self.pos.get(symbol, 0) - trade.volume
-            else:
-                # 卖出平仓
-                self.pos[symbol] = self.pos.get(symbol, 0) - trade.volume
+        position_change = (
+            trade.volume if trade.direction == ap.Direction.LONG else -trade.volume
+        )
+        self.pos[symbol] = self.pos.get(symbol, 0) + position_change
 
         # 更新最高/最低价追踪
-        current_pos = self.pos.get(symbol, 0)
+        current_pos = self.pos[symbol]
+
+        # 只在仓位方向存在时更新对应的跟踪价格
         if current_pos > 0:
             # 多头仓位,更新最高价
             self.intra_trade_high[symbol] = max(
@@ -209,8 +201,8 @@ class StdMomentumStrategy(ap.PATemplate):
             )
 
         logger.info(
-            f"Trade: {symbol} {trade.vt_orderid} {trade.direction} "
-            f"{trade.offset} {trade.volume}@{trade.price}, pos: {current_pos}"
+            f"Trade: {symbol} {trade.orderid} {trade.direction} "
+            f"{trade.offset} {trade.volume}@{trade.price}, current_pos: {current_pos}"
         )
 
 
@@ -261,16 +253,16 @@ def run_backtesting(
         volume_index=5,
     )
 
-    # engine.add_csv_data(
-    #     symbol="BTC-USDT.LOCAL",
-    #     filepath="data/BTC-USDT_LOCAL_1m.csv",
-    #     datetime_index=0,
-    #     open_index=1,
-    #     high_index=2,
-    #     low_index=3,
-    #     close_index=4,
-    #     volume_index=5,
-    # )
+    engine.add_csv_data(
+        symbol="BTC-USDT.LOCAL",
+        filepath="data/BTC-USDT_LOCAL_1m.csv",
+        datetime_index=0,
+        open_index=1,
+        high_index=2,
+        low_index=3,
+        close_index=4,
+        volume_index=5,
+    )
     logger.info("4 添加数据完成")
 
     # 5 运行回测
@@ -279,23 +271,15 @@ def run_backtesting(
 
     # 6 计算和输出结果
     engine.calculate_result()
-    stats = engine.calculate_statistics()
+    engine.calculate_statistics()
     logger.info("6 计算和输出结果完成")
-
-    # 打印统计结果字典键
-    print(f"统计结果字典键: {list(stats.keys())}")
 
     # 7 显示图表 - 添加条件判断,仅当有交易数据时才尝试显示图表
     if len(engine.trades) > 0:
         try:
-            # 直接调用show_chart,它会使用engine.daily_df
             engine.show_chart()
-            print("图表已生成!")
         except Exception as e:
-            print(f"图表显示错误: {e}")
-            import traceback
-
-            traceback.print_exc()
+            logger.error(f"图表显示失败: {e}")
     logger.info("7 显示图表完成")
 
     # 参数优化示例 (注释掉,需要时可以解开使用)

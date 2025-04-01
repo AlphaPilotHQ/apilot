@@ -36,7 +36,7 @@ from apilot.utils.logger import get_logger, set_level
 
 # 获取日志记录器
 logger = get_logger("BacktestEngine")
-set_level("debug", "BacktestEngine")
+set_level("info", "BacktestEngine")
 
 
 # 回测默认设置
@@ -85,6 +85,7 @@ class BacktestingEngine:
 
         self.daily_results: dict[date, DailyResult] = {}
         self.daily_df: DataFrame = None
+        self.accounts = {"balance": self.capital}
 
     def clear_data(self) -> None:
         self.strategy = None
@@ -194,7 +195,7 @@ class BacktestingEngine:
         self.strategy.on_init()
         logger.debug("策略on_init()调用完成")
 
-        # 固定预热100个bar，TODO：改成真实情况
+        # 固定预热100个bar,TODO:改成真实情况
         warmup_bars = 100
         for i in range(warmup_bars):
             try:
@@ -242,46 +243,6 @@ class BacktestingEngine:
         for symbol, bar in bars.items():
             self.update_daily_close(bar.close_price, symbol)
 
-    def calculate_result(self) -> DataFrame:
-        """
-        计算回测结果
-        """
-        calculator = PerformanceCalculator(self.capital, self.annual_days)
-        self.daily_df = calculator.calculate_result(
-            self.trades, self.daily_results, self.sizes
-        )
-        return self.daily_df
-
-    def calculate_statistics(self, df: DataFrame = None, output=True) -> dict:
-        """
-        计算统计数据
-        """
-        if df is None:
-            df = self.daily_df
-
-        # 调用底层函数,现在它返回(stats, df)元组
-        stats, updated_df = calculate_statistics(
-            df, self.capital, self.annual_days, output
-        )
-
-        # 保存更新后的DataFrame用于图表展示
-        if updated_df is not None and not updated_df.empty:
-            self.daily_df = updated_df
-
-        return stats
-
-    def show_chart(self, df: DataFrame = None) -> None:
-        """
-        显示图表
-        """
-        if not df:
-            df = self.daily_df
-
-        if df is None:
-            return
-
-        plot_backtest_results(df)
-
     def update_daily_close(self, price: float, symbol: str) -> None:
         d: date = self.datetime.date()
 
@@ -291,18 +252,6 @@ class BacktestingEngine:
         else:
             self.daily_results[d] = DailyResult(d)
             self.daily_results[d].add_close_price(symbol, price)
-
-    def load_bar(
-        self,
-        symbol: str,
-        count: int,
-        interval: Interval = Interval.MINUTE,
-        callback: Callable | None = None,
-        use_database: bool = False,
-    ) -> list[BarData]:
-        """回测环境中的占位方法,实际数据由add_csv_data等方法预先加载"""
-        logger.debug(f"回测引擎load_bar调用: {symbol}, {count} count bar")
-        return []
 
     def new_bar(self, bar: BarData) -> None:
         """
@@ -333,14 +282,11 @@ class BacktestingEngine:
         撮合限价单
         """
         for order in list(self.active_limit_orders.values()):
-            logger.debug(
-                f"检查订单: {order.orderid}, 方向: {order.direction}, 价格: {order.price}"
-            )
-
             # 更新订单状态
             if order.status == Status.SUBMITTING:
                 order.status = Status.NOTTRADED
                 self.strategy.on_order(order)
+                logger.debug(f"Order {order.orderid} status: {order.status}")
 
             # 根据订单的交易品种获取对应的价格
             symbol = order.symbol
@@ -379,6 +325,7 @@ class BacktestingEngine:
             order.traded = order.volume
             order.status = Status.ALLTRADED
             self.strategy.on_order(order)
+            logger.debug(f"Order {order.orderid} status: {order.status}")
 
             if order.orderid in self.active_limit_orders:
                 self.active_limit_orders.pop(order.orderid)
@@ -412,7 +359,81 @@ class BacktestingEngine:
                 f"成交记录创建: {trade.tradeid}, 方向: {trade.direction}, 价格: {trade.price}, 数量: {trade.volume}"
             )
 
+            # 更新当前持仓和账户余额
+            self.update_account_balance(trade)
+
             self.strategy.on_trade(trade)
+
+    def update_account_balance(self, trade: TradeData) -> None:
+        """
+        更新账户余额, 在每笔交易后调用
+        简单实现: 跟踪每个交易对的持仓成本和数量
+        """
+        # 如果持仓字典不存在, 初始化它
+        if not hasattr(self, "positions"):
+            self.positions = {}  # 格式: {symbol: {"long": {"volume": 0, "cost": 0}, "short": {"volume": 0, "cost": 0}}}
+
+        symbol = trade.symbol
+        if symbol not in self.positions:
+            self.positions[symbol] = {
+                "long": {"volume": 0, "cost": 0},
+                "short": {"volume": 0, "cost": 0},
+            }
+
+        # 确定方向
+        pos_type = "long" if trade.direction == Direction.LONG else "short"
+        opposite_type = "short" if pos_type == "long" else "long"
+
+        # 根据开平标志处理持仓
+        if trade.offset == Offset.OPEN:  # 开仓
+            # 增加持仓量和成本
+            old_cost = self.positions[symbol][pos_type]["cost"]
+            old_volume = self.positions[symbol][pos_type]["volume"]
+
+            # 更新持仓均价和数量
+            new_volume = old_volume + trade.volume
+            new_cost = old_cost + (trade.price * trade.volume)
+
+            self.positions[symbol][pos_type]["volume"] = new_volume
+            self.positions[symbol][pos_type]["cost"] = new_cost
+
+        else:  # 平仓
+            # 确定要平仓的持仓数据
+            opposite_pos = self.positions[symbol][opposite_type]
+
+            # 计算平仓盈亏
+            if opposite_pos["volume"] > 0:
+                # 计算平均开仓价
+                avg_price = opposite_pos["cost"] / opposite_pos["volume"]
+
+                # 计算盈亏
+                if opposite_type == "long":  # 平多仓
+                    profit = (trade.price - avg_price) * min(
+                        trade.volume, opposite_pos["volume"]
+                    )
+                else:  # 平空仓
+                    profit = (avg_price - trade.price) * min(
+                        trade.volume, opposite_pos["volume"]
+                    )
+
+                # 更新持仓
+                opposite_pos["volume"] -= trade.volume
+                if opposite_pos["volume"] <= 0:
+                    # 持仓已全部平仓
+                    opposite_pos["volume"] = 0
+                    opposite_pos["cost"] = 0
+                else:
+                    # 持仓部分平仓,成本等比例减少
+                    cost_ratio = 1 - (
+                        trade.volume / (opposite_pos["volume"] + trade.volume)
+                    )
+                    opposite_pos["cost"] *= cost_ratio
+
+                # 更新账户余额
+                self.accounts["balance"] += profit
+                logger.debug(
+                    f"平仓盈亏: {profit:.2f}, 当前账户余额: {self.accounts['balance']:.2f}"
+                )
 
     def send_order(
         self,
@@ -441,10 +462,6 @@ class BacktestingEngine:
     ) -> str:
         self.limit_order_count += 1
 
-        logger.debug(
-            f"创建订单 - 合约: {symbol}, 方向: {direction}, 价格: {price}, 数量: {volume}"
-        )
-
         order: OrderData = OrderData(
             symbol=symbol,
             orderid=str(self.limit_order_count),
@@ -460,7 +477,9 @@ class BacktestingEngine:
         self.active_limit_orders[order.orderid] = order
         self.limit_orders[order.orderid] = order
 
-        logger.debug(f"订单已创建: {order.orderid}")
+        logger.debug(
+            f"orderid: {order.orderid}symbol: {symbol}direction: {direction}price: {price}volum: {volume}"
+        )
         return order.orderid
 
     def cancel_order(self, strategy: PATemplate, orderid: str) -> None:
@@ -524,3 +543,63 @@ class BacktestingEngine:
         获取所有日结果
         """
         return list(self.daily_results.values())
+
+    def calculate_result(self) -> DataFrame:
+        """
+        计算回测结果
+        """
+        calculator = PerformanceCalculator(self.capital, self.annual_days)
+        self.daily_df = calculator.calculate_result(
+            self.trades, self.daily_results, self.sizes
+        )
+        return self.daily_df
+
+    def calculate_statistics(self, df: DataFrame = None, output=True) -> dict:
+        """
+        计算统计数据
+        """
+        if df is None:
+            df = self.daily_df
+
+        # 调用底层函数,现在它返回(stats, df)元组
+        stats, updated_df = calculate_statistics(
+            df, self.capital, self.annual_days, output
+        )
+
+        # 保存更新后的DataFrame用于图表展示
+        if updated_df is not None and not updated_df.empty:
+            self.daily_df = updated_df
+
+        return stats
+
+    def show_chart(self, df: DataFrame = None) -> None:
+        """
+        显示图表
+        """
+        if not df:
+            df = self.daily_df
+
+        if df is None:
+            return
+
+        plot_backtest_results(df)
+
+    def load_bar(
+        self,
+        symbol: str,
+        count: int,
+        interval: Interval = Interval.MINUTE,
+        callback: Callable | None = None,
+        use_database: bool = False,
+    ) -> list[BarData]:
+        """回测环境中的占位方法,实际数据由add_csv_data等方法预先加载"""
+        logger.debug(f"回测引擎load_bar调用: {symbol}, {count} count bar")
+        return []
+
+    def get_current_capital(self) -> float:
+        """
+        获取当前账户价值(初始资本+已实现盈亏)
+
+        简洁实现:直接使用账户余额
+        """
+        return self.accounts.get("balance", self.capital)
