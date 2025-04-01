@@ -56,7 +56,9 @@ class StdMomentumStrategy(ap.PATemplate):
 
         for symbol in self.symbols:
             self.bgs[symbol] = ap.BarGenerator(self.on_bar, 5, self.on_5min_bar)
-            self.ams[symbol] = ap.ArrayManager(size=200)
+            self.ams[symbol] = ap.ArrayManager(
+                size=200
+            )  # 保留最长200bar TODO：改成动态
 
         # 为每个交易对创建状态跟踪字典
         self.momentum = {}
@@ -79,13 +81,12 @@ class StdMomentumStrategy(ap.PATemplate):
     def on_bar(self, bar: ap.BarData):
         symbol = bar.symbol
         if symbol in self.bgs:
-            bars_dict = {symbol: bar}
-            self.bgs[symbol].update_bars(bars_dict)
+            self.bgs[symbol].update_bar(bar)
 
     def on_5min_bar(self, bars: dict):
         self.cancel_all()
 
-        # 首先更新所有交易对的数据
+        # 对每个交易品种执行数据更新和交易逻辑
         for symbol, bar in bars.items():
             if symbol not in self.ams:
                 continue
@@ -93,22 +94,18 @@ class StdMomentumStrategy(ap.PATemplate):
             am = self.ams[symbol]
             am.update_bar(bar)
 
-            # 计算标准差
+            # 如果数据不足，跳过交易逻辑
+            if not am.inited:
+                continue
+
+            # 计算技术指标
             self.std_value[symbol] = am.std(self.std_period)
 
             # 计算动量因子
             if len(am.close_array) > self.std_period + 1:
                 old_price = am.close_array[-self.std_period - 1]
                 current_price = am.close_array[-1]
-                if old_price != 0:
-                    self.momentum[symbol] = (current_price / old_price) - 1
-                else:
-                    self.momentum[symbol] = 0.0
-
-        # 然后执行交易逻辑
-        for symbol, bar in bars.items():
-            if symbol not in self.ams or not self.ams[symbol].inited:
-                continue
+                self.momentum[symbol] = (current_price / max(old_price, 1e-6)) - 1
 
             # 获取当前持仓
             current_pos = self.pos.get(symbol, 0)
@@ -129,8 +126,8 @@ class StdMomentumStrategy(ap.PATemplate):
                 self.intra_trade_high[symbol] = bar.high_price
                 self.intra_trade_low[symbol] = bar.low_price
 
-                # 限制每次交易的资金比例,最多使用资金的10%
-                risk_percent = 0.1
+                # 平均分配资金给所有标的（全仓交易）
+                risk_percent = 1 / len(self.symbols)
                 capital_to_use = self.pa_engine.capital * risk_percent
                 size = max(1, int(capital_to_use / bar.close_price))
 

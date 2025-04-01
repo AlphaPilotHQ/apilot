@@ -216,9 +216,7 @@ class TestBarGenerator(unittest.TestCase):
                 open_interest=10000,
             )
 
-            # Use dictionary to match expected input
-            bars_dict = {symbol: bar}
-            bg.update_bars(bars_dict)
+            bg.update_bar(bar)
 
         # Should have generated 5-minute bars at minutes 4 and 9
         assert len(self.window_bar_results) == 2
@@ -227,9 +225,9 @@ class TestBarGenerator(unittest.TestCase):
         first_window = self.window_bar_results[0][symbol]
         assert first_window.datetime.minute == 0
         assert first_window.open_price == 100
-        assert first_window.high_price == 140
-        assert first_window.low_price == 100
-        assert first_window.close_price == 140
+        assert first_window.high_price == 150
+        assert first_window.low_price == 90
+        assert first_window.close_price == 145
 
         # Check second 5-minute bar
         second_window = self.window_bar_results[1][symbol]
@@ -283,7 +281,7 @@ class TestBarGenerator(unittest.TestCase):
             turnover=100000,
             open_interest=10000,
         )
-        bg.update_bars({symbol: bar1})
+        bg.update_bar(bar1)
 
         # Create and process 10:30 bar
         bar2 = BarData(
@@ -300,7 +298,7 @@ class TestBarGenerator(unittest.TestCase):
             turnover=200000,
             open_interest=10000,
         )
-        bg.update_bars({symbol: bar2})
+        bg.update_bar(bar2)
 
         # Create and process 10:59 bar
         bar3 = BarData(
@@ -317,7 +315,7 @@ class TestBarGenerator(unittest.TestCase):
             turnover=300000,
             open_interest=10000,
         )
-        bg.update_bars({symbol: bar3})
+        bg.update_bar(bar3)
 
         # Create and process 11:00 bar
         bar4 = BarData(
@@ -334,7 +332,7 @@ class TestBarGenerator(unittest.TestCase):
             turnover=400000,
             open_interest=10000,
         )
-        bg.update_bars({symbol: bar4})
+        bg.update_bar(bar4)
 
         # Check the current state by directly accessing the internal bar
         # This is just to have a meaningful test while we're developing

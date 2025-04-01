@@ -191,17 +191,18 @@ class BarGenerator:
         # Store the tick for the next update
         self.last_ticks[tick.symbol] = tick
 
-    def update_bars(self, bars: dict[str, BarData]) -> None:
+    def update_bar(self, bar: BarData) -> None:
         """
-        Update with new bar data and generate aggregated bars.
+        Update with a single bar data and generate aggregated bars.
 
         Args:
-            bars: Dictionary of bar data to process
+            bar: Single bar data to process
         """
+        bars_dict = {bar.symbol: bar}
         if self.interval == Interval.MINUTE:
-            self._update_minute_window(bars)
+            self._update_minute_window(bars_dict)
         else:
-            self._update_hour_window(bars)
+            self._update_hour_window(bars_dict)
 
     def _update_minute_window(self, bars: dict[str, BarData]) -> None:
         """Process bars for minute-based aggregation."""
