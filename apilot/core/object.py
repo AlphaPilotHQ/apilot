@@ -220,7 +220,6 @@ class OrderData(BaseData):
 
             self._exchange = get_exchange(self.symbol)
         self.orderid: str = f"{self.gateway_name}.{self.orderid}"
-        self.vt_orderid: str = self.orderid  # Kept for backward compatibility
 
     def is_active(self) -> bool:
         """
@@ -260,9 +259,6 @@ class TradeData(BaseData):
             from apilot.utils import get_exchange
 
             self.exchange = get_exchange(self.symbol)
-
-        self.vt_orderid: str = f"{self.gateway_name}.{self.orderid}"
-        self.vt_tradeid: str = f"{self.gateway_name}.{self.tradeid}"
 
 
 @dataclass
