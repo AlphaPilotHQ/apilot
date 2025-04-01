@@ -4,7 +4,6 @@
 实现了回测引擎,用于策略回测和优化.
 """
 
-import traceback
 from collections.abc import Callable
 from datetime import date, datetime
 
@@ -71,7 +70,6 @@ class BacktestingEngine:
         self.datetime: datetime = None
 
         self.interval: Interval = None
-        self.days: int = 0
         self.callback: Callable | None = None
         self.history_data = {}
         self.dts: list[datetime] = []
@@ -196,70 +194,48 @@ class BacktestingEngine:
         self.strategy.on_init()
         logger.debug("策略on_init()调用完成")
 
-        day_count: int = 0
-        ix: int = 0
-
-        for _ix, dt in enumerate(self.dts):
-            if self.datetime and dt.day != self.datetime.day:
-                day_count += 1
-                if day_count >= self.days:
-                    break
-
+        # 固定预热100个bar，TODO：改成真实情况
+        warmup_bars = 100
+        for i in range(warmup_bars):
             try:
-                self.new_bars(dt)
+                self.new_bars(self.dts[i])
             except Exception as e:
-                logger.error(f"触发异常,回测终止: {e}")
-                logger.error(traceback.format_exc())
+                logger.error(f"预热阶段出错: {e}")
                 return
+        logger.info(f"策略初始化结束,处理了 {warmup_bars} 个时间点,TODO")
 
+        # 设置为交易模式
         self.strategy.inited = True
-        logger.info("策略初始化结束,处理了 {ix} 个时间点")
-
-        self.strategy.on_start()
         self.strategy.trading = True
-        logger.info("开始回放历史数据")
+        self.strategy.on_start()
 
         # 使用剩余历史数据进行策略回测
-        logger.debug(f"开始回测阶段,起始索引: {ix}, 结束索引: {len(self.dts)}")
-        tick_count = 0
-        for dt in self.dts[ix:]:
+        logger.info(
+            f"Strat Backtesting,起始索引: {warmup_bars}, 结束索引: {len(self.dts)}"
+        )
+        for dt in self.dts[warmup_bars:]:
             try:
-                tick_count += 1
-                if tick_count % 1000 == 0:
-                    logger.debug(
-                        f"回测进度: 已处理 {tick_count} 个时间点, 当前时间: {dt}"
-                    )
                 self.new_bars(dt)
             except Exception as e:
-                logger.error(f"触发异常,回测终止: {e}")
-                logger.error(traceback.format_exc())
+                logger.error(f"回测阶段出错: {e}")
                 return
-
-        logger.info("历史数据回放结束")
-        logger.debug(
-            f"回测完成统计: 总交易笔数={self.trade_count}, 活跃订单数={len(self.active_limit_orders)}, 总订单数={len(self.limit_orders)}"
+        logger.info(
+            f"Backtest Finished: "
+            f"trade_count: {self.trade_count}, "
+            f"active_limit_orders: {len(self.active_limit_orders)}, "
+            f"limit_orders: {len(self.limit_orders)}"
         )
 
     def new_bars(self, dt: datetime) -> None:
-        """
-        创建新的bar数据
-        """
         self.datetime = dt
 
         # 获取当前时间点上所有交易品种的bar
         bars = self.history_data.get(dt, {})
 
-        # if bars:
-        #     logger.debug(f"时间点 {dt} 获取到K线数据: {list(bars.keys())}")
-        # else:
-        #     logger.debug(f"时间点 {dt} 没有可用的K线数据")
-        # return
-
         # 更新策略的多个bar数据
         self.bars = bars
 
         self.cross_limit_order()
-        # logger.debug("调用策略on_bars处理K线数据")
         self.strategy.on_bars(bars)
 
         # 更新每个品种的收盘价
@@ -307,9 +283,6 @@ class BacktestingEngine:
         plot_backtest_results(df)
 
     def update_daily_close(self, price: float, symbol: str) -> None:
-        """
-        更新每日收盘价
-        """
         d: date = self.datetime.date()
 
         daily_result: DailyResult = self.daily_results.get(d, None)

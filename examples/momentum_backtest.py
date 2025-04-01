@@ -83,7 +83,7 @@ class StdMomentumStrategy(ap.PATemplate):
             self.bgs[symbol].update_bars(bars_dict)
 
     def on_5min_bar(self, bars: dict):
-        self.cancel_all()  # 取消之前的所有订单
+        self.cancel_all()
 
         # 首先更新所有交易对的数据
         for symbol, bar in bars.items():
@@ -134,19 +134,15 @@ class StdMomentumStrategy(ap.PATemplate):
                 capital_to_use = self.pa_engine.capital * risk_percent
                 size = max(1, int(capital_to_use / bar.close_price))
 
-                logger.debug(
-                    f"{symbol} 资金情况: 可用 {self.pa_engine.capital}, 使用 {capital_to_use}, 数量 {size}"
-                )
-
                 # 基于动量信号开仓
                 if self.momentum[symbol] > self.mom_threshold:
                     logger.debug(
-                        f"{symbol} 发出多头信号: 动量 {self.momentum[symbol]:.4f} > 阈值 {self.mom_threshold}"
+                        f"{bar.datetime}: {symbol} 发出多头信号: 动量 {self.momentum[symbol]:.4f} > 阈值 {self.mom_threshold}"
                     )
                     self.buy(symbol=symbol, price=bar.close_price, volume=size)
                 elif self.momentum[symbol] < -self.mom_threshold:
                     logger.debug(
-                        f"{symbol} 发出空头信号: 动量 {self.momentum[symbol]:.4f} < 阈值 {-self.mom_threshold}"
+                        f"{bar.datetime}: {symbol} 发出空头信号: 动量 {self.momentum[symbol]:.4f} < 阈值 {-self.mom_threshold}"
                     )
                     self.short(symbol=symbol, price=bar.close_price, volume=size)
 
@@ -225,9 +221,9 @@ class StdMomentumStrategy(ap.PATemplate):
 def run_backtesting(
     strategy_class=StdMomentumStrategy,
     start=datetime(2023, 1, 1),
-    end=datetime(2023, 1, 30),
+    end=datetime(2023, 1, 29),
     std_period=20,
-    mom_threshold=0.005,
+    mom_threshold=0.02,
     trailing_std_scale=2.0,
 ):
     # 1 创建回测引擎
