@@ -117,39 +117,29 @@ class PATemplate(ABC):
             self.active_orderids.remove(order.orderid)
 
     # TODO:应该改成long short close三种状态比较好
-    def buy(
-        self, symbol: str, price: float, volume: float, net: bool = False
-    ) -> list[str]:
+    def buy(self, symbol: str, price: float, volume: float) -> list[str]:
         """
         买入开仓
         """
-        return self.send_order(symbol, Direction.LONG, Offset.OPEN, price, volume, net)
+        return self.send_order(symbol, Direction.LONG, Offset.OPEN, price, volume)
 
-    def sell(
-        self, symbol: str, price: float, volume: float, net: bool = False
-    ) -> list[str]:
+    def sell(self, symbol: str, price: float, volume: float) -> list[str]:
         """
         卖出平仓
         """
-        return self.send_order(
-            symbol, Direction.SHORT, Offset.CLOSE, price, volume, net
-        )
+        return self.send_order(symbol, Direction.SHORT, Offset.CLOSE, price, volume)
 
-    def short(
-        self, symbol: str, price: float, volume: float, net: bool = False
-    ) -> list[str]:
+    def short(self, symbol: str, price: float, volume: float) -> list[str]:
         """
         卖出开仓
         """
-        return self.send_order(symbol, Direction.SHORT, Offset.OPEN, price, volume, net)
+        return self.send_order(symbol, Direction.SHORT, Offset.OPEN, price, volume)
 
-    def cover(
-        self, symbol: str, price: float, volume: float, net: bool = False
-    ) -> list[str]:
+    def cover(self, symbol: str, price: float, volume: float) -> list[str]:
         """
         买入平仓
         """
-        return self.send_order(symbol, Direction.LONG, Offset.CLOSE, price, volume, net)
+        return self.send_order(symbol, Direction.LONG, Offset.CLOSE, price, volume)
 
     def send_order(
         self,
@@ -158,7 +148,6 @@ class PATemplate(ABC):
         offset: Offset,
         price: float,
         volume: float,
-        net: bool = False,
     ) -> list[str]:
         """发送委托"""
         try:
@@ -171,7 +160,6 @@ class PATemplate(ABC):
                     offset,
                     price,
                     volume,
-                    net,  # net参数在未来可以删除
                 )
 
                 # 添加到活跃委托集合

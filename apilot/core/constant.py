@@ -12,7 +12,6 @@ from enum import Enum
 class Direction(Enum):
     LONG = "多"
     SHORT = "空"
-    NET = "净"
 
 
 class Offset(Enum):

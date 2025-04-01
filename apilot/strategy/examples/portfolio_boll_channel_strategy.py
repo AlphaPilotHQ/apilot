@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import ClassVar
 
 from apilot_portfoliostrategy import StrategyEngine, StrategyTemplate
 from apilot_portfoliostrategy.utility import PortfolioBarGenerator
@@ -20,23 +21,23 @@ class PortfolioBollChannelStrategy(StrategyTemplate):
     fixed_size = 1
     price_add = 5
 
-    parameters = [
+    parameters: ClassVar[list[str]] = [
         "boll_window",
         "boll_dev",
         "cci_window",
         "atr_window",
         "sl_multiplier",
         "fixed_size",
-        "price_add"
+        "price_add",
     ]
-    variables = []
+    variables: ClassVar[list] = []
 
     def __init__(
         self,
         strategy_engine: StrategyEngine,
         strategy_name: str,
         symbols: list[str],
-        setting: dict
+        setting: dict,
     ) -> None:
         """构造函数"""
         super().__init__(strategy_engine, strategy_name, symbols, setting)
@@ -57,7 +58,9 @@ class PortfolioBollChannelStrategy(StrategyTemplate):
             self.ams[symbol] = ArrayManager()
             self.targets[symbol] = 0
 
-        self.pbg = PortfolioBarGenerator(self.on_bars, 2, self.on_2hour_bars, Interval.HOUR)
+        self.pbg = PortfolioBarGenerator(
+            self.on_bars, 2, self.on_2hour_bars, Interval.HOUR
+        )
 
     def on_init(self) -> None:
         """策略初始化回调"""
@@ -79,7 +82,8 @@ class PortfolioBollChannelStrategy(StrategyTemplate):
 
     def on_bars(self, bars: dict[str, BarData]) -> None:
         """K线切片回调"""
-        self.pbg.update_bars(bars)
+        for _symbol, bar in bars.items():
+            self.pbg.update_bar(bar)
 
     def on_2hour_bars(self, bars: dict[str, BarData]) -> None:
         """2小时K线回调"""
@@ -95,7 +99,9 @@ class PortfolioBollChannelStrategy(StrategyTemplate):
             if not am.inited:
                 return
 
-            self.boll_up[symbol], self.boll_down[symbol] = am.boll(self.boll_window, self.boll_dev)
+            self.boll_up[symbol], self.boll_down[symbol] = am.boll(
+                self.boll_window, self.boll_dev
+            )
             self.cci_value[symbol] = am.cci(self.cci_window)
             self.atr_value[symbol] = am.atr(self.atr_window)
 
@@ -111,19 +117,29 @@ class PortfolioBollChannelStrategy(StrategyTemplate):
                     self.targets[symbol] = -self.fixed_size
 
             elif current_pos > 0:
-                self.intra_trade_high[symbol] = max(self.intra_trade_high[symbol], bar.high_price)
+                self.intra_trade_high[symbol] = max(
+                    self.intra_trade_high[symbol], bar.high_price
+                )
                 self.intra_trade_low[symbol] = bar.low_price
 
-                long_stop = self.intra_trade_high[symbol] - self.atr_value[symbol] * self.sl_multiplier
+                long_stop = (
+                    self.intra_trade_high[symbol]
+                    - self.atr_value[symbol] * self.sl_multiplier
+                )
 
                 if bar.close_price <= long_stop:
                     self.targets[symbol] = 0
 
             elif current_pos < 0:
-                self.intra_trade_low[symbol] = min(self.intra_trade_low[symbol], bar.low_price)
+                self.intra_trade_low[symbol] = min(
+                    self.intra_trade_low[symbol], bar.low_price
+                )
                 self.intra_trade_high[symbol] = bar.high_price
 
-                short_stop = self.intra_trade_low[symbol] + self.atr_value[symbol] * self.sl_multiplier
+                short_stop = (
+                    self.intra_trade_low[symbol]
+                    + self.atr_value[symbol] * self.sl_multiplier
+                )
 
                 if bar.close_price >= short_stop:
                     self.targets[symbol] = 0

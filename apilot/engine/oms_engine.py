@@ -258,7 +258,7 @@ class OmsEngine(BaseEngine):
         pass
 
     def convert_order_request(
-        self, req: OrderRequest, gateway_name: str, net: bool = False
+        self, req: OrderRequest, gateway_name: str
     ) -> list[OrderRequest]:
         """
         Simple version for crypto/US markets without offset conversion

@@ -151,7 +151,6 @@ class PAEngine(BaseEngine):
         price: float,
         volume: float,
         type: OrderType,
-        net: bool,
     ) -> list:
         # Create request and send order.
         original_req: OrderRequest = OrderRequest(
@@ -167,7 +166,7 @@ class PAEngine(BaseEngine):
 
         # Convert with offset converter
         req_list: list = self.main_engine.convert_order_request(
-            original_req, contract.gateway_name, net
+            original_req, contract.gateway_name
         )
 
         # Send Orders
@@ -198,10 +197,9 @@ class PAEngine(BaseEngine):
         offset: Offset,
         price: float,
         volume: float,
-        net: bool,
     ) -> list:
         return self.send_server_order(
-            strategy, contract, direction, offset, price, volume, OrderType.LIMIT, net
+            strategy, contract, direction, offset, price, volume, OrderType.LIMIT
         )
 
     def send_order(
@@ -211,7 +209,6 @@ class PAEngine(BaseEngine):
         offset: Offset,
         price: float,
         volume: float,
-        net: bool,
         stop: bool = False,
     ) -> list:
         contract: ContractData | None = self.main_engine.get_contract(strategy.symbol)
@@ -227,7 +224,7 @@ class PAEngine(BaseEngine):
         volume: float = round_to(volume, contract.min_volume)
 
         return self.send_limit_order(
-            strategy, contract, direction, offset, price, volume, net
+            strategy, contract, direction, offset, price, volume
         )
 
     def cancel_server_order(self, orderid: str, strategy=None) -> None:
