@@ -75,16 +75,17 @@ def get_digits(value: float) -> int:
 
 class BarGenerator:
     """
-    Enhanced bar generator for time-based bar aggregation.
+    增强版K线生成器,支持多标的同步处理。
 
-    Key features:
-    1. Generate 1-minute bars from tick data
-    2. Generate x-minute bars from 1-minute bars
-    3. Generate hourly bars from 1-minute bars
+    主要功能:
+    1. 从tick数据生成1分钟K线
+    2. 从1分钟K线生成X分钟K线
+    3. 从1分钟K线生成小时K线
+    4. 支持多个交易标的同步处理
 
-    Time intervals:
-    - Minute: x must divide 60 evenly (2, 3, 5, 6, 10, 15, 20, 30)
-    - Hour: any positive integer is valid
+    时间间隔:
+    - 分钟级: x必须能被60整除 (2, 3, 5, 6, 10, 15, 20, 30)
+    - 小时级: 任何正整数都有效
     """
 
     def __init__(
@@ -93,6 +94,7 @@ class BarGenerator:
         window: int = 0,
         on_window_bar: Callable | None = None,
         interval: Interval = Interval.MINUTE,
+        symbols: list[str] | None = None,  # 新增参数：标的列表,支持多标的同步
     ) -> None:
         """
         Initialize bar generator with callbacks and configuration.
@@ -102,6 +104,7 @@ class BarGenerator:
             window: Number of source bars to aggregate (0 means no aggregation)
             on_window_bar: Callback when window bar is complete
             interval: Bar interval type (minute or hour)
+            symbols: List of symbols to synchronize (None means single-symbol mode)
         """
         # Callbacks
         self.on_bar: Callable = on_bar
@@ -112,6 +115,11 @@ class BarGenerator:
         self.interval: Interval = interval
         self.interval_count: int = 0
 
+        # 多标的支持
+        self.symbols: set[str] | None = set(symbols) if symbols else None
+        self.multi_symbol_mode: bool = self.symbols is not None
+        self.window_time: datetime = None  # 当前窗口时间
+
         # State tracking
         self.last_dt: datetime = None
 
@@ -119,7 +127,7 @@ class BarGenerator:
         self.bars: dict[str, BarData] = {}
         self.last_ticks: dict[str, TickData] = {}
 
-        # For bar aggregation
+        # For bar aggregation - 改为字典存储所有标的
         self.window_bars: dict[str, BarData] = {}
 
         # For hourly bar handling
@@ -198,23 +206,95 @@ class BarGenerator:
         Args:
             bar: Single bar data to process
         """
+        # 将单个bar转换为字典格式
         bars_dict = {bar.symbol: bar}
+        self.update_bars(bars_dict)
+
+    def update_bars(self, bars: dict[str, BarData]) -> None:
+        """
+        更新多个标的的K线数据
+
+        Args:
+            bars: 多个标的的K线数据字典,格式为 {symbol: bar}
+        """
         if self.interval == Interval.MINUTE:
-            self._update_minute_window(bars_dict)
+            self._update_minute_window(bars)
         else:
-            self._update_hour_window(bars_dict)
+            self._update_hour_window(bars)
 
     def _update_minute_window(self, bars: dict[str, BarData]) -> None:
-        """Process bars for minute-based aggregation."""
-        self._process_window_bars(bars)
+        """处理分钟级别K线,支持多标的同步"""
+        if not bars:
+            return
 
-        # Check if window is complete (based on minute count)
-        if bars and any(bars.values()):
-            # Get any bar to check the time
-            sample_bar = next(iter(bars.values()))
-            # Check if we completed a window
+        # 获取当前窗口时间
+        sample_bar = next(iter(bars.values()))
+        current_window_time = self._align_bar_datetime(sample_bar)
+
+        # 如果是新的窗口时间
+        if self.window_time is not None and current_window_time != self.window_time:
+            # 处理上一个窗口的数据
+            if self.window_bars:
+                # 多标的模式下检查是否所有标的都已收集
+                if not self.multi_symbol_mode or self._is_window_complete():
+                    self._finalize_window_bars()
+
+        # 更新窗口时间
+        self.window_time = current_window_time
+
+        # 处理每个标的的K线数据
+        for symbol, bar in bars.items():
+            # 多标的模式下,过滤不在目标标的集合中的标的
+            if self.multi_symbol_mode and self.symbols and symbol not in self.symbols:
+                continue
+
+            # 获取或创建当前标的的window_bar
+            if symbol not in self.window_bars:
+                # 创建新的window_bar,对齐时间
+                dt = current_window_time  # 使用已对齐的时间
+                self.window_bars[symbol] = BarData(
+                    symbol=bar.symbol,
+                    exchange=bar.exchange,
+                    datetime=dt,
+                    gateway_name=bar.gateway_name,
+                    open_price=bar.open_price,
+                    high_price=bar.high_price,
+                    low_price=bar.low_price,
+                    close_price=bar.close_price,
+                    volume=bar.volume,
+                    turnover=bar.turnover,
+                    open_interest=bar.open_interest,
+                )
+            else:
+                # 更新现有的window_bar
+                window_bar = self.window_bars[symbol]
+                window_bar.high_price = max(window_bar.high_price, bar.high_price)
+                window_bar.low_price = min(window_bar.low_price, bar.low_price)
+                window_bar.close_price = bar.close_price
+                window_bar.volume += getattr(bar, "volume", 0)
+                window_bar.turnover += getattr(bar, "turnover", 0)
+                window_bar.open_interest = bar.open_interest
+
+        # 检查是否到达窗口边界
+        if self.window > 0 and self.on_window_bar:
+            # 检查是否到达窗口末尾（如5分钟整点）
             if not (sample_bar.datetime.minute + 1) % self.window:
-                self._finalize_window_bars()
+                # 多标的模式下,只有当所有标的都准备好时才触发回调
+                if not self.multi_symbol_mode or self._is_window_complete():
+                    self._finalize_window_bars()
+
+    def _is_window_complete(self) -> bool:
+        """检查当前窗口是否包含所有需要的标的数据"""
+        if not self.multi_symbol_mode or not self.symbols:
+            return True
+        return set(self.window_bars.keys()) >= self.symbols
+
+    def _finalize_window_bars(self) -> None:
+        """处理并发送窗口K线数据"""
+        if self.window_bars and self.on_window_bar:
+            # 发送窗口数据的副本
+            self.on_window_bar(self.window_bars.copy())
+            self.window_bars = {}
 
     def _update_hour_window(self, bars: dict[str, BarData]) -> None:
         """Process bars for hourly aggregation."""
@@ -290,6 +370,10 @@ class BarGenerator:
             open_price=source.open_price,
             high_price=source.high_price,
             low_price=source.low_price,
+            close_price=source.close_price,
+            volume=source.volume,
+            turnover=source.turnover,
+            open_interest=source.open_interest,
         )
 
     def _create_new_bar(self, source: BarData, dt: datetime) -> BarData:
@@ -359,16 +443,19 @@ class BarGenerator:
                         open_price=bar.open_price,
                         high_price=bar.high_price,
                         low_price=bar.low_price,
+                        close_price=bar.close_price,
+                        volume=bar.volume,
+                        turnover=bar.turnover,
+                        open_interest=bar.open_interest,
                     )
                     self.window_bars[symbol] = window_bar
                 else:
                     window_bar.high_price = max(window_bar.high_price, bar.high_price)
                     window_bar.low_price = min(window_bar.low_price, bar.low_price)
-
-                window_bar.close_price = bar.close_price
-                window_bar.volume += bar.volume
-                window_bar.turnover += bar.turnover
-                window_bar.open_interest = bar.open_interest
+                    window_bar.close_price = bar.close_price
+                    window_bar.volume += bar.volume
+                    window_bar.turnover += bar.turnover
+                    window_bar.open_interest = bar.open_interest
 
             # Check if window is complete
             self.interval_count += 1

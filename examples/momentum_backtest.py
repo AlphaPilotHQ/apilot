@@ -50,12 +50,17 @@ class StdMomentumStrategy(ap.PATemplate):
 
     def __init__(self, pa_engine, strategy_name, symbols, setting):
         super().__init__(pa_engine, strategy_name, symbols, setting)
-        # 为每个交易对创建数据生成器和管理器
-        self.bgs = {}
-        self.ams = {}
+        # 使用增强版BarGenerator实例处理所有交易标的，添加symbols支持多标的同步
+        self.bg = ap.BarGenerator(
+            self.on_bar,
+            5,
+            self.on_5min_bar,
+            symbols=self.symbols,  # 传入交易标的列表，启用多标的同步
+        )
 
+        # 为每个交易对创建ArrayManager
+        self.ams = {}
         for symbol in self.symbols:
-            self.bgs[symbol] = ap.BarGenerator(self.on_bar, 5, self.on_5min_bar)
             self.ams[symbol] = ap.ArrayManager(
                 size=200
             )  # 保留最长200bar TODO：改成动态
@@ -79,16 +84,22 @@ class StdMomentumStrategy(ap.PATemplate):
         self.load_bar(self.std_period)
 
     def on_bar(self, bar: ap.BarData):
-        symbol = bar.symbol
-        if symbol in self.bgs:
-            self.bgs[symbol].update_bar(bar)
+        """
+        处理K线数据
+        """
+        # 将K线传递给BarGenerator进行聚合
+        self.bg.update_bar(bar)
 
     def on_5min_bar(self, bars: dict):
         self.cancel_all()
 
+        # 记录收到的多标的K线数据
+        logger.info(f"on_5min_bar收到完整的多标的数据: {list(bars.keys())}")
+
         # 对每个交易品种执行数据更新和交易逻辑
         for symbol, bar in bars.items():
             if symbol not in self.ams:
+                logger.info(f"忽略标的 {symbol}, 因为它不在ams中")
                 continue
 
             am = self.ams[symbol]
@@ -134,13 +145,17 @@ class StdMomentumStrategy(ap.PATemplate):
                 size = max(1, int(capital_to_use / bar.close_price))
 
                 # 基于动量信号开仓
+                logger.info(
+                    f"{bar.datetime}: {symbol} 动量值 {self.momentum[symbol]:.4f}, 阈值 {self.mom_threshold:.4f}"
+                )
+
                 if self.momentum[symbol] > self.mom_threshold:
-                    logger.debug(
+                    logger.info(
                         f"{bar.datetime}: {symbol} 发出多头信号: 动量 {self.momentum[symbol]:.4f} > 阈值 {self.mom_threshold}"
                     )
                     self.buy(symbol=symbol, price=bar.close_price, volume=size)
                 elif self.momentum[symbol] < -self.mom_threshold:
-                    logger.debug(
+                    logger.info(
                         f"{bar.datetime}: {symbol} 发出空头信号: 动量 {self.momentum[symbol]:.4f} < 阈值 {-self.mom_threshold}"
                     )
                     self.short(symbol=symbol, price=bar.close_price, volume=size)

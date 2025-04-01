@@ -233,6 +233,13 @@ class BacktestingEngine:
         # 获取当前时间点上所有交易品种的bar
         bars = self.history_data.get(dt, {})
 
+        # 调试日志：记录当前时间点上的标的
+        if not bars:
+            logger.debug(f"当前时间点 {dt} 没有数据")
+        else:
+            if "SOL-USDT.LOCAL" not in bars:
+                logger.debug(f"当前时间点 {dt} 没有SOL-USDT.LOCAL数据")
+
         # 更新策略的多个bar数据
         self.bars = bars
 
@@ -295,7 +302,9 @@ class BacktestingEngine:
             if self.mode == BacktestingMode.BAR:
                 bar = self.bars.get(symbol)
                 if not bar:
-                    logger.debug(f"找不到订单对应的K线数据: {symbol}")
+                    logger.info(
+                        f"找不到订单对应的K线数据: {symbol}, 当前时间: {self.datetime}, 订单ID: {order.orderid}"
+                    )
                     continue
                 buy_price = bar.low_price
                 sell_price = bar.high_price
@@ -477,8 +486,8 @@ class BacktestingEngine:
         self.active_limit_orders[order.orderid] = order
         self.limit_orders[order.orderid] = order
 
-        logger.debug(
-            f"orderid: {order.orderid}symbol: {symbol}direction: {direction}price: {price}volum: {volume}"
+        logger.info(
+            f"创建订单: {order.orderid}, 标的: {symbol}, 方向: {direction}, 价格: {price}, 数量: {volume}"
         )
         return order.orderid
 
