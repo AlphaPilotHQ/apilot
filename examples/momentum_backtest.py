@@ -236,6 +236,9 @@ def run_backtesting(
 
     # 2 设置引擎参数
     symbols = ["SOL-USDT.LOCAL", "BTC-USDT.LOCAL"]
+    # symbols = ["SOL-USDT.LOCAL"]
+    # symbols = ["BTC-USDT.LOCAL"]
+
     engine.set_parameters(
         symbols=symbols,  # 这里是symbols还是[]
         interval=ap.Interval.MINUTE,
@@ -256,7 +259,7 @@ def run_backtesting(
     logger.info("3 添加策略完成")
 
     # 4 添加数据 - 使用新的数据源配置架构
-    # 为SOL-USDT创建数据源配置
+    # 只添加BTC-USDT数据
     engine.add_csv_data(
         symbol="SOL-USDT.LOCAL",
         filepath="data/SOL-USDT_LOCAL_1m.csv",
@@ -267,7 +270,6 @@ def run_backtesting(
         close_index=4,
         volume_index=5,
     )
-
     engine.add_csv_data(
         symbol="BTC-USDT.LOCAL",
         filepath="data/BTC-USDT_LOCAL_1m.csv",
