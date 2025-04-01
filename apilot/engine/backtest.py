@@ -353,17 +353,12 @@ class BacktestingEngine:
                     continue
                 buy_price = bar.low_price
                 sell_price = bar.high_price
-                logger.debug(
-                    f"Bar模式下的价格 - 买入价: {buy_price}, 卖出价: {sell_price}"
-                )
+
             else:
                 if self.tick.symbol != symbol:
                     continue
                 buy_price = self.tick.ask_price_1
                 sell_price = self.tick.bid_price_1
-                logger.debug(
-                    f"Tick模式下的价格 - 买入价: {buy_price}, 卖出价: {sell_price}"
-                )
 
             # 判断是否满足成交条件
             buy_cross = (
@@ -427,8 +422,6 @@ class BacktestingEngine:
         offset: Offset,
         price: float,
         volume: float,
-        stop: bool = False,
-        net: bool = False,
     ) -> list:
         """
         发送订单

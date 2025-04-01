@@ -165,7 +165,13 @@ class PATemplate(ABC):
             if self.trading:
                 # 根据是否为多币种模式调用不同的发单接口
                 orderids: list[str] = self.pa_engine.send_order(
-                    self, symbol, direction, offset, price, volume, net
+                    self,
+                    symbol,
+                    direction,
+                    offset,
+                    price,
+                    volume,
+                    net,  # net参数在未来可以删除
                 )
 
                 # 添加到活跃委托集合
