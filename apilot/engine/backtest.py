@@ -486,7 +486,7 @@ class BacktestingEngine:
         self.active_limit_orders[order.orderid] = order
         self.limit_orders[order.orderid] = order
 
-        logger.info(
+        logger.debug(
             f"创建订单: {order.orderid}, 标的: {symbol}, 方向: {direction}, 价格: {price}, 数量: {volume}"
         )
         return order.orderid

@@ -94,12 +94,12 @@ class StdMomentumStrategy(ap.PATemplate):
         self.cancel_all()
 
         # 记录收到的多标的K线数据
-        logger.info(f"on_5min_bar收到完整的多标的数据: {list(bars.keys())}")
+        logger.debug(f"on_5min_bar收到完整的多标的数据: {list(bars.keys())}")
 
         # 对每个交易品种执行数据更新和交易逻辑
         for symbol, bar in bars.items():
             if symbol not in self.ams:
-                logger.info(f"忽略标的 {symbol}, 因为它不在ams中")
+                logger.debug(f"忽略标的 {symbol}, 因为它不在ams中")
                 continue
 
             am = self.ams[symbol]
@@ -145,17 +145,17 @@ class StdMomentumStrategy(ap.PATemplate):
                 size = max(1, int(capital_to_use / bar.close_price))
 
                 # 基于动量信号开仓
-                logger.info(
+                logger.debug(
                     f"{bar.datetime}: {symbol} 动量值 {self.momentum[symbol]:.4f}, 阈值 {self.mom_threshold:.4f}"
                 )
 
                 if self.momentum[symbol] > self.mom_threshold:
-                    logger.info(
+                    logger.debug(
                         f"{bar.datetime}: {symbol} 发出多头信号: 动量 {self.momentum[symbol]:.4f} > 阈值 {self.mom_threshold}"
                     )
                     self.buy(symbol=symbol, price=bar.close_price, volume=size)
                 elif self.momentum[symbol] < -self.mom_threshold:
-                    logger.info(
+                    logger.debug(
                         f"{bar.datetime}: {symbol} 发出空头信号: 动量 {self.momentum[symbol]:.4f} < 阈值 {-self.mom_threshold}"
                     )
                     self.short(symbol=symbol, price=bar.close_price, volume=size)
