@@ -1,3 +1,1 @@
-1. This workspace is for developing 'apilot', an open-source quantitative trading platform
-2. Users import with 'import apilot as ap'.
-3. Support backtest and live trading.
+This workspace is for developing 'apilot', an open-source quantitative trading platform
