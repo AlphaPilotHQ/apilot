@@ -189,7 +189,39 @@ class PATemplate(ABC):
         """
         查询持仓
         """
-        return self.pos_dict.get(symbol, 0)
+        pos = self.pos_dict.get(symbol, 0)
+        # 将numpy数组转换为标量，避免在比较中出现问题
+        import numpy as np
+        if isinstance(pos, np.ndarray):
+            pos = float(pos)
+        return pos
+        
+    def is_pos_equal(self, pos, value) -> bool:
+        """
+        安全地比较持仓与值是否相等
+        """
+        import numpy as np
+        if isinstance(pos, np.ndarray):
+            return np.array_equal(pos, value)
+        return pos == value
+        
+    def is_pos_greater(self, pos, value) -> bool:
+        """
+        安全地比较持仓是否大于值
+        """
+        import numpy as np
+        if isinstance(pos, np.ndarray):
+            return np.all(pos > value)
+        return pos > value
+        
+    def is_pos_less(self, pos, value) -> bool:
+        """
+        安全地比较持仓是否小于值
+        """
+        import numpy as np
+        if isinstance(pos, np.ndarray):
+            return np.all(pos < value)
+        return pos < value
 
     def get_target(self, symbol: str) -> int:
         """查询目标仓位"""

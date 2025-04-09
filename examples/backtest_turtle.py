@@ -8,6 +8,7 @@
 from datetime import datetime
 from typing import ClassVar
 
+import numpy as np
 import apilot as ap
 from apilot.utils.logger import get_logger, set_level
 
@@ -104,7 +105,7 @@ class TurtleSignalStrategy(ap.PATemplate):
         current_pos = self.get_pos(self.symbols[0])
 
         # 只有在没有持仓时才计算新的入场通道
-        if current_pos == 0:  # 明确检查是否为0，避免NumPy数组的布尔上下文问题
+        if self.is_pos_equal(current_pos, 0):  # 使用辅助方法
             # 计算唐奇安通道上下轨(N日最高价和最低价)
             self.entry_up, self.entry_down = self.am.donchian(self.entry_window)
 
@@ -118,7 +119,8 @@ class TurtleSignalStrategy(ap.PATemplate):
         symbol = self.symbols[0]  # 获取当前交易的品种
         current_pos = self.get_pos(symbol)
 
-        if current_pos == 0:  # 无持仓状态
+        # 无持仓状态
+        if self.is_pos_equal(current_pos, 0):
             # 重置入场价和止损价
             self.long_entry = 0
             self.short_entry = 0
@@ -129,7 +131,8 @@ class TurtleSignalStrategy(ap.PATemplate):
             self.send_buy_orders(self.entry_up)  # 上轨突破做多
             self.send_short_orders(self.entry_down)  # 下轨突破做空
 
-        elif current_pos > 0:  # 持有多头仓位
+        # 持有多头仓位
+        elif self.is_pos_greater(current_pos, 0):
             # 检查是否需要出场 - 价格低于出场通道下轨或者跌破止损价
             if bar.close_price < self.exit_down or bar.close_price < self.long_stop:
                 self.sell(symbol, bar.close_price, abs(current_pos))
@@ -141,7 +144,8 @@ class TurtleSignalStrategy(ap.PATemplate):
             sell_price = max(self.long_stop, self.exit_down)
             self.sell(symbol, sell_price, abs(current_pos), True)  # 平多仓位
 
-        elif current_pos < 0:  # 持有空头仓位
+        # 持有空头仓位
+        elif self.is_pos_less(current_pos, 0):
             # 检查是否需要出场 - 价格高于出场通道上轨或者突破止损价
             if bar.close_price > self.exit_up or bar.close_price > self.short_stop:
                 self.cover(symbol, bar.close_price, abs(current_pos))
@@ -191,9 +195,16 @@ class TurtleSignalStrategy(ap.PATemplate):
         symbol = self.symbols[0]  # 获取当前交易的品种
 
         # 计算当前持仓的单位数
-        t = self.get_pos(symbol) / self.fixed_size
+        pos = self.get_pos(symbol)
+        # 处理可能的numpy数组
+        if isinstance(pos, np.ndarray):
+            pos = float(pos)
+        t = pos / self.fixed_size
 
         # 第一个单位:在通道突破点入场
+        if isinstance(t, np.ndarray):
+            t = float(t)  # 确保t是标量值
+            
         if t < 1:
             self.buy(symbol, price, self.fixed_size, True)
 
@@ -218,9 +229,16 @@ class TurtleSignalStrategy(ap.PATemplate):
         symbol = self.symbols[0]  # 获取当前交易的品种
 
         # 计算当前持仓的单位数
-        t = self.get_pos(symbol) / self.fixed_size
+        pos = self.get_pos(symbol)
+        # 处理可能的numpy数组
+        if isinstance(pos, np.ndarray):
+            pos = float(pos)
+        t = pos / self.fixed_size
 
         # 第一个单位:在通道突破点入场
+        if isinstance(t, np.ndarray):
+            t = float(t)  # 确保t是标量值
+            
         if t > -1:
             self.short(symbol, price, self.fixed_size, True)
 

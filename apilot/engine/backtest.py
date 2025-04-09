@@ -9,11 +9,25 @@ from datetime import date, datetime
 
 from pandas import DataFrame
 
-from apilot.performance.calculator import (
-    DailyResult,
-    PerformanceCalculator,
-    calculate_statistics,
-)
+from apilot.performance.calculator import calculate_statistics
+# 临时定义DailyResult类，后续完整重构时应移除
+class DailyResult:
+    def __init__(self, date):
+        self.date = date
+        self.close_prices = {}
+        self.net_pnl = 0.0     # 每日净盈亏
+        self.turnover = 0.0    # 每日成交额
+        self.trade_count = 0   # 每日交易次数
+        
+    def add_close_price(self, symbol, price):
+        self.close_prices[symbol] = price
+        
+    def add_trade(self, trade, profit=0.0):
+        """添加交易记录及其利润"""
+        self.turnover += trade.price * trade.volume
+        self.trade_count += 1
+        self.net_pnl += profit
+
 from apilot.core.constant import (
     BacktestingMode,
     Direction,
@@ -30,7 +44,7 @@ from apilot.core.object import (
     TradeData,
 )
 from apilot.core.utility import round_to
-from apilot.performance.chart import plot_backtest_results
+from apilot.performance.report import PerformanceReport, create_performance_report
 from apilot.strategy.template import PATemplate
 from apilot.utils.logger import get_logger, set_level
 
@@ -443,6 +457,15 @@ class BacktestingEngine:
                 logger.debug(
                     f"平仓盈亏: {profit:.2f}, 当前账户余额: {self.accounts['balance']:.2f}"
                 )
+                
+                # 更新每日结果
+                trade_date = trade.datetime.date()
+                if trade_date in self.daily_results:
+                    self.daily_results[trade_date].add_trade(trade, profit)
+                else:
+                    # 如果该日期还没有记录，创建新的日结果
+                    self.daily_results[trade_date] = DailyResult(trade_date)
+                    self.daily_results[trade_date].add_trade(trade, profit)
 
     def send_order(
         self,
@@ -557,10 +580,57 @@ class BacktestingEngine:
         """
         计算回测结果
         """
-        calculator = PerformanceCalculator(self.capital, self.annual_days)
-        self.daily_df = calculator.calculate_result(
-            self.trades, self.daily_results, self.sizes
-        )
+        import pandas as pd
+        from datetime import date
+        
+        # 检查是否有交易
+        if not self.trades:
+            return pd.DataFrame()
+            
+        # 收集每日数据
+        daily_results = []
+        
+        # 确保所有交易日期都有记录
+        all_dates = sorted(self.daily_results.keys())
+        
+        # 初始化第一天的balance为初始资金
+        current_balance = self.capital
+        
+        for d in all_dates:
+            daily_result = self.daily_results[d]
+            
+            # 获取每日结果数据
+            result = {
+                'date': d,
+                'trade_count': daily_result.trade_count,
+                'turnover': daily_result.turnover,
+                'net_pnl': daily_result.net_pnl
+            }
+            
+            # 更新当前余额
+            current_balance += daily_result.net_pnl
+            result['balance'] = current_balance
+            
+            daily_results.append(result)
+            
+        # 创建DataFrame
+        self.daily_df = pd.DataFrame(daily_results)
+        
+        if not self.daily_df.empty:
+            self.daily_df.set_index('date', inplace=True)
+            
+            # 计算回撤
+            self.daily_df['highlevel'] = self.daily_df['balance'].cummax()
+            self.daily_df['ddpercent'] = (self.daily_df['balance'] - self.daily_df['highlevel']) / self.daily_df['highlevel'] * 100
+            
+            # 计算收益率
+            pre_balance = self.daily_df['balance'].shift(1)
+            pre_balance.iloc[0] = self.capital
+            
+            # 安全计算收益率
+            self.daily_df['return'] = self.daily_df['balance'].pct_change().fillna(0) * 100
+            self.daily_df.loc[self.daily_df.index[0], 'return'] = ((self.daily_df['balance'].iloc[0] / self.capital) - 1) * 100
+        
         return self.daily_df
 
     def calculate_statistics(self, df: DataFrame = None, output=True) -> dict:
@@ -569,29 +639,60 @@ class BacktestingEngine:
         """
         if df is None:
             df = self.daily_df
+            
+        # 如果DataFrame为空，返回空结果
+        if df is None or df.empty:
+            return {}
 
-        # 调用底层函数,现在它返回(stats, df)元组
-        stats, updated_df = calculate_statistics(
-            df, self.capital, self.annual_days, output
+        # 使用新的统计函数
+        stats = calculate_statistics(
+            df=df, 
+            trades=list(self.trades.values()),
+            capital=self.capital, 
+            annual_days=self.annual_days
         )
-
-        # 保存更新后的DataFrame用于图表展示
-        if updated_df is not None and not updated_df.empty:
-            self.daily_df = updated_df
+        
+        # 打印结果
+        if output:
+            self._print_statistics(stats)
 
         return stats
+        
+    def _print_statistics(self, stats):
+        """打印统计结果"""
+        logger.info(f"Trade day:\t{stats.get('start_date', '')} - {stats.get('end_date', '')}")
+        logger.info(f"Profit days:\t{stats.get('profit_days', 0)}")
+        logger.info(f"Loss days:\t{stats.get('loss_days', 0)}")
+        logger.info(f"Initial capital:\t{self.capital:.2f}")
+        logger.info(f"Final capital:\t{stats.get('final_capital', 0):.2f}")
+        logger.info(f"Total return:\t{stats.get('total_return', 0):.2f}%")
+        logger.info(f"Annual return:\t{stats.get('annual_return', 0):.2f}%")
+        logger.info(f"Max drawdown:\t{stats.get('max_drawdown', 0):.2f}%")
+        logger.info(f"Total turnover:\t{stats.get('total_turnover', 0):.2f}")
+        logger.info(f"Total trades:\t{stats.get('total_trade_count', 0)}")
+        logger.info(f"Sharpe ratio:\t{stats.get('sharpe_ratio', 0):.2f}")
+        logger.info(f"Return/Drawdown:\t{stats.get('return_drawdown_ratio', 0):.2f}")
 
     def show_chart(self, df: DataFrame = None) -> None:
         """
         显示图表
+        
+        Args:
+            df: 回测结果数据框，默认使用引擎的daily_df
         """
         if not df:
             df = self.daily_df
 
         if df is None:
             return
-
-        plot_backtest_results(df)
+        
+        # 使用新的性能报告
+        create_performance_report(
+            df=df,
+            trades=list(self.trades.values()),
+            capital=self.capital,
+            annual_days=self.annual_days
+        )
 
     def load_bar(
         self,

@@ -30,13 +30,13 @@ __all__ = [
     "OrderData",
     "OrderType",
     "PATemplate",
-    "PerformanceReporter",
+    "PerformanceReport",
     "PositionData",
     "Product",
     "Status",
     "TickData",
     "TradeData",
-    "create_performance_dashboard",
+    "create_performance_report",
     "core",
     "create_csv_data",
     "create_mongodb_data",
@@ -90,7 +90,7 @@ from .optimizer import OptimizationSetting, run_ga_optimization
 from .strategy.template import PATemplate
 
 # 导出性能分析组件
-from .performance.reporter import PerformanceReporter, create_performance_dashboard
+from .performance.report import PerformanceReport, create_performance_report
 
 # 导出日志系统
 from .utils.logger import get_logger, log_exceptions, set_level
