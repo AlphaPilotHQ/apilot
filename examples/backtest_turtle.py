@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 改造成这样子:
 监控全部的标的,出现信号买入1%,可以继续加仓,最多到4%.
@@ -6,16 +5,15 @@
 但是这里仓位管理比较复杂,没有想好怎么做
 """
 
-# 标准库导入
 from datetime import datetime
 from typing import ClassVar
 
 import apilot as ap
+from apilot.utils.logger import get_logger, set_level
 
 # 获取日志记录器
-from apilot.utils.logger import get_logger
-
-logger = get_logger(__name__)
+logger = get_logger("turtle_strategy")
+set_level("info", "turtle_strategy")
 
 
 class TurtleSignalStrategy(ap.PATemplate):
@@ -94,27 +92,33 @@ class TurtleSignalStrategy(ap.PATemplate):
         """
         K线数据更新回调函数 - 策略的核心交易逻辑
         """
-        # 撤销之前发出的所有订单
-        self.cancel_all()
-
         # 更新K线数据到数组管理器
         self.am.update_bar(bar)
         if not self.am.inited:
             return
 
+        # 撤销之前发出的所有订单
+        self.cancel_all()
+
+        # 获取当前交易品种的持仓
+        current_pos = self.get_pos(self.symbols[0])
+
         # 只有在没有持仓时才计算新的入场通道
-        if not self.pos:
+        if current_pos == 0:  # 明确检查是否为0，避免NumPy数组的布尔上下文问题
             # 计算唐奇安通道上下轨(N日最高价和最低价)
             self.entry_up, self.entry_down = self.am.donchian(self.entry_window)
 
         # 始终计算短周期出场通道
         self.exit_up, self.exit_down = self.am.donchian(self.exit_window)
 
-        # 交易逻辑:根据持仓情况分别处理
-        if not self.pos:  # 无持仓状态
-            # 计算ATR值用于风险管理
-            self.atr_value = self.am.atr(self.atr_window)
+        # 计算ATR值用于风险管理 - 在每个bar都更新ATR，确保风险管理计算准确
+        self.atr_value = self.am.atr(self.atr_window)
 
+        # 交易逻辑:根据持仓情况分别处理
+        symbol = self.symbols[0]  # 获取当前交易的品种
+        current_pos = self.get_pos(symbol)
+
+        if current_pos == 0:  # 无持仓状态
             # 重置入场价和止损价
             self.long_entry = 0
             self.short_entry = 0
@@ -125,39 +129,52 @@ class TurtleSignalStrategy(ap.PATemplate):
             self.send_buy_orders(self.entry_up)  # 上轨突破做多
             self.send_short_orders(self.entry_down)  # 下轨突破做空
 
-        elif self.pos > 0:  # 持有多头仓位
+        elif current_pos > 0:  # 持有多头仓位
+            # 检查是否需要出场 - 价格低于出场通道下轨或者跌破止损价
+            if bar.close_price < self.exit_down or bar.close_price < self.long_stop:
+                self.sell(symbol, bar.close_price, abs(current_pos))
+                return
             # 继续加仓逻辑,突破新高继续做多
             self.send_buy_orders(self.entry_up)
 
             # 多头止损逻辑:取ATR止损价和10日最低价的较大值
             sell_price = max(self.long_stop, self.exit_down)
-            self.sell(sell_price, abs(self.pos), True)  # 平多仓位
+            self.sell(symbol, sell_price, abs(current_pos), True)  # 平多仓位
 
-        elif self.pos < 0:  # 持有空头仓位
+        elif current_pos < 0:  # 持有空头仓位
+            # 检查是否需要出场 - 价格高于出场通道上轨或者突破止损价
+            if bar.close_price > self.exit_up or bar.close_price > self.short_stop:
+                self.cover(symbol, bar.close_price, abs(current_pos))
+                return
             # 继续加仓逻辑,突破新低继续做空
             self.send_short_orders(self.entry_down)
 
             # 空头止损逻辑:取ATR止损价和10日最高价的较小值
             cover_price = min(self.short_stop, self.exit_up)
-            self.cover(cover_price, abs(self.pos), True)  # 平空仓位
-
-        # 移除对put_event的调用,该方法在回测环境下不可用
-        # self.put_event()
+            self.cover(symbol, cover_price, abs(current_pos), True)  # 平空仓位
 
     def on_trade(self, trade: ap.TradeData):
         """
         成交回调函数:记录成交价并设置止损价
         """
-        if trade.direction == ap.Direction.LONG:  # 多头成交
-            # 记录多头入场价
-            self.long_entry = trade.price
-            # 设置多头止损价为入场价减去2倍ATR
-            self.long_stop = self.long_entry - 2 * self.atr_value
-        else:  # 空头成交
-            # 记录空头入场价
-            self.short_entry = trade.price
-            # 设置空头止损价为入场价加上2倍ATR
-            self.short_stop = self.short_entry + 2 * self.atr_value
+        if trade.direction == ap.Direction.LONG:
+            # 多头成交,设置多头止损
+            self.long_entry = trade.price  # 记录多头入场价格
+            self.long_stop = (
+                self.long_entry - 2 * self.atr_value
+            )  # 止损设置在入场价格下方2倍ATR处
+            logger.info(
+                f"多头成交: {trade.symbol} {trade.orderid} {trade.volume}@{trade.price}, 止损价: {self.long_stop}"
+            )
+        else:
+            # 空头成交,设置空头止损
+            self.short_entry = trade.price  # 记录空头入场价格
+            self.short_stop = (
+                self.short_entry + 2 * self.atr_value
+            )  # 止损设置在入场价格上方2倍ATR处
+            logger.info(
+                f"空头成交: {trade.symbol} {trade.orderid} {trade.volume}@{trade.price}, 止损价: {self.short_stop}"
+            )
 
     def on_order(self, order: ap.OrderData):
         """
@@ -171,24 +188,26 @@ class TurtleSignalStrategy(ap.PATemplate):
 
         海龟系统的特点之一是金字塔式逐步加仓,最多加仓至4个单位
         """
+        symbol = self.symbols[0]  # 获取当前交易的品种
+
         # 计算当前持仓的单位数
-        t = self.pos / self.fixed_size
+        t = self.get_pos(symbol) / self.fixed_size
 
         # 第一个单位:在通道突破点入场
         if t < 1:
-            self.buy(price, self.fixed_size, True)
+            self.buy(symbol, price, self.fixed_size, True)
 
         # 第二个单位:在第一个单位价格基础上加0.5个ATR
         if t < 2:
-            self.buy(price + self.atr_value * 0.5, self.fixed_size, True)
+            self.buy(symbol, price + self.atr_value * 0.5, self.fixed_size, True)
 
         # 第三个单位:在第一个单位价格基础上加1个ATR
         if t < 3:
-            self.buy(price + self.atr_value, self.fixed_size, True)
+            self.buy(symbol, price + self.atr_value, self.fixed_size, True)
 
         # 第四个单位:在第一个单位价格基础上加1.5个ATR
         if t < 4:
-            self.buy(price + self.atr_value * 1.5, self.fixed_size, True)
+            self.buy(symbol, price + self.atr_value * 1.5, self.fixed_size, True)
 
     def send_short_orders(self, price):
         """
@@ -196,43 +215,45 @@ class TurtleSignalStrategy(ap.PATemplate):
 
         与多头逻辑相反,价格逐步下降
         """
+        symbol = self.symbols[0]  # 获取当前交易的品种
+
         # 计算当前持仓的单位数
-        t = self.pos / self.fixed_size
+        t = self.get_pos(symbol) / self.fixed_size
 
         # 第一个单位:在通道突破点入场
         if t > -1:
-            self.short(price, self.fixed_size, True)
+            self.short(symbol, price, self.fixed_size, True)
 
         # 第二个单位:在第一个单位价格基础上减0.5个ATR
         if t > -2:
-            self.short(price - self.atr_value * 0.5, self.fixed_size, True)
+            self.short(symbol, price - self.atr_value * 0.5, self.fixed_size, True)
 
         # 第三个单位:在第一个单位价格基础上减1个ATR
         if t > -3:
-            self.short(price - self.atr_value, self.fixed_size, True)
+            self.short(symbol, price - self.atr_value, self.fixed_size, True)
 
         # 第四个单位:在第一个单位价格基础上减1.5个ATR
         if t > -4:
-            self.short(price - self.atr_value * 1.5, self.fixed_size, True)
+            self.short(symbol, price - self.atr_value * 1.5, self.fixed_size, True)
 
 
+@ap.log_exceptions()
 def run_backtesting(show_chart=True):
     """
     运行海龟信号策略回测
     """
     # 初始化回测引擎
     bt_engine = ap.BacktestingEngine()
+    logger.info("1 创建回测引擎完成")
 
     # 设置回测参数
     bt_engine.set_parameters(
         symbols=["SOL-USDT.LOCAL"],  # 需要使用列表形式
         interval=ap.Interval.MINUTE,
         start=datetime(2023, 1, 1),
-        end=datetime(2023, 12, 31),
-        sizes={"SOL-USDT.LOCAL": 1},  # 每个交易对对应的合约数量
-        priceticks={"SOL-USDT.LOCAL": 0.01},  # 每个交易对对应的价格最小变动单位
-        capital=100000,
+        end=datetime(2023, 6, 30),  # 使用半年数据回测
     )
+    logger.info("2 设置引擎参数完成")
 
     # 添加策略
     bt_engine.add_strategy(
@@ -240,26 +261,29 @@ def run_backtesting(show_chart=True):
         {"entry_window": 20, "exit_window": 10, "atr_window": 20, "fixed_size": 1},
     )
 
-    # 添加数据 - 确保文件路径正确
-    bt_engine.add_data(
-        database_type="csv",
-        data_path="data/SOL-USDT_LOCAL_1m.csv",
-        datetime="candle_begin_time",  # 修改为与CSV文件列名匹配
-        open="open",
-        high="high",
-        low="low",
-        close="close",
-        volume="volume",
+    # 添加数据 - 使用基于索引的数据加载方法
+    bt_engine.add_csv_data(
+        symbol="SOL-USDT.LOCAL",
+        filepath="data/SOL-USDT_LOCAL_1m.csv",
+        datetime_index=0,
+        open_index=1,
+        high_index=2,
+        low_index=3,
+        close_index=4,
+        volume_index=5,
     )
 
     # 运行回测
     bt_engine.run_backtesting()
+    logger.info("5 运行回测完成")
 
     # 计算结果和统计指标
     df = bt_engine.calculate_result()
     stats = bt_engine.calculate_statistics()
+    logger.info("6 计算和输出结果完成")
 
     # 打印统计结果
+    print("===== 回测结果 =====")
     print("起始资金: 100000.00")
     print(f"结束资金: {stats.get('end_balance', 0):.2f}")
     print(f"总收益率: {stats.get('total_return', 0) * 100:.2f}%")
@@ -267,22 +291,23 @@ def run_backtesting(show_chart=True):
 
     # 添加错误处理,避免某些指标不存在
     max_drawdown = stats.get("max_drawdown", 0)
-    if isinstance(max_drawdown, int | float):
+    if isinstance(max_drawdown, (int, float)):
         print(f"最大回撤: {max_drawdown * 100:.2f}%")
     else:
         print("最大回撤: 0.00%")
 
     print(f"夏普比率: {stats.get('sharpe_ratio', 0):.2f}")
 
-    # 显示图表
-    if show_chart:
-        bt_engine.show_chart()
+    # 显示图表 - 添加条件判断,仅当有交易数据时才尝试显示图表
+    if show_chart and len(bt_engine.trades) > 0:
+        try:
+            bt_engine.show_chart()
+        except Exception as e:
+            logger.error(f"图表显示失败: {e}")
+    logger.info("7 显示图表完成")
 
     return df, stats, bt_engine
 
 
 if __name__ == "__main__":
-    # 运行回测
-    backtest_result_df, backtest_result_stats, backtest_engine = run_backtesting(
-        show_chart=True
-    )
+    run_backtesting(show_chart=True)
