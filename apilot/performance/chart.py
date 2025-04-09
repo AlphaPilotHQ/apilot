@@ -124,34 +124,6 @@ def plot_drawdown(df: pd.DataFrame, title: str = "Drawdown") -> go.Figure:
     return fig
 
 
-def plot_pnl(df: pd.DataFrame, title: str = "Daily PnL") -> go.Figure:
-    """
-    绘制每日盈亏柱状图
-
-    参数:
-        df: 回测结果数据框,需包含 net_pnl 列
-        title: 图表标题
-
-    返回:
-        plotly图表对象
-    """
-    fig = go.Figure()
-
-    fig.add_trace(
-        go.Bar(x=df.index, y=df["net_pnl"], name="PnL", marker_color="lightblue")
-    )
-
-    fig.update_layout(
-        title=title,
-        xaxis_title="Date",
-        yaxis_title="Profit/Loss",
-        height=500,
-        width=800,
-    )
-
-    return fig
-
-
 def plot_pnl_distribution(
     df: pd.DataFrame, title: str = "PnL Distribution"
 ) -> go.Figure:

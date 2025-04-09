@@ -30,11 +30,13 @@ __all__ = [
     "OrderData",
     "OrderType",
     "PATemplate",
+    "PerformanceReporter",
     "PositionData",
     "Product",
     "Status",
     "TickData",
     "TradeData",
+    "create_performance_dashboard",
     "core",
     "create_csv_data",
     "create_mongodb_data",
@@ -44,6 +46,7 @@ __all__ = [
     "get_logger",
     "log_exceptions",
     "optimizer",
+    "performance",
     "risk",
     "run_ga_optimization",
     "set_level",
@@ -52,7 +55,7 @@ __all__ = [
 ]
 
 # 导出子模块 (包级别)
-from . import core, datafeed, engine, execution, optimizer, strategy, utils
+from . import core, datafeed, engine, execution, optimizer, performance, strategy, utils
 
 # 导出常量
 from .core.constant import (
@@ -85,6 +88,9 @@ from .optimizer import OptimizationSetting, run_ga_optimization
 
 # 导出策略模板
 from .strategy.template import PATemplate
+
+# 导出性能分析组件
+from .performance.reporter import PerformanceReporter, create_performance_dashboard
 
 # 导出日志系统
 from .utils.logger import get_logger, log_exceptions, set_level

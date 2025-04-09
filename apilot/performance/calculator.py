@@ -165,6 +165,28 @@ class PerformanceCalculator:
         return self.daily_df
 
 
+class TradeAnalyzer:
+    """Analyze trade performance"""
+    
+    def __init__(self, trades=None):
+        """
+        Initialize trade analyzer
+        
+        Args:
+            trades: List of TradeData objects
+        """
+        self.trades = trades or []
+        self.trade_stats = {}
+        
+    def analyze(self):
+        """Analyze trades and calculate statistics"""
+        if not self.trades:
+            return {}
+            
+        # TODO: Implement trade analysis
+        return {}
+
+
 def calculate_statistics(
     df: DataFrame = None,
     capital: float = 0,

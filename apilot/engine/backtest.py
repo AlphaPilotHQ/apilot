@@ -9,7 +9,7 @@ from datetime import date, datetime
 
 from pandas import DataFrame
 
-from apilot.analysis.performance import (
+from apilot.performance.calculator import (
     DailyResult,
     PerformanceCalculator,
     calculate_statistics,
@@ -30,7 +30,7 @@ from apilot.core.object import (
     TradeData,
 )
 from apilot.core.utility import round_to
-from apilot.plotting.chart import plot_backtest_results
+from apilot.performance.chart import plot_backtest_results
 from apilot.strategy.template import PATemplate
 from apilot.utils.logger import get_logger, set_level
 
