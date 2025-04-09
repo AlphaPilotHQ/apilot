@@ -633,9 +633,16 @@ class BacktestingEngine:
         
         return self.daily_df
 
-    def calculate_statistics(self, df: DataFrame = None, output=True) -> dict:
+    def calculate_statistics(self, df: DataFrame = None, output=False) -> dict:
         """
         计算统计数据
+        
+        Args:
+            df: 包含每日结果的DataFrame，默认使用self.daily_df
+            output: 是否打印统计结果，默认为False（由于已在PerformanceReport中实现更完整的输出）
+            
+        Returns:
+            包含性能统计指标的字典
         """
         if df is None:
             df = self.daily_df
@@ -652,7 +659,7 @@ class BacktestingEngine:
             annual_days=self.annual_days
         )
         
-        # 打印结果
+        # 打印结果（如需要）
         if output:
             self._print_statistics(stats)
 

@@ -286,10 +286,21 @@ def run_backtesting(
     engine.run_backtesting()
     logger.info("5 运行回测完成")
 
-    # 6 计算和输出结果
-    engine.calculate_result()
-    engine.calculate_statistics()
-    logger.info("6 计算和输出结果完成")
+    # 6 计算结果
+    df = engine.calculate_result()
+    stats = engine.calculate_statistics(output=False)
+    logger.info("6 计算结果完成")
+    
+    # 生成并显示性能报告
+    from apilot.performance.report import create_performance_report
+    report = create_performance_report(
+        df=df,
+        trades=list(engine.trades.values()),
+        capital=engine.capital,
+        annual_days=engine.annual_days
+    )
+    # 打印性能报告摘要
+    report.print_summary()
 
     # 7 显示图表 - 添加条件判断,仅当有交易数据时才尝试显示图表
     if len(engine.trades) > 0:

@@ -295,26 +295,21 @@ def run_backtesting(show_chart=True):
     bt_engine.run_backtesting()
     logger.info("5 运行回测完成")
 
-    # 计算结果和统计指标
+    # 计算结果
     df = bt_engine.calculate_result()
-    stats = bt_engine.calculate_statistics()
-    logger.info("6 计算和输出结果完成")
-
-    # 打印统计结果
-    print("===== 回测结果 =====")
-    print("起始资金: 100000.00")
-    print(f"结束资金: {stats.get('end_balance', 0):.2f}")
-    print(f"总收益率: {stats.get('total_return', 0) * 100:.2f}%")
-    print(f"年化收益: {stats.get('annual_return', 0) * 100:.2f}%")
-
-    # 添加错误处理,避免某些指标不存在
-    max_drawdown = stats.get("max_drawdown", 0)
-    if isinstance(max_drawdown, (int, float)):
-        print(f"最大回撤: {max_drawdown * 100:.2f}%")
-    else:
-        print("最大回撤: 0.00%")
-
-    print(f"夏普比率: {stats.get('sharpe_ratio', 0):.2f}")
+    stats = bt_engine.calculate_statistics(output=False)
+    logger.info("6 计算结果完成")
+    
+    # 显示性能报告
+    from apilot.performance.report import create_performance_report
+    report = create_performance_report(
+        df=df,
+        trades=list(bt_engine.trades.values()),
+        capital=bt_engine.capital,
+        annual_days=bt_engine.annual_days
+    )
+    # 打印性能报告摘要
+    report.print_summary()
 
     # 显示图表 - 添加条件判断,仅当有交易数据时才尝试显示图表
     if show_chart and len(bt_engine.trades) > 0:

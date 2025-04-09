@@ -277,6 +277,11 @@ def calculate_statistics(df: Optional[pd.DataFrame] = None,
     # 5. 交易相关指标
     if "turnover" in df.columns:
         stats["total_turnover"] = df["turnover"].sum()
+        # 计算周转率（总成交金额/初始资金）
+        if capital > 0:
+            stats["turnover_ratio"] = stats["total_turnover"] / capital
+        else:
+            stats["turnover_ratio"] = 0.0
     
     if "trade_count" in df.columns:
         stats["total_trade_count"] = df["trade_count"].sum()
