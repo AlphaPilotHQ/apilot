@@ -9,6 +9,7 @@ from datetime import datetime
 from typing import ClassVar
 
 import numpy as np
+
 import apilot as ap
 from apilot.utils.logger import get_logger, set_level
 
@@ -204,7 +205,7 @@ class TurtleSignalStrategy(ap.PATemplate):
         # 第一个单位:在通道突破点入场
         if isinstance(t, np.ndarray):
             t = float(t)  # 确保t是标量值
-            
+
         if t < 1:
             self.buy(symbol, price, self.fixed_size, True)
 
@@ -238,7 +239,7 @@ class TurtleSignalStrategy(ap.PATemplate):
         # 第一个单位:在通道突破点入场
         if isinstance(t, np.ndarray):
             t = float(t)  # 确保t是标量值
-            
+
         if t > -1:
             self.short(symbol, price, self.fixed_size, True)
 
@@ -295,27 +296,18 @@ def run_backtesting(show_chart=True):
     bt_engine.run_backtesting()
     logger.info("5 运行回测完成")
 
-    # 计算结果
-    df = bt_engine.calculate_result()
-    stats = bt_engine.calculate_statistics(output=False)
-    logger.info("6 计算结果完成")
-    
-    # 显示性能报告
-    from apilot.performance.report import create_performance_report
-    report = create_performance_report(
-        df=df,
-        trades=list(bt_engine.trades.values()),
-        capital=bt_engine.capital,
-        annual_days=bt_engine.annual_days
-    )
-    # 打印性能报告摘要
-    report.print_summary()
+    # 计算结果并生成报告
+    bt_engine.report()
+    logger.info("6 计算结果和报告生成完成")
 
-    # 显示图表 - 性能报告已经在上面创建并显示
+    # 如果不显示图表，记录日志
     if not show_chart:
         logger.info("图表显示已跳过")
     logger.info("7 显示图表完成")
 
+    # 计算并获取数据用于返回
+    df = bt_engine.daily_df
+    stats = bt_engine.calculate_statistics(output=False)
     return df, stats, bt_engine
 
 

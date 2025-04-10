@@ -286,24 +286,9 @@ def run_backtesting(
     engine.run_backtesting()
     logger.info("5 运行回测完成")
 
-    # 6 计算结果
-    df = engine.calculate_result()
-    stats = engine.calculate_statistics(output=False)
-    logger.info("6 计算结果完成")
-
-    # 生成并显示性能报告
-    from apilot.performance.report import create_performance_report
-    report = create_performance_report(
-        df=df,
-        trades=list(engine.trades.values()),
-        capital=engine.capital,
-        annual_days=engine.annual_days
-    )
-    # 打印性能报告摘要
-    report.print_summary()
-
-    # 7 显示图表 - 性能报告已经在上面创建并显示
-    logger.info("7 显示图表完成")
+    # 6 计算结果并生成报告
+    engine.report()
+    logger.info("6 计算结果和报告生成完成")
 
     # 参数优化示例 (注释掉,需要时可以解开使用)
     """
