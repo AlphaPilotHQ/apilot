@@ -290,7 +290,7 @@ def run_backtesting(
     df = engine.calculate_result()
     stats = engine.calculate_statistics(output=False)
     logger.info("6 计算结果完成")
-    
+
     # 生成并显示性能报告
     from apilot.performance.report import create_performance_report
     report = create_performance_report(
@@ -302,12 +302,7 @@ def run_backtesting(
     # 打印性能报告摘要
     report.print_summary()
 
-    # 7 显示图表 - 添加条件判断,仅当有交易数据时才尝试显示图表
-    if len(engine.trades) > 0:
-        try:
-            engine.show_chart()
-        except Exception as e:
-            logger.error(f"图表显示失败: {e}")
+    # 7 显示图表 - 性能报告已经在上面创建并显示
     logger.info("7 显示图表完成")
 
     # 参数优化示例 (注释掉,需要时可以解开使用)

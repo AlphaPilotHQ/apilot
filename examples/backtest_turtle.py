@@ -311,12 +311,9 @@ def run_backtesting(show_chart=True):
     # 打印性能报告摘要
     report.print_summary()
 
-    # 显示图表 - 添加条件判断,仅当有交易数据时才尝试显示图表
-    if show_chart and len(bt_engine.trades) > 0:
-        try:
-            bt_engine.show_chart()
-        except Exception as e:
-            logger.error(f"图表显示失败: {e}")
+    # 显示图表 - 性能报告已经在上面创建并显示
+    if not show_chart:
+        logger.info("图表显示已跳过")
     logger.info("7 显示图表完成")
 
     return df, stats, bt_engine

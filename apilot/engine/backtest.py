@@ -680,27 +680,6 @@ class BacktestingEngine:
         logger.info(f"Sharpe ratio:\t{stats.get('sharpe_ratio', 0):.2f}")
         logger.info(f"Return/Drawdown:\t{stats.get('return_drawdown_ratio', 0):.2f}")
 
-    def show_chart(self, df: DataFrame = None) -> None:
-        """
-        显示图表
-        
-        Args:
-            df: 回测结果数据框，默认使用引擎的daily_df
-        """
-        if not df:
-            df = self.daily_df
-
-        if df is None:
-            return
-        
-        # 使用新的性能报告
-        create_performance_report(
-            df=df,
-            trades=list(self.trades.values()),
-            capital=self.capital,
-            annual_days=self.annual_days
-        )
-
     def load_bar(
         self,
         symbol: str,
