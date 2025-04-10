@@ -59,6 +59,7 @@ extend-exclude = ["__pycache__", "*.pyc", ".git"]
 src = ["apilot"]
 
 [tool.ruff.lint]
+# 选择要检查的规则
 select = [
     "E",    # pycodestyle 错误
     "F",    # pyflakes
@@ -70,7 +71,14 @@ select = [
     "PT",   # flake8-pytest-style
     "RUF",  # Ruff特有规则
 ]
-ignore = ["E501", "RUF003", "F404"]  # 忽略行长度警告、全角半角检查和__future__导入位置
+# 忽略特定的规则
+ignore = [
+    "RUF002",  # 忽略全角标点符号检查
+    "RUF022",  # 忽略__all__排序检查
+    "E501",    # 忽略行长度警告
+    "RUF003",  # 忽略全角半角检查
+    "F404",    # 忽略__future__导入位置
+]
 
 [tool.ruff.lint.isort]
 known-first-party = ["apilot"]
