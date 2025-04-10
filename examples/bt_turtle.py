@@ -149,14 +149,14 @@ class TurtleSignalStrategy(ap.PATemplate):
         elif self.is_pos_less(current_pos, 0):
             # 检查是否需要出场 - 价格高于出场通道上轨或者突破止损价
             if bar.close_price > self.exit_up or bar.close_price > self.short_stop:
-                self.cover(symbol, bar.close_price, abs(current_pos))
+                self.buy(symbol, bar.close_price, abs(current_pos))
                 return
             # 继续加仓逻辑,突破新低继续做空
             self.send_short_orders(self.entry_down)
 
             # 空头止损逻辑:取ATR止损价和10日最高价的较小值
             cover_price = min(self.short_stop, self.exit_up)
-            self.cover(symbol, cover_price, abs(current_pos), True)  # 平空仓位
+            self.buy(symbol, cover_price, abs(current_pos), True)  # 平空仓位
 
     def on_trade(self, trade: ap.TradeData):
         """
@@ -241,19 +241,19 @@ class TurtleSignalStrategy(ap.PATemplate):
             t = float(t)  # 确保t是标量值
 
         if t > -1:
-            self.short(symbol, price, self.fixed_size, True)
+            self.sell(symbol, price, self.fixed_size, True)
 
         # 第二个单位:在第一个单位价格基础上减0.5个ATR
         if t > -2:
-            self.short(symbol, price - self.atr_value * 0.5, self.fixed_size, True)
+            self.sell(symbol, price - self.atr_value * 0.5, self.fixed_size, True)
 
         # 第三个单位:在第一个单位价格基础上减1个ATR
         if t > -3:
-            self.short(symbol, price - self.atr_value, self.fixed_size, True)
+            self.sell(symbol, price - self.atr_value, self.fixed_size, True)
 
         # 第四个单位:在第一个单位价格基础上减1.5个ATR
         if t > -4:
-            self.short(symbol, price - self.atr_value * 1.5, self.fixed_size, True)
+            self.sell(symbol, price - self.atr_value * 1.5, self.fixed_size, True)
 
 
 @ap.log_exceptions()

@@ -11,7 +11,6 @@ from .constant import (
     Direction,
     Exchange,
     Interval,
-    Offset,
     OrderType,
     Product,
     Status,
@@ -196,7 +195,6 @@ class OrderData(BaseData):
     orderid: str = ""
     type: OrderType = OrderType.LIMIT
     direction: Direction | None = None
-    offset: Offset = Offset.NONE
     price: float = 0
     volume: float = 0
     traded: float = 0
@@ -248,7 +246,6 @@ class TradeData(BaseData):
     tradeid: str = ""
     direction: Direction | None = None
 
-    offset: Offset = Offset.NONE
     price: float = 0
     volume: float = 0
     datetime: dt = None
@@ -376,8 +373,6 @@ class QuoteData(BaseData):
     bid_volume: int = 0
     ask_price: float = 0.0
     ask_volume: int = 0
-    bid_offset: Offset = Offset.NONE
-    ask_offset: Offset = Offset.NONE
     status: Status = Status.SUBMITTING
     datetime: dt | None = None
     reference: str = ""
@@ -434,7 +429,6 @@ class OrderRequest:
     type: OrderType | None = None
     volume: float = 0
     price: float = 0
-    offset: Offset = Offset.NONE
     reference: str = ""
 
     def __post_init__(self) -> None:
@@ -453,7 +447,6 @@ class OrderRequest:
             exchange=self.exchange,
             orderid=orderid,
             direction=self.direction,
-            offset=self.offset,
             type=self.type,
             price=self.price,
             volume=self.volume,
@@ -513,8 +506,6 @@ class QuoteRequest:
     bid_volume: int = 0
     ask_price: float = 0
     ask_volume: int = 0
-    bid_offset: Offset = Offset.NONE
-    ask_offset: Offset = Offset.NONE
     reference: str = ""
 
     def __post_init__(self) -> None:
@@ -535,8 +526,6 @@ class QuoteRequest:
             bid_volume=self.bid_volume,
             ask_price=self.ask_price,
             ask_volume=self.ask_volume,
-            bid_offset=self.bid_offset,
-            ask_offset=self.ask_offset,
             reference=self.reference,
             gateway_name=gateway_name,
             status=Status.SUBMITTING,

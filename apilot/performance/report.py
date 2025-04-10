@@ -145,7 +145,7 @@ class PerformanceReport:
         lines.append(f"Final Capital: ${self.stats.get('final_capital', 0):,.2f}")
         lines.append(f"Total Return: {self.stats.get('total_return', 0):.2f}%")
         lines.append(f"Win Rate: {self.stats.get('win_rate', 0):.2f}%")
-        lines.append(f"Profit/Loss Ratio: {self.stats.get('profit_factor', 0):.2f}")
+        lines.append(f"Profit/Loss Ratio: {self.stats.get('profit_loss_ratio', 0):.2f}")
 
         # Key Metrics section
         lines.append("\nKey Metrics:")

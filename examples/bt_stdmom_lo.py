@@ -186,7 +186,7 @@ class StdMomentumStrategy(ap.PATemplate):
 
         logger.debug(
             f"Trade: {symbol} {trade.orderid} {trade.direction} "
-            f"{trade.offset} {trade.volume}@{trade.price}, current_pos: {current_pos}"
+            f"{trade.volume}@{trade.price}, current_pos: {current_pos}"
         )
 
 

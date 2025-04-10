@@ -19,14 +19,13 @@ class TwapAlgo(AlgoTemplate):
         algo_name: str,
         symbol: str,
         direction: str,
-        offset: str,
         price: float,
         volume: float,
         setting: dict,
     ) -> None:
         """构造函数"""
         super().__init__(
-            algo_engine, algo_name, symbol, direction, offset, price, volume, setting
+            algo_engine, algo_name, symbol, direction, price, volume, setting
         )
 
         # 参数
@@ -77,7 +76,7 @@ class TwapAlgo(AlgoTemplate):
 
         if self.direction == Direction.LONG:
             if tick.ask_price_1 <= self.price:
-                self.buy(self.price, order_volume, offset=self.offset)
+                self.buy(self.price, order_volume)
         else:
             if tick.bid_price_1 >= self.price:
-                self.sell(self.price, order_volume, offset=self.offset)
+                self.sell(self.price, order_volume)

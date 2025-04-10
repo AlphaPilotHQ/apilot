@@ -14,7 +14,6 @@ from typing import Any
 
 from apilot.core import (
     # 常量和工具函数
-    APP_NAME,
     EVENT_ORDER,
     EVENT_TICK,
     EVENT_TRADE,
@@ -30,7 +29,6 @@ from apilot.core import (
     Exchange,
     Interval,
     MainEngine,
-    Offset,
     OrderData,
     OrderRequest,
     OrderType,
@@ -55,11 +53,10 @@ class PAEngine(BaseEngine):
     data_filename: str = "pa_strategy_data.json"
 
     def __init__(self, main_engine: MainEngine, event_engine: EventEngine) -> None:
-        super().__init__(main_engine, event_engine, APP_NAME)
+        super().__init__(main_engine, event_engine, "APILOT")
 
         self.strategy_setting = {}
         self.strategy_data = {}
-        self.classes = {}
         self.strategies = {}
         self.symbol_strategy_map = defaultdict(list)
         self.orderid_strategy_map = {}
@@ -76,10 +73,8 @@ class PAEngine(BaseEngine):
         """
         self.load_strategy_setting()
         self.load_strategy_data()
-        # 脚本环境中不需要动态加载策略类
-        # self.load_strategy_class()
         self.register_event()
-        logger.info(f"[{APP_NAME}] PA策略引擎初始化成功")
+        logger.info("PA策略引擎初始化成功")
 
     def close(self) -> None:
         self.stop_all_strategies()
@@ -147,7 +142,6 @@ class PAEngine(BaseEngine):
         strategy: PATemplate,
         contract: ContractData,
         direction: Direction,
-        offset: Offset,
         price: float,
         volume: float,
         type: OrderType,
@@ -157,11 +151,10 @@ class PAEngine(BaseEngine):
             symbol=contract.symbol,
             exchange=contract.exchange,
             direction=direction,
-            offset=offset,
             type=type,
             price=price,
             volume=volume,
-            reference=f"{APP_NAME}_{strategy.strategy_name}",
+            reference=f"APILOT_{strategy.strategy_name}",
         )
 
         # Convert with offset converter
@@ -194,19 +187,17 @@ class PAEngine(BaseEngine):
         strategy: PATemplate,
         contract: ContractData,
         direction: Direction,
-        offset: Offset,
         price: float,
         volume: float,
     ) -> list:
         return self.send_server_order(
-            strategy, contract, direction, offset, price, volume, OrderType.LIMIT
+            strategy, contract, direction, price, volume, OrderType.LIMIT
         )
 
     def send_order(
         self,
         strategy: PATemplate,
         direction: Direction,
-        offset: Offset,
         price: float,
         volume: float,
         stop: bool = False,
@@ -216,7 +207,7 @@ class PAEngine(BaseEngine):
             error_msg = (
                 f"[{strategy.strategy_name}] 委托失败,找不到合约:{strategy.symbol}"
             )
-            logger.error(f"[{APP_NAME}] {error_msg}")
+            logger.error(f"{error_msg}")
             return ""
 
         # Round order price and volume to nearest incremental value
@@ -224,7 +215,7 @@ class PAEngine(BaseEngine):
         volume: float = round_to(volume, contract.min_volume)
 
         return self.send_limit_order(
-            strategy, contract, direction, offset, price, volume
+            strategy, contract, direction, price, volume
         )
 
     def cancel_server_order(self, orderid: str, strategy=None) -> None:
@@ -235,10 +226,10 @@ class PAEngine(BaseEngine):
         if not order:
             if strategy:
                 error_msg = f"[{strategy.strategy_name}] 撤单失败,找不到委托{orderid}"
-                logger.error(f"[{APP_NAME}] {error_msg}")
+                logger.error(f"{error_msg}")
             else:
                 error_msg = f"撤单失败,找不到委托{orderid}"
-                logger.error(f"[{APP_NAME}] {error_msg}")
+                logger.error(f"{error_msg}")
             return
 
         req: CancelRequest = order.create_cancel_request()
@@ -317,31 +308,25 @@ class PAEngine(BaseEngine):
             error_msg = (
                 f"[{strategy.strategy_name}] 触发异常已停止\n{traceback.format_exc()}"
             )
-            logger.critical(f"[{APP_NAME}] {error_msg}")
+            logger.critical(f"{error_msg}")
 
     def add_strategy(
-        self, class_name: str, strategy_name: str, symbol: str, setting: dict
+        self, strategy_class: type, strategy_name: str, symbol: str, setting: dict
     ) -> None:
         if strategy_name in self.strategies:
             error_msg = f"创建策略失败,存在重名{strategy_name}"
-            logger.error(f"[{APP_NAME}] {error_msg}")
-            return
-
-        strategy_class: type | None = self.classes.get(class_name, None)
-        if not strategy_class:
-            error_msg = f"创建策略失败,找不到策略类{class_name}"
-            logger.error(f"[{APP_NAME}] {error_msg}")
+            logger.error(f"{error_msg}")
             return
 
         if "." not in symbol:
             error_msg = "创建策略失败,本地代码缺失交易所后缀"
-            logger.error(f"[{APP_NAME}] {error_msg}")
+            logger.error(f"{error_msg}")
             return
 
         symbol_str, exchange_str = split_symbol(symbol)
         if exchange_str not in Exchange.__members__:
             error_msg = "创建策略失败,本地代码的交易所后缀不正确"
-            logger.error(f"[{APP_NAME}] {error_msg}")
+            logger.error(f"{error_msg}")
             return
 
         strategy: PATemplate = strategy_class(self, strategy_name, symbol, setting)
@@ -365,10 +350,10 @@ class PAEngine(BaseEngine):
 
         if strategy.inited:
             error_msg = f"{strategy_name}已经完成初始化,禁止重复操作"
-            logger.error(f"[{APP_NAME}] {error_msg}")
+            logger.error(f"{error_msg}")
             return
 
-        logger.info(f"[{APP_NAME}] {strategy_name}开始执行初始化")
+        logger.info(f"{strategy_name}开始执行初始化")
 
         # Call on_init function of strategy
         self.call_strategy_func(strategy, strategy.on_init)
@@ -390,22 +375,22 @@ class PAEngine(BaseEngine):
             self.main_engine.subscribe(req, contract.gateway_name)
         else:
             error_msg = f"行情订阅失败,找不到合约{strategy.symbol}"
-            logger.error(f"[{APP_NAME}] {error_msg}")
+            logger.error(f"{error_msg}")
 
         # Put event to update init completed status.
         strategy.inited = True
-        logger.info(f"[{APP_NAME}] {strategy_name}初始化完成")
+        logger.info(f"{strategy_name}初始化完成")
 
     def start_strategy(self, strategy_name: str) -> None:
         strategy: PATemplate = self.strategies[strategy_name]
         if not strategy.inited:
             error_msg = f"策略{strategy_name}启动失败,请先初始化"
-            logger.error(f"[{APP_NAME}] {error_msg}")
+            logger.error(f"{error_msg}")
             return
 
         if strategy.trading:
             error_msg = f"{strategy_name}已经启动,请勿重复操作"
-            logger.error(f"[{APP_NAME}] {error_msg}")
+            logger.error(f"{error_msg}")
             return
         self.call_strategy_func(strategy, strategy.on_start)
         strategy.trading = True
@@ -437,7 +422,7 @@ class PAEngine(BaseEngine):
         strategy: PATemplate = self.strategies[strategy_name]
         if strategy.trading:
             error_msg = f"策略{strategy_name}移除失败,请先停止"
-            logger.error(f"[{APP_NAME}] {error_msg}")
+            logger.error(f"{error_msg}")
             return
 
         # Remove setting
@@ -459,7 +444,7 @@ class PAEngine(BaseEngine):
         # Remove from strategies
         self.strategies.pop(strategy_name)
 
-        logger.info(f"[{APP_NAME}] 策略{strategy_name}移除成功")
+        logger.info(f"策略{strategy_name}移除成功")
         return True
 
     def sync_strategy_data(self, strategy: PATemplate) -> None:
@@ -472,42 +457,7 @@ class PAEngine(BaseEngine):
 
         self.strategy_data[strategy.strategy_name] = data
 
-    def get_all_strategy_class_names(self) -> list:
-        """获取所有已加载的策略类名(简化版)"""
-        # 在脚本环境中,可以直接引用策略类,无需此方法
-        return list(self.classes.keys())
-
-    def get_strategy_class_parameters(self, class_name: str) -> dict:
-        """获取策略类默认参数(简化版)"""
-        # 在脚本环境中,可以直接从策略类获取默认参数
-        strategy_class: type = self.classes[class_name]
-        return {
-            name: getattr(strategy_class, name) for name in strategy_class.parameters
-        }
-
-    def get_strategy_parameters(self, strategy_name) -> dict:
-        """获取策略实例参数(简化版)"""
-        # 在脚本环境中,可以直接访问策略实例获取参数
-        strategy: PATemplate = self.strategies[strategy_name]
-        return strategy.get_parameters()
-
-    def init_all_strategies(self) -> dict:
-        """初始化所有策略(简化版)"""
-        # 在脚本环境中通常会显式初始化每个策略
-        # 此方法主要用于GUI批量操作
-        futures: dict = {}
-        for strategy_name in self.strategies.keys():
-            futures[strategy_name] = self.init_strategy(strategy_name)
-        return futures
-
-    def start_all_strategies(self) -> None:
-        """启动所有策略(简化版)"""
-        # 在脚本环境中通常会显式启动每个策略
-        for strategy_name in self.strategies.keys():
-            self.start_strategy(strategy_name)
-
     def stop_all_strategies(self) -> None:
-        """停止所有策略(简化版)"""
-        # 在关闭引擎时仍然需要调用此方法
+        """停止所有策略"""
         for strategy_name in self.strategies.keys():
             self.stop_strategy(strategy_name)

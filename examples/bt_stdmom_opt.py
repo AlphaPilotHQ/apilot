@@ -158,7 +158,7 @@ class StdMomentumStrategy(ap.PATemplate):
                     logger.debug(
                         f"{bar.datetime}: {symbol} 发出空头信号: 动量 {self.momentum[symbol]:.4f} < 阈值 {-self.mom_threshold}"
                     )
-                    self.short(symbol=symbol, price=bar.close_price, volume=size)
+                    self.sell(symbol=symbol, price=bar.close_price, volume=size)
 
             elif current_pos > 0:  # 多头持仓 → 标准差追踪止损
                 # 计算移动止损价格
@@ -182,7 +182,7 @@ class StdMomentumStrategy(ap.PATemplate):
 
                 # 当价格突破止损线时平仓
                 if bar.close_price > short_stop:
-                    self.cover(
+                    self.buy(
                         symbol=symbol, price=bar.close_price, volume=abs(current_pos)
                     )
 
@@ -217,7 +217,7 @@ class StdMomentumStrategy(ap.PATemplate):
 
         logger.debug(
             f"Trade: {symbol} {trade.orderid} {trade.direction} "
-            f"{trade.offset} {trade.volume}@{trade.price}, current_pos: {current_pos}"
+            f"{trade.volume}@{trade.price}, current_pos: {current_pos}"
         )
 
 

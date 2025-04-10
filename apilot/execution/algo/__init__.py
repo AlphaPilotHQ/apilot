@@ -5,7 +5,7 @@
 """
 
 # 首先导入apilot.core中需要的组件,以解决算法文件中的导入问题
-from apilot.core.constant import Direction, Exchange, Offset, OrderType
+from apilot.core.constant import Direction, Exchange, OrderType
 from apilot.core.engine import BaseEngine
 from apilot.core.object import OrderData, OrderRequest, TickData, TradeData
 
@@ -25,7 +25,6 @@ __all__ = [
     "BestLimitAlgo",
     "Direction",
     "Exchange",
-    "Offset",
     "OrderData",
     "OrderRequest",
     "OrderType",

@@ -4,7 +4,7 @@ from collections.abc import Callable
 from copy import copy
 from typing import Any, ClassVar
 
-from apilot.core.constant import Direction, EngineType, Interval, Offset
+from apilot.core.constant import Direction, EngineType, Interval
 from apilot.core.object import BarData, OrderData, TickData, TradeData
 from apilot.core.utility import virtual
 from apilot.utils.logger import get_logger
@@ -116,36 +116,22 @@ class PATemplate(ABC):
         if not order.is_active() and order.orderid in self.active_orderids:
             self.active_orderids.remove(order.orderid)
 
-    # TODO:应该改成long short close三种状态比较好
     def buy(self, symbol: str, price: float, volume: float) -> list[str]:
         """
-        买入开仓
+        买入
         """
-        return self.send_order(symbol, Direction.LONG, Offset.OPEN, price, volume)
+        return self.send_order(symbol, Direction.LONG, price, volume)
 
     def sell(self, symbol: str, price: float, volume: float) -> list[str]:
         """
-        卖出平仓
+        卖出
         """
-        return self.send_order(symbol, Direction.SHORT, Offset.CLOSE, price, volume)
-
-    def short(self, symbol: str, price: float, volume: float) -> list[str]:
-        """
-        卖出开仓
-        """
-        return self.send_order(symbol, Direction.SHORT, Offset.OPEN, price, volume)
-
-    def cover(self, symbol: str, price: float, volume: float) -> list[str]:
-        """
-        买入平仓
-        """
-        return self.send_order(symbol, Direction.LONG, Offset.CLOSE, price, volume)
+        return self.send_order(symbol, Direction.SHORT, price, volume)
 
     def send_order(
         self,
         symbol: str,
         direction: Direction,
-        offset: Offset,
         price: float,
         volume: float,
     ) -> list[str]:
@@ -157,7 +143,6 @@ class PATemplate(ABC):
                     self,
                     symbol,
                     direction,
-                    offset,
                     price,
                     volume,
                 )
@@ -303,46 +288,16 @@ class PATemplate(ABC):
                 order_price: float = self.calculate_price(
                     symbol, Direction.LONG, bar.close_price
                 )
-
-                # 计算买平和买开数量
-                cover_volume: int = 0
-                buy_volume: int = 0
-
-                if pos < 0:
-                    cover_volume = min(diff, abs(pos))
-                    buy_volume = diff - cover_volume
-                else:
-                    buy_volume = diff
-
-                # 发出对应委托
-                if cover_volume:
-                    self.cover(symbol, order_price, cover_volume)
-
-                if buy_volume:
-                    self.buy(symbol, order_price, buy_volume)
+                # 发出买入委托
+                self.buy(symbol, order_price, diff)
             # 空头
             elif diff < 0:
                 # 计算空头委托价
                 order_price: float = self.calculate_price(
                     symbol, Direction.SHORT, bar.close_price
                 )
-
-                # 计算卖平和卖开数量
-                sell_volume: int = 0
-                short_volume: int = 0
-
-                if pos > 0:
-                    sell_volume = min(abs(diff), pos)
-                    short_volume = abs(diff) - sell_volume
-                else:
-                    short_volume = abs(diff)
-
-                # 发出对应委托
-                if sell_volume:
-                    self.sell(symbol, order_price, sell_volume)
-
-                if short_volume:
-                    self.short(symbol, order_price, short_volume)
+                # 发出卖出委托
+                self.sell(symbol, order_price, abs(diff))
 
     def get_order(self, orderid: str) -> OrderData | None:
         """查询委托数据"""

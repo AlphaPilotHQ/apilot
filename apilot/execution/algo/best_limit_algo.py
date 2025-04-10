@@ -22,14 +22,13 @@ class BestLimitAlgo(AlgoTemplate):
         algo_name: str,
         symbol: str,
         direction: str,
-        offset: str,
         price: float,
         volume: float,
         setting: dict,
     ) -> None:
         """构造函数"""
         super().__init__(
-            algo_engine, algo_name, symbol, direction, offset, price, volume, setting
+            algo_engine, algo_name, symbol, direction, price, volume, setting
         )
 
         # 参数
@@ -91,7 +90,7 @@ class BestLimitAlgo(AlgoTemplate):
         order_volume: float = min(rand_volume, volume_left)
 
         self.order_price = bid_price_1
-        self.orderid = self.buy(self.order_price, order_volume, offset=self.offset)
+        self.orderid = self.buy(self.order_price, order_volume)
 
     def sell_best_limit(self, ask_price_1: float) -> None:
         """最优限价卖出"""
@@ -101,7 +100,7 @@ class BestLimitAlgo(AlgoTemplate):
         order_volume: float = min(rand_volume, volume_left)
 
         self.order_price = ask_price_1
-        self.orderid = self.sell(self.order_price, order_volume, offset=self.offset)
+        self.orderid = self.sell(self.order_price, order_volume)
 
     def generate_rand_volume(self) -> int:
         """随机生成委托数量"""

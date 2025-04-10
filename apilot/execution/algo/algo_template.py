@@ -4,7 +4,6 @@ from apilot.core import (
     BaseEngine,
     ContractData,
     Direction,
-    Offset,
     OrderData,
     OrderType,
     TickData,
@@ -36,7 +35,6 @@ class AlgoTemplate:
         algo_name: str,
         symbol: str,
         direction: Direction,
-        offset: Offset,
         price: float,
         volume: int,
         setting: dict,
@@ -47,7 +45,6 @@ class AlgoTemplate:
 
         self.symbol: str = symbol
         self.direction: Direction = direction
-        self.offset: Offset = offset
         self.price: float = price
         self.volume: int = volume
 
@@ -146,7 +143,6 @@ class AlgoTemplate:
         price: float,
         volume: float,
         order_type: OrderType = OrderType.LIMIT,
-        offset: Offset = Offset.NONE,
     ) -> None:
         """买入"""
         if self.status != AlgoStatus.RUNNING:
@@ -156,7 +152,7 @@ class AlgoTemplate:
         logger.info(f"[Algo:{self.algo_name}] {msg}")
 
         return self.algo_engine.send_order(
-            self, Direction.LONG, price, volume, order_type, offset
+            self, Direction.LONG, price, volume, order_type
         )
 
     def sell(
@@ -164,7 +160,6 @@ class AlgoTemplate:
         price: float,
         volume: float,
         order_type: OrderType = OrderType.LIMIT,
-        offset: Offset = Offset.NONE,
     ) -> None:
         """卖出"""
         if self.status != AlgoStatus.RUNNING:
@@ -174,7 +169,7 @@ class AlgoTemplate:
         logger.info(f"[Algo:{self.algo_name}] {msg}")
 
         return self.algo_engine.send_order(
-            self, Direction.SHORT, price, volume, order_type, offset
+            self, Direction.SHORT, price, volume, order_type
         )
 
     def cancel_order(self, orderid: str) -> None:
@@ -217,7 +212,6 @@ class AlgoTemplate:
             "algo_name": self.algo_name,
             "symbol": self.symbol,
             "direction": self.direction,
-            "offset": self.offset,
             "price": self.price,
             "volume": self.volume,
             "status": self.status,

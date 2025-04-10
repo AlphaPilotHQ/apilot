@@ -14,12 +14,6 @@ class Direction(Enum):
     SHORT = "空"
 
 
-class Offset(Enum):
-    NONE = ""
-    OPEN = "开"
-    CLOSE = "平"
-    CLOSETODAY = "平今"
-    CLOSEYESTERDAY = "平昨"
 
 
 class Status(Enum):

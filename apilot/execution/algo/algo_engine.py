@@ -6,7 +6,7 @@
 
 from collections import defaultdict
 
-from apilot.core.constant import AlgoStatus, Direction, Exchange, Offset, OrderType
+from apilot.core.constant import AlgoStatus, Direction, Exchange, OrderType
 from apilot.core.engine import (
     BaseEngine,
     EventEngine,
@@ -131,7 +131,6 @@ class AlgoEngine(BaseEngine):
         template_name: str,
         symbol: str,
         direction: Direction,
-        offset: Offset,
         price: float,
         volume: int,
         setting: dict,
@@ -148,7 +147,7 @@ class AlgoEngine(BaseEngine):
         algo_template._count += 1
         algo_name: str = f"{algo_template.__name__}_{algo_template._count}"
         algo: AlgoTemplate = algo_template(
-            self, algo_name, symbol, direction, offset, price, volume, setting
+            self, algo_name, symbol, direction, price, volume, setting
         )
 
         # 订阅行情
@@ -198,7 +197,6 @@ class AlgoEngine(BaseEngine):
         price: float,
         volume: float,
         order_type: OrderType,
-        offset: Offset,
     ) -> str:
         """委托下单"""
         contract: ContractData | None = self.main_engine.get_contract(algo.symbol)
@@ -213,7 +211,6 @@ class AlgoEngine(BaseEngine):
             type=order_type,
             volume=volume,
             price=price,
-            offset=offset,
             reference=f"{ENGINE_NAME}_{algo.algo_name}",
         )
         orderid: str = self.main_engine.send_order(req, contract.gateway_name)

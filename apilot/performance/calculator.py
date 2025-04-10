@@ -114,73 +114,71 @@ def calculate_trade_metrics(trades: list[TradeData]) -> dict[str, float]:
 
         position_trades[symbol][direction].append(trade)
 
-    # 计算平仓盈亏
-    closed_trades = []  # 包含盈亏信息的平仓交易列表
+    # 收集所有交易
+    closed_trades = []
 
     for _symbol, directions in position_trades.items():
         # 分析多头和空头交易
         for direction, trades_list in directions.items():
             # 按时间排序交易
             sorted_trades = sorted(trades_list, key=lambda t: t.datetime)
-
-            # 计算每笔交易的盈亏
-            open_trades = []  # 开仓交易栈
-
+            
             for trade in sorted_trades:
-                # 处理偏移值
-                if hasattr(trade.offset, "value"):
-                    offset = trade.offset.value
-                else:
-                    offset = str(trade.offset)
-
-                # 转换中文开平仓标志（兼容处理）
-                if offset in ["开", "开仓"]:
-                    offset = "OPEN"
-                elif offset in ["平", "平仓"]:
-                    offset = "CLOSE"
-
-                if offset == "OPEN":  # 开仓
-                    open_trades.append(trade)
-                elif offset in ["CLOSE", "CLOSETODAY", "CLOSEYESTERDAY"]:  # 平仓
-                    if open_trades:  # 有对应的开仓交易
-                        open_trade = open_trades.pop(0)  # FIFO原则
-
-                        # 计算盈亏
-                        if direction == "LONG":  # 多头
-                            profit = (trade.price - open_trade.price) * trade.volume
-                        else:  # 空头
-                            profit = (open_trade.price - trade.price) * trade.volume
-
-                        # 保存平仓交易及其盈亏
-                        trade.profit = profit  # 在交易对象上附加盈亏属性
-                        closed_trades.append(trade)
+                # 检查交易是否有盈亏记录
+                if not hasattr(trade, "profit"):
+                    # 没有profit属性的交易设置为0（中性）
+                    trade.profit = 0
+                
+                closed_trades.append(trade)
+                
+                # 记录交易的盈亏情况
+                profit_value = getattr(trade, "profit", 0)
+                if profit_value != 0:
+                    logger.debug(f"交易 {trade.tradeid} 盈亏: {profit_value:.2f}")
 
     # 计算胜负统计
     winning_trades = [t for t in closed_trades if getattr(t, "profit", 0) > 0]
     losing_trades = [t for t in closed_trades if getattr(t, "profit", 0) < 0]
+    neutral_trades = [t for t in closed_trades if getattr(t, "profit", 0) == 0]
 
-    # 计算关键指标
-    total_closed_trades = len(closed_trades)
+    # 识别开仓和平仓交易
+    # 在这个系统中，profit为0的大多是开仓交易
+    opening_trades = len(neutral_trades)
+    closing_trades = len(winning_trades) + len(losing_trades)
+    
+    # 只考虑有实际盈亏的交易（排除开仓交易）
+    true_total_trades = closing_trades
     win_count = len(winning_trades)
     loss_count = len(losing_trades)
+    
+    # 详细记录日志
+    logger.info(
+        f"交易统计: 总交易 {len(closed_trades)}, 盈利 {win_count}, 亏损 {loss_count}, "
+        f"开仓/持平 {opening_trades}, 有效交易 {true_total_trades}"
+    )
 
-    win_rate = (win_count / total_closed_trades * 100) if total_closed_trades > 0 else 0
+    # 胜率只考虑有盈亏的交易
+    win_rate = (win_count / true_total_trades * 100) if true_total_trades > 0 else 0
 
     # 计算盈利因子(总盈利/总亏损)
     total_profit = sum(getattr(t, "profit", 0) for t in winning_trades)
     total_loss = abs(sum(getattr(t, "profit", 0) for t in losing_trades))
 
-    profit_factor = (total_profit / total_loss) if total_loss > 0 else float("inf")
-
-    # 计算平均盈亏
+    # 计算盈亏指标
+    # 计算总盈亏比 - 总盈利/总亏损
+    profit_loss_ratio = (total_profit / total_loss) if total_loss > 0 else float("inf")
+    
+    # 计算平均值（仅用于报告）
     avg_profit = total_profit / win_count if win_count > 0 else 0
     avg_loss = total_loss / loss_count if loss_count > 0 else 0
 
     return {
         "total_trades": len(trades),
-        "closed_trades": total_closed_trades,
+        "closed_trades": len(closed_trades),
+        "effective_trades": true_total_trades,
+        "opening_trades": opening_trades,
         "win_rate": win_rate,
-        "profit_factor": profit_factor,
+        "profit_loss_ratio": profit_loss_ratio,
         "winning_trades": win_count,
         "losing_trades": loss_count,
         "avg_profit": avg_profit,
@@ -287,9 +285,9 @@ def calculate_statistics(
         # 更新统计数据
         stats.update(trade_metrics)
 
-        # 确保胜率和盈利因子显示在Overview部分
+        # 确保胜率和盈亏比显示在Overview部分
         stats["win_rate"] = trade_metrics.get("win_rate", 0)
-        stats["profit_factor"] = trade_metrics.get("profit_factor", 0)
+        stats["profit_loss_ratio"] = trade_metrics.get("profit_loss_ratio", 0)
 
     # 清理无效值
     stats = {

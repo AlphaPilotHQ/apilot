@@ -35,7 +35,6 @@ __all__ = [
     "Interval",
     "LogData",
     "MainEngine",
-    "Offset",
     "OrderData",
     "OrderRequest",
     "OrderType",
@@ -58,7 +57,6 @@ from .constant import (
     Direction,  # type: Enum
     Exchange,  # type: Enum
     Interval,  # type: Enum
-    Offset,  # type: Enum
     OrderType,  # type: Enum
     Product,  # type: Enum
     Status,  # type: Enum
