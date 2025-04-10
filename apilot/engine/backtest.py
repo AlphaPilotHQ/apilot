@@ -654,12 +654,65 @@ class BacktestingEngine:
         Returns:
             包含性能统计指标的字典
         """
+        import numpy as np
+
         if df is None:
             df = self.daily_df
 
         # 如果DataFrame为空，返回空结果
         if df is None or df.empty:
-            return {}
+            # 提供基础统计信息，即使没有每日数据
+            stats = {
+                "total_trade_count": len(self.trades),
+                "initial_capital": self.capital,
+                "final_capital": self.accounts.get("balance", self.capital),
+            }
+
+            # 计算总回报率
+            stats["total_return"] = (
+                (stats["final_capital"] / stats["initial_capital"]) - 1
+            ) * 100
+
+            # 添加交易相关的统计
+            if self.trades:
+                # 分析交易盈亏
+                profits = []
+                losses = []
+
+                # 简单分析交易
+                for trade in self.trades.values():
+                    # 使用交易方向和价格判断盈亏
+                    if hasattr(trade, "profit") and trade.profit:
+                        # 如果有利润记录则根据正负值判断
+                        if trade.profit > 0:
+                            profits.append(trade.profit)
+                        else:
+                            losses.append(trade.profit)
+                    elif (
+                        trade.direction == "LONG"
+                        and hasattr(trade, "offset")
+                        and trade.offset == "CLOSE"
+                    ):
+                        # 平多仓
+                        profits.append(1)  # 简化计算
+                    elif (
+                        trade.direction == "SHORT"
+                        and hasattr(trade, "offset")
+                        and trade.offset == "CLOSE"
+                    ):
+                        # 平空仓
+                        losses.append(-1)  # 简化计算
+
+                if profits or losses:
+                    win_count = len(profits)
+                    loss_count = len(losses)
+                    total_trades = win_count + loss_count
+
+                    if total_trades > 0:
+                        stats["win_rate"] = (win_count / total_trades) * 100
+                        stats["profit_loss_ratio"] = len(profits) / max(1, len(losses))
+
+            return stats
 
         # 使用新的统计函数
         stats = calculate_statistics(
@@ -668,6 +721,14 @@ class BacktestingEngine:
             capital=self.capital,
             annual_days=self.annual_days,
         )
+
+        # 确保关键指标有合理值
+        for key in ["total_return", "annual_return", "sharpe_ratio"]:
+            if key in stats:
+                # 处理极端值
+                value = stats[key]
+                if not np.isfinite(value) or abs(value) > 10000:
+                    stats[key] = 0
 
         # 打印结果（如需要）
         if output:
@@ -728,3 +789,117 @@ class BacktestingEngine:
             annual_days=self.annual_days,
         )
         report.show()
+
+    def optimize(self, strategy_setting=None, max_workers=4) -> list[dict]:
+        """
+        运行策略参数优化（网格搜索）
+
+        Args:
+            strategy_setting: 优化参数配置，如果为None，需要在函数内创建
+            max_workers: 最大并行进程数
+
+        Returns:
+            优化结果列表，按照适应度排序
+        """
+        import logging
+
+        from apilot.optimizer import OptimizationSetting, run_grid_search
+
+        # 确保已经设置了策略类
+        if not self.strategy_class:
+            logger.error("无法优化参数: 未设置策略类")
+            return []
+
+        # 如果没有提供strategy_setting，创建一个默认的
+        if strategy_setting is None:
+            strategy_setting = OptimizationSetting()
+            strategy_setting.set_target("total_return")
+            # 尝试从策略中获取可优化参数
+            if hasattr(self.strategy_class, "parameters"):
+                for param in self.strategy_class.parameters:
+                    if hasattr(self.strategy, param):
+                        current_value = getattr(self.strategy, param)
+                        if isinstance(current_value, int | float):
+                            # 为数值参数创建范围
+                            if isinstance(current_value, int):
+                                strategy_setting.add_parameter(
+                                    param,
+                                    max(1, current_value // 2),
+                                    current_value * 2,
+                                    max(1, current_value // 10),
+                                )
+                            else:  # float
+                                strategy_setting.add_parameter(
+                                    param,
+                                    current_value * 0.5,
+                                    current_value * 2,
+                                    current_value * 0.1,
+                                )
+
+        # 创建策略评估函数
+        def evaluate_setting(setting):
+            # 创建新的引擎实例
+            test_engine = BacktestingEngine()
+
+            # 复制引擎配置
+            test_engine.set_parameters(
+                symbols=self.symbols.copy(),
+                interval=self.interval,
+                start=self.start,
+                end=self.end,
+                capital=self.capital,
+                mode=self.mode,
+            )
+
+            # 添加数据
+            for dt in self.dts:
+                if dt in self.history_data:
+                    test_engine.history_data[dt] = self.history_data[dt].copy()
+
+            test_engine.dts = self.dts.copy()
+
+            # 添加策略
+            test_engine.add_strategy(self.strategy_class, setting)
+
+            # 运行回测
+            try:
+                # 静默模式运行
+                original_level = logger.level
+                logger.setLevel(logging.WARNING)  # 临时降低日志级别
+
+                test_engine.run_backtesting()
+
+                # 恢复日志级别
+                logger.setLevel(original_level)
+
+                # 计算结果
+                test_engine.calculate_result()
+                stats = test_engine.calculate_statistics()
+
+                # 返回优化目标值
+                target_name = strategy_setting.target_name or "total_return"
+                fitness = stats.get(target_name, 0)
+
+                # 打印详细的统计信息用于调试
+                if test_engine.trades and fitness > 0:
+                    trade_count = len(test_engine.trades)
+                    final_balance = test_engine.accounts.get("balance", self.capital)
+                    total_return = ((final_balance / self.capital) - 1) * 100
+
+                    logger.debug(
+                        f"参数: {setting}, 回报: {total_return:.2f}%, "
+                        f"交易: {trade_count}, 适应度: {fitness:.2f}"
+                    )
+
+                return fitness
+            except Exception as e:
+                logger.error(f"参数评估失败: {e!s}")
+                return -999999  # 返回一个非常低的适应度值
+
+        # 使用optimizer模块的网格搜索函数
+        return run_grid_search(
+            strategy_class=self.strategy_class,
+            optimization_setting=strategy_setting,
+            key_func=evaluate_setting,
+            max_workers=max_workers,
+        )

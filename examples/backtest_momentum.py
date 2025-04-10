@@ -2,7 +2,7 @@
 动量策略回测与优化示例
 
 此模块实现了一个基于动量指标的趋势跟踪策略,结合标准差动态止损.
-包含单次回测和参数优化功能,支持使用遗传算法寻找最优参数组合.
+包含单次回测和参数优化功能,支持使用网格搜索寻找最优参数组合.
 """
 
 from datetime import datetime
@@ -215,7 +215,7 @@ class StdMomentumStrategy(ap.PATemplate):
                 self.intra_trade_low.get(symbol, trade.price), trade.price
             )
 
-        logger.info(
+        logger.debug(
             f"Trade: {symbol} {trade.orderid} {trade.direction} "
             f"{trade.offset} {trade.volume}@{trade.price}, current_pos: {current_pos}"
         )
@@ -225,22 +225,34 @@ class StdMomentumStrategy(ap.PATemplate):
 def run_backtesting(
     strategy_class=StdMomentumStrategy,
     start=datetime(2023, 1, 1),
-    end=datetime(2023, 1, 29),
+    end=datetime(2023, 6, 29),
     std_period=20,
     mom_threshold=0.02,
     trailing_std_scale=2.0,
+    run_optimization=False,
 ):
+    """
+    运行回测或参数优化
+
+    Args:
+        strategy_class: 策略类
+        start: 开始日期
+        end: 结束日期
+        std_period: 标准差周期
+        mom_threshold: 动量阈值
+        trailing_std_scale: 跟踪止损系数
+        run_optimization: 是否运行参数优化
+        (已移除) optimization_method 参数
+    """
     # 1 创建回测引擎
     engine = ap.BacktestingEngine()
     logger.info("1 创建回测引擎完成")
 
     # 2 设置引擎参数
     symbols = ["SOL-USDT.LOCAL", "BTC-USDT.LOCAL"]
-    # symbols = ["SOL-USDT.LOCAL"]
-    # symbols = ["BTC-USDT.LOCAL"]
 
     engine.set_parameters(
-        symbols=symbols,  # 这里是symbols还是[]
+        symbols=symbols,
         interval=ap.Interval.MINUTE,
         start=start,
         end=end,
@@ -258,8 +270,7 @@ def run_backtesting(
     )
     logger.info("3 添加策略完成")
 
-    # 4 添加数据 - 使用新的数据源配置架构
-    # 只添加BTC-USDT数据
+    # 4 添加数据
     engine.add_csv_data(
         symbol="SOL-USDT.LOCAL",
         filepath="data/SOL-USDT_LOCAL_1m.csv",
@@ -282,30 +293,47 @@ def run_backtesting(
     )
     logger.info("4 添加数据完成")
 
-    # 5 运行回测
+    # 5. 如果开启了优化模式，先运行参数优化
+    if run_optimization:
+        # 创建优化参数配置
+        from apilot.optimizer import OptimizationSetting
+
+        setting = OptimizationSetting()
+        setting.set_target("total_return")
+
+        # 设置参数范围
+        setting.add_parameter("std_period", 15, 30, 5)  # 标准差周期
+        setting.add_parameter("mom_threshold", 0.02, 0.06, 0.02)  # 动量阈值
+        setting.add_parameter("trailing_std_scale", 2.0, 4.0, 1.0)  # 止损系数
+
+        # 运行优化
+        results = engine.optimize(strategy_setting=setting)
+
+        # 应用最优参数（如果找到）
+        if results:
+            best_setting = results[0].copy()
+            fitness = best_setting.pop("fitness", 0)
+
+            logger.info(f"最优参数组合: {best_setting}, 适应度: {fitness:.4f}")
+
+            # 使用最优参数重新配置策略
+            engine.strategy = None  # 清除原有策略
+            engine.add_strategy(strategy_class, best_setting)
+
+    # 6 运行回测
     engine.run_backtesting()
     logger.info("5 运行回测完成")
 
-    # 6 计算结果并生成报告
+    # 7 计算结果并生成报告
     engine.report()
     logger.info("6 计算结果和报告生成完成")
 
-    # 参数优化示例 (注释掉,需要时可以解开使用)
-    """
-    # 设置优化参数
-    setting = OptimizationSetting()
-    setting.set_target("sharpe_ratio")   # 优化目标 - 夏普比率
-    setting.add_parameter("std_period", 10, 30, 5)        # 参数范围
-    setting.add_parameter("mom_threshold", 0.02, 0.1, 0.01)
-
-    # 运行优化
-    result = engine.run_optimization(setting, 20)
-
-    # 输出优化结果
-    for strategy_setting in result:
-        print(f"参数: {strategy_setting}")
-    """
+    return engine
 
 
 if __name__ == "__main__":
-    run_backtesting()
+    # 单次回测模式
+    # run_backtesting()
+
+    # 优化模式 - 使用网格搜索
+    run_backtesting(run_optimization=True)
