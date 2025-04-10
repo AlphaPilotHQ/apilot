@@ -52,6 +52,8 @@ __all__ = [
 ]
 
 # 导入常量定义
+from apilot.utils.indicators import ArrayManager
+
 from .constant import (
     Direction,  # type: Enum
     Exchange,  # type: Enum
@@ -107,7 +109,4 @@ from .object import (
 )
 
 # 导入配置和工具函数
-from .utility import (  # type: function, function, function, class, class
-    ArrayManager,
-    BarGenerator,
-)
+from .utility import BarGenerator

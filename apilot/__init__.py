@@ -79,7 +79,7 @@ from .core.object import (
 )
 
 # 导出工具类
-from .core.utility import ArrayManager, BarGenerator
+from .core.utility import BarGenerator
 
 # 导出回测和优化组件
 from .engine.backtest import BacktestingEngine
@@ -90,6 +90,7 @@ from .performance.report import PerformanceReport
 
 # 导出策略模板
 from .strategy.template import PATemplate
+from .utils.indicators import ArrayManager
 
 # 导出日志系统
 from .utils.logger import get_logger, log_exceptions, set_level

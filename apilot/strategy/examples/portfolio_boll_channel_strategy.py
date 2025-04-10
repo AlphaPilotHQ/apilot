@@ -4,8 +4,9 @@ from typing import ClassVar
 from apilot_portfoliostrategy import StrategyEngine, StrategyTemplate
 from apilot_portfoliostrategy.utility import PortfolioBarGenerator
 
+from apilot.core.constant import Interval
 from apilot.core.object import BarData, TickData
-from apilot.core.utility import ArrayManager, Interval
+from apilot.utils.indicators import ArrayManager
 
 
 class PortfolioBollChannelStrategy(StrategyTemplate):

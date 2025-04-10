@@ -17,6 +17,8 @@
 
 # 导入符号处理工具
 # 日志系统
+# 技术指标
+from .indicators import ArrayManager
 from .logger import get_logger, log_exceptions, set_level
 
 # 订单管理工具
@@ -25,6 +27,7 @@ from .symbol import get_base_symbol, get_exchange, split_symbol
 
 # 定义公共API
 __all__ = [
+    "ArrayManager",
     "LocalOrderManager",
     "get_base_symbol",
     "get_exchange",
