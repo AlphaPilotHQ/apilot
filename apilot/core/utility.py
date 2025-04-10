@@ -9,22 +9,8 @@ from math import ceil, floor
 
 import numpy as np
 
-from .constant import Exchange, Interval
+from .constant import Interval
 from .object import BarData, TickData
-
-
-def extract_symbol(symbol: str) -> tuple[str, Exchange]:
-    """Extract base symbol and exchange from full trading symbol"""
-    # 使用新的工具函数实现
-    from apilot.utils import split_symbol
-
-    base_symbol, exchange_str = split_symbol(symbol)
-    return base_symbol, Exchange(exchange_str)
-
-
-def generate_symbol(base_symbol: str, exchange: Exchange) -> str:
-    """Generate full trading symbol from base symbol and exchange"""
-    return f"{base_symbol}.{exchange.value}"
 
 
 def round_to(value: float, target: float) -> float:

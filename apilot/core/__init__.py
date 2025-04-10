@@ -47,7 +47,6 @@ __all__ = [
     "TickData",
     "TickOverview",
     "TradeData",
-    "extract_symbol",
     "get_database",
     "use_database",
 ]
@@ -111,5 +110,4 @@ from .object import (
 from .utility import (  # type: function, function, function, class, class
     ArrayManager,
     BarGenerator,
-    extract_symbol,
 )

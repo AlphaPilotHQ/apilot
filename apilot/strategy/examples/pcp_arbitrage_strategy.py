@@ -5,7 +5,8 @@ from apilot_portfoliostrategy import StrategyEngine, StrategyTemplate
 
 from apilot.core.constant import Direction
 from apilot.core.object import BarData, TickData
-from apilot.core.utility import BarGenerator, extract_symbol
+from apilot.core.utility import BarGenerator
+from apilot.utils.symbol import split_symbol
 
 
 class PcpArbitrageStrategy(StrategyTemplate):
@@ -57,7 +58,7 @@ class PcpArbitrageStrategy(StrategyTemplate):
 
         # 绑定合约代码
         for symbol in self.symbols:
-            base_symbol, _ = extract_symbol(symbol)
+            base_symbol, _ = split_symbol(symbol)
 
             if "C" in base_symbol:
                 self.call_symbol = symbol

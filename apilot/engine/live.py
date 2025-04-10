@@ -38,12 +38,12 @@ from apilot.core import (
     TickData,
     TradeData,
     # 工具函数
-    extract_symbol,
     round_to,
 )
 from apilot.core.database import DATABASE_CONFIG, BaseDatabase, use_database
 from apilot.strategy import PATemplate
 from apilot.utils.logger import get_logger
+from apilot.utils.symbol import split_symbol
 
 # 模块级初始化日志器
 logger = get_logger("LiveTrading")
@@ -285,7 +285,7 @@ class PAEngine(BaseEngine):
         callback: Callable[[BarData], None],
         use_database: bool,
     ) -> list:
-        symbol_str, exchange_str = extract_symbol(symbol)
+        symbol_str, exchange_str = split_symbol(symbol)
         end: datetime = datetime.now()
         start: datetime = end - timedelta(days=count)
         bars: list = []
@@ -300,7 +300,7 @@ class PAEngine(BaseEngine):
     def load_tick(
         self, symbol: str, count: int, callback: Callable[[TickData], None]
     ) -> list:
-        symbol_str, exchange_str = extract_symbol(symbol)
+        symbol_str, exchange_str = split_symbol(symbol)
         end: datetime = datetime.now()
         start: datetime = end - timedelta(days=count)
         ticks: list = self.database.load_tick_data(symbol_str, exchange_str, start, end)
@@ -338,7 +338,7 @@ class PAEngine(BaseEngine):
             logger.error(f"[{APP_NAME}] {error_msg}")
             return
 
-        symbol_str, exchange_str = extract_symbol(symbol)
+        symbol_str, exchange_str = split_symbol(symbol)
         if exchange_str not in Exchange.__members__:
             error_msg = "创建策略失败,本地代码的交易所后缀不正确"
             logger.error(f"[{APP_NAME}] {error_msg}")
