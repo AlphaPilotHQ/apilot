@@ -47,7 +47,7 @@ __all__ = [
     "optimizer",
     "performance",
     "risk",
-    "run_ga_optimization",
+    "run_grid_search",
     "set_level",
     "strategy",
     "utils",
@@ -83,7 +83,7 @@ from .core.utility import ArrayManager, BarGenerator
 
 # 导出回测和优化组件
 from .engine.backtest import BacktestingEngine
-from .optimizer import OptimizationSetting, run_ga_optimization
+from .optimizer import OptimizationSetting, run_grid_search
 
 # 导出性能分析组件
 from .performance.report import PerformanceReport
