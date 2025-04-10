@@ -36,7 +36,6 @@ __all__ = [
     "Status",
     "TickData",
     "TradeData",
-    "create_performance_report",
     "core",
     "create_csv_data",
     "create_mongodb_data",
@@ -86,11 +85,11 @@ from .core.utility import ArrayManager, BarGenerator
 from .engine.backtest import BacktestingEngine
 from .optimizer import OptimizationSetting, run_ga_optimization
 
+# 导出性能分析组件
+from .performance.report import PerformanceReport
+
 # 导出策略模板
 from .strategy.template import PATemplate
-
-# 导出性能分析组件
-from .performance.report import PerformanceReport, create_performance_report
 
 # 导出日志系统
 from .utils.logger import get_logger, log_exceptions, set_level

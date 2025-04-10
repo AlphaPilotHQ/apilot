@@ -9,25 +9,6 @@ from datetime import date, datetime
 
 from pandas import DataFrame
 
-from apilot.performance.calculator import calculate_statistics
-# 临时定义DailyResult类，后续完整重构时应移除
-class DailyResult:
-    def __init__(self, date):
-        self.date = date
-        self.close_prices = {}
-        self.net_pnl = 0.0     # 每日净盈亏
-        self.turnover = 0.0    # 每日成交额
-        self.trade_count = 0   # 每日交易次数
-        
-    def add_close_price(self, symbol, price):
-        self.close_prices[symbol] = price
-        
-    def add_trade(self, trade, profit=0.0):
-        """添加交易记录及其利润"""
-        self.turnover += trade.price * trade.volume
-        self.trade_count += 1
-        self.net_pnl += profit
-
 from apilot.core.constant import (
     BacktestingMode,
     Direction,
@@ -44,9 +25,30 @@ from apilot.core.object import (
     TradeData,
 )
 from apilot.core.utility import round_to
-from apilot.performance.report import PerformanceReport, create_performance_report
+from apilot.performance.calculator import calculate_statistics
+from apilot.performance.report import PerformanceReport
 from apilot.strategy.template import PATemplate
 from apilot.utils.logger import get_logger, set_level
+
+
+# 临时定义DailyResult类，后续完整重构时应移除
+class DailyResult:
+    def __init__(self, date):
+        self.date = date
+        self.close_prices = {}
+        self.net_pnl = 0.0  # 每日净盈亏
+        self.turnover = 0.0  # 每日成交额
+        self.trade_count = 0  # 每日交易次数
+
+    def add_close_price(self, symbol, price):
+        self.close_prices[symbol] = price
+
+    def add_trade(self, trade, profit=0.0):
+        """添加交易记录及其利润"""
+        self.turnover += trade.price * trade.volume
+        self.trade_count += 1
+        self.net_pnl += profit
+
 
 # 获取日志记录器
 logger = get_logger("BacktestEngine")
@@ -457,7 +459,7 @@ class BacktestingEngine:
                 logger.debug(
                     f"平仓盈亏: {profit:.2f}, 当前账户余额: {self.accounts['balance']:.2f}"
                 )
-                
+
                 # 更新每日结果
                 trade_date = trade.datetime.date()
                 if trade_date in self.daily_results:
@@ -580,94 +582,104 @@ class BacktestingEngine:
         """
         计算回测结果
         """
+
         import pandas as pd
-        from datetime import date
-        
+
         # 检查是否有交易
         if not self.trades:
             return pd.DataFrame()
-            
+
         # 收集每日数据
         daily_results = []
-        
+
         # 确保所有交易日期都有记录
         all_dates = sorted(self.daily_results.keys())
-        
+
         # 初始化第一天的balance为初始资金
         current_balance = self.capital
-        
+
         for d in all_dates:
             daily_result = self.daily_results[d]
-            
+
             # 获取每日结果数据
             result = {
-                'date': d,
-                'trade_count': daily_result.trade_count,
-                'turnover': daily_result.turnover,
-                'net_pnl': daily_result.net_pnl
+                "date": d,
+                "trade_count": daily_result.trade_count,
+                "turnover": daily_result.turnover,
+                "net_pnl": daily_result.net_pnl,
             }
-            
+
             # 更新当前余额
             current_balance += daily_result.net_pnl
-            result['balance'] = current_balance
-            
+            result["balance"] = current_balance
+
             daily_results.append(result)
-            
+
         # 创建DataFrame
         self.daily_df = pd.DataFrame(daily_results)
-        
+
         if not self.daily_df.empty:
-            self.daily_df.set_index('date', inplace=True)
-            
+            self.daily_df.set_index("date", inplace=True)
+
             # 计算回撤
-            self.daily_df['highlevel'] = self.daily_df['balance'].cummax()
-            self.daily_df['ddpercent'] = (self.daily_df['balance'] - self.daily_df['highlevel']) / self.daily_df['highlevel'] * 100
-            
+            self.daily_df["highlevel"] = self.daily_df["balance"].cummax()
+            self.daily_df["ddpercent"] = (
+                (self.daily_df["balance"] - self.daily_df["highlevel"])
+                / self.daily_df["highlevel"]
+                * 100
+            )
+
             # 计算收益率
-            pre_balance = self.daily_df['balance'].shift(1)
+            pre_balance = self.daily_df["balance"].shift(1)
             pre_balance.iloc[0] = self.capital
-            
+
             # 安全计算收益率
-            self.daily_df['return'] = self.daily_df['balance'].pct_change().fillna(0) * 100
-            self.daily_df.loc[self.daily_df.index[0], 'return'] = ((self.daily_df['balance'].iloc[0] / self.capital) - 1) * 100
-        
+            self.daily_df["return"] = (
+                self.daily_df["balance"].pct_change().fillna(0) * 100
+            )
+            self.daily_df.loc[self.daily_df.index[0], "return"] = (
+                (self.daily_df["balance"].iloc[0] / self.capital) - 1
+            ) * 100
+
         return self.daily_df
 
     def calculate_statistics(self, df: DataFrame = None, output=False) -> dict:
         """
         计算统计数据
-        
+
         Args:
             df: 包含每日结果的DataFrame，默认使用self.daily_df
             output: 是否打印统计结果，默认为False（由于已在PerformanceReport中实现更完整的输出）
-            
+
         Returns:
             包含性能统计指标的字典
         """
         if df is None:
             df = self.daily_df
-            
+
         # 如果DataFrame为空，返回空结果
         if df is None or df.empty:
             return {}
 
         # 使用新的统计函数
         stats = calculate_statistics(
-            df=df, 
+            df=df,
             trades=list(self.trades.values()),
-            capital=self.capital, 
-            annual_days=self.annual_days
+            capital=self.capital,
+            annual_days=self.annual_days,
         )
-        
+
         # 打印结果（如需要）
         if output:
             self._print_statistics(stats)
 
         return stats
-        
+
     def _print_statistics(self, stats):
         """打印统计结果"""
-        logger.info(f"Trade day:\t{stats.get('start_date', '')} - {stats.get('end_date', '')}")
+        logger.info(
+            f"Trade day:\t{stats.get('start_date', '')} - {stats.get('end_date', '')}"
+        )
         logger.info(f"Profit days:\t{stats.get('profit_days', 0)}")
         logger.info(f"Loss days:\t{stats.get('loss_days', 0)}")
         logger.info(f"Initial capital:\t{self.capital:.2f}")
@@ -699,3 +711,20 @@ class BacktestingEngine:
         简洁实现:直接使用账户余额
         """
         return self.accounts.get("balance", self.capital)
+
+    def report(self) -> None:
+        """
+        Generate and display performance report
+        """
+        # Calculate results if not already done
+        if self.daily_df is None:
+            self.calculate_result()
+
+        # Create and display performance report
+        report = PerformanceReport(
+            df=self.daily_df,
+            trades=list(self.trades.values()),
+            capital=self.capital,
+            annual_days=self.annual_days,
+        )
+        report.show()
