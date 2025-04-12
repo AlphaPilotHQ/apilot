@@ -166,52 +166,95 @@ class BacktestingEngine:
 
     def add_data(self, provider_type, symbol, **kwargs):
         from apilot.datafeed import DATA_PROVIDERS
+        import time
+        from apilot.utils.logger import get_logger
+        logger = get_logger("BacktestEngine")
+
+        logger.info(f"开始加载 {symbol} 数据，类型: {provider_type}")
+        start_time = time.time()
 
         # 获取数据提供者类
         if provider_type not in DATA_PROVIDERS:
             raise ValueError(f"未知的数据提供者类型: {provider_type}")
 
         provider_class = DATA_PROVIDERS[provider_type]
+        logger.debug(f"使用数据提供者: {provider_class.__name__}")
 
         # 创建数据提供者实例
+        t0 = time.time()
         provider = provider_class(**kwargs)
+        t1 = time.time()
+        logger.info(f"创建数据提供者耗时: {(t1-t0):.2f}秒")
 
         # 确保symbol在symbols列表中
         if symbol not in self.symbols:
             self.symbols.append(symbol)
 
         # 加载数据
+        t0 = time.time()
+        logger.info(f"开始从提供者加载 {symbol} 数据")
+        
+        # 从创建提供者时传入的kwargs中提取load_bar_data可能需要的参数
+        data_params = {}
+        for param in ["downsample_minutes", "limit_count"]:
+            if param in kwargs:
+                data_params[param] = kwargs[param]
+                logger.info(f"传递数据加载参数: {param}={kwargs[param]}")
+                
+        # 调用提供者的load_bar_data方法，传入额外参数
         bars = provider.load_bar_data(
             symbol=symbol,
             interval=self.interval,
             start=self.start,
             end=self.end,
+            **data_params  # 传递额外的参数，如降采样设置
         )
+        t1 = time.time()
+        logger.info(f"提供者加载 {symbol} 数据完成，共 {len(bars)} 条，耗时: {(t1-t0):.2f}秒")
 
         # 处理数据
+        t0 = time.time()
+        logger.info(f"开始处理 {symbol} 数据")
+        bar_count = 0
         for bar in bars:
             bar.symbol = symbol
             self.dts.append(bar.datetime)
             self.history_data.setdefault(bar.datetime, {})[symbol] = bar
+            bar_count += 1
+
+        t1 = time.time()
+        logger.info(f"处理 {symbol} 数据完成，共 {bar_count} 条，耗时: {(t1-t0):.2f}秒")
 
         # 排序时间点
+        t0 = time.time()
+        logger.info(f"开始排序时间点，当前共 {len(self.dts)} 个")
         self.dts = sorted(set(self.dts))
+        t1 = time.time()
+        logger.info(f"排序时间点完成，去重后共 {len(self.dts)} 个，耗时: {(t1-t0):.2f}秒")
+
+        total_time = time.time() - start_time
+        logger.info(f"完成 {symbol} 数据加载，总耗时: {total_time:.2f}秒")
         return self
 
     def add_csv_data(self, symbol, filepath, **kwargs):
         return self.add_data("csv", symbol, filepath=filepath, **kwargs)
 
-    def add_mongodb_data(self, symbol, database, collection, **kwargs):
-        return self.add_data(
-            "mongodb", symbol, database=database, collection=collection, **kwargs
-        )
+    # MongoDB数据加载方法已移除
+    # 请使用CSV数据源，参考文档：docs/data_guide.md
 
     def run_backtesting(self) -> None:
         self.strategy.on_init()
         logger.debug("策略on_init()调用完成")
 
-        # 固定预热100个bar,TODO:改成真实情况
-        warmup_bars = 100
+        # 预热阶段 - 使用前N个bar初始化策略
+        # 但需要确保有足够数据可供预热
+        if not self.dts:
+            logger.error("没有找到有效的数据点，请检查数据加载")
+            return
+            
+        warmup_bars = min(100, len(self.dts))
+        logger.info(f"使用 {warmup_bars} 个时间点进行策略预热")
+        
         for i in range(warmup_bars):
             try:
                 self.new_bars(self.dts[i])
