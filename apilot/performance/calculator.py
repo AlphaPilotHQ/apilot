@@ -122,15 +122,15 @@ def calculate_trade_metrics(trades: list[TradeData]) -> dict[str, float]:
         for direction, trades_list in directions.items():
             # 按时间排序交易
             sorted_trades = sorted(trades_list, key=lambda t: t.datetime)
-            
+
             for trade in sorted_trades:
                 # 检查交易是否有盈亏记录
                 if not hasattr(trade, "profit"):
                     # 没有profit属性的交易设置为0（中性）
                     trade.profit = 0
-                
+
                 closed_trades.append(trade)
-                
+
                 # 记录交易的盈亏情况
                 profit_value = getattr(trade, "profit", 0)
                 if profit_value != 0:
@@ -145,13 +145,13 @@ def calculate_trade_metrics(trades: list[TradeData]) -> dict[str, float]:
     # 在这个系统中，profit为0的大多是开仓交易
     opening_trades = len(neutral_trades)
     closing_trades = len(winning_trades) + len(losing_trades)
-    
+
     # 只考虑有实际盈亏的交易（排除开仓交易）
     true_total_trades = closing_trades
     win_count = len(winning_trades)
     loss_count = len(losing_trades)
-    
-    # 详细记录日志
+
+    # 详细记录日志 TODO：改成参数+结果
     logger.info(
         f"交易统计: 总交易 {len(closed_trades)}, 盈利 {win_count}, 亏损 {loss_count}, "
         f"开仓/持平 {opening_trades}, 有效交易 {true_total_trades}"
@@ -167,7 +167,7 @@ def calculate_trade_metrics(trades: list[TradeData]) -> dict[str, float]:
     # 计算盈亏指标
     # 计算总盈亏比 - 总盈利/总亏损
     profit_loss_ratio = (total_profit / total_loss) if total_loss > 0 else float("inf")
-    
+
     # 计算平均值（仅用于报告）
     avg_profit = total_profit / win_count if win_count > 0 else 0
     avg_loss = total_loss / loss_count if loss_count > 0 else 0

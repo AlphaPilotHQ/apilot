@@ -27,6 +27,7 @@ dependencies = [
     "requests",  # HTTP请求
     "python-dateutil",  # 日期处理
     "colorama",  # 终端彩色输出
+    "python-dotenv",  # 环境变量处理
 ]
 
 [project.optional-dependencies]

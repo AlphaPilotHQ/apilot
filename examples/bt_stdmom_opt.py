@@ -302,9 +302,9 @@ def run_backtesting(
         setting.set_target("total_return")
 
         # 设置参数范围
-        setting.add_parameter("std_period", 15, 30, 5)  # 标准差周期
-        setting.add_parameter("mom_threshold", 0.02, 0.06, 0.02)  # 动量阈值
-        setting.add_parameter("trailing_std_scale", 2.0, 4.0, 1.0)  # 止损系数
+        setting.add_parameter("std_period", 15, 50, 5)  # 标准差周期
+        setting.add_parameter("mom_threshold", 0.02, 0.06, 0.01)  # 动量阈值
+        setting.add_parameter("trailing_std_scale", 2.0, 7.0, 1.0)  # 止损系数
 
         # 运行优化
         results = engine.optimize(strategy_setting=setting)

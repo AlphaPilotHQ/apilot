@@ -51,29 +51,30 @@ class BaseDatabase(ABC):
         start: datetime,
         end: datetime,
     ) -> list[BarData]:
+        """加载K线数据的抽象方法"""
         pass
-
-    @abstractmethod
+    
     def load_tick_data(
         self, symbol: str, start: datetime, end: datetime
     ) -> list[TickData]:
-        pass
-
-    @abstractmethod
+        """加载Tick数据（可选实现）"""
+        return []
+    
     def delete_bar_data(self, symbol: str, interval: Interval) -> int:
-        pass
-
-    @abstractmethod
+        """删除K线数据（可选实现）"""
+        return 0
+    
     def delete_tick_data(self, symbol: str) -> int:
-        pass
-
-    @abstractmethod
+        """删除Tick数据（可选实现）"""
+        return 0
+    
     def get_bar_overview(self) -> list[BarOverview]:
-        pass
-
-    @abstractmethod
+        """获取K线数据概览（可选实现）"""
+        return []
+    
     def get_tick_overview(self) -> list[TickOverview]:
-        pass
+        """获取Tick数据概览（可选实现）"""
+        return []
 
 
 # 内部使用的数据库实现注册表
