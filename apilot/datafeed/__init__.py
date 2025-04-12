@@ -22,12 +22,8 @@ try:
 except ImportError:
     pass
 
-try:
-    from .providers.mongodb_provider import MongoDBDatabase
-
-    register_provider("mongodb", MongoDBDatabase)
-except ImportError:
-    pass
+# MongoDB提供者已移至examples目录，不再自动注册
+# 如需使用，请参考examples/data_providers/mongodb_provider.py
 
 # 定义公共API
 __all__ = [
