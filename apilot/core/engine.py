@@ -1,7 +1,7 @@
 """
-核心引擎模块
+Core Engine Module
 
-包含交易平台主引擎和基础引擎类,负责管理事件、网关和应用程序.
+Contains the main engine and base engine classes for managing events, gateways, and applications.
 """
 
 from abc import ABC, abstractmethod
@@ -86,7 +86,7 @@ class MainEngine:
         """
         gateway: BaseGateway = self.gateways.get(gateway_name, None)
         if not gateway:
-            get_logger().error(f"找不到底层接口:{gateway_name}")
+            get_logger().error(f"Gateway not found: {gateway_name}")
         return gateway
 
     def get_engine(self, engine_name: str) -> "BaseEngine":
@@ -95,7 +95,7 @@ class MainEngine:
         """
         engine: BaseEngine = self.engines.get(engine_name, None)
         if not engine:
-            get_logger().error(f"找不到引擎:{engine_name}")
+            get_logger().error(f"Engine not found: {engine_name}")
         return engine
 
     def get_default_setting(self, gateway_name: str) -> dict[str, Any] | None:

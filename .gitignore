@@ -109,3 +109,5 @@ Desktop.ini
 # Ignore data directory contents but keep the directory
 /data/*
 !/data/.gitkeep
+
+CLAUDE.md

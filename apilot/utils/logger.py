@@ -7,7 +7,7 @@ from typing import ClassVar
 
 from colorama import Fore, Style, init
 
-# 初始化 colorama
+# Initialize colorama
 init(autoreset=True)
 LOG_DIR = "logs"
 os.makedirs(LOG_DIR, exist_ok=True)
@@ -42,11 +42,11 @@ class CustomLogger:
         self.logger = logging.getLogger(name)
         self.logger.setLevel(logging.INFO)
 
-        # 防止重复handler
+        # Remove existing handlers
         for handler in self.logger.handlers[:]:
             self.logger.removeHandler(handler)
 
-        # 日志输出到文件(每天自动创建新文件)
+        # File handler with daily rotation
         file_handler = TimedRotatingFileHandler(
             os.path.join(LOG_DIR, f"{name}.log"), when="midnight", backupCount=7
         )
@@ -54,7 +54,7 @@ class CustomLogger:
             logging.Formatter("%(asctime)s [%(levelname)s] - %(message)s")
         )
 
-        # 控制台日志处理器,带颜色格式化
+        # Console handler with color formatting
         console_handler = logging.StreamHandler(sys.stdout)
         console_handler.setFormatter(
             CustomFormatter("%(asctime)s [%(levelname)s] - %(message)s")
@@ -91,7 +91,7 @@ def log_exceptions(logger_name=None):
                 return func(*args, **kwargs)
             except Exception as e:
                 logger = get_logger(logger_name)
-                logger.exception(f"函数 {func.__name__} 出错: {e}")
+                logger.exception(f"Error in function {func.__name__}: {e}")
                 raise
 
         return wrapper
@@ -100,8 +100,8 @@ def log_exceptions(logger_name=None):
 
 
 if __name__ == "__main__":
-    logger.debug("提示信息,青色")
-    logger.info("提示信息,绿色")
-    logger.warning("警告信息,黄色")
-    logger.error("错误信息,红色")
-    logger.critical("重要提示,深红色")
+    logger.debug("Debug message (cyan)")
+    logger.info("Info message (green)")
+    logger.warning("Warning message (yellow)")
+    logger.error("Error message (red)")
+    logger.critical("Critical message (bright red)")
