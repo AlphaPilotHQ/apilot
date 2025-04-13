@@ -5,7 +5,7 @@ from threading import Thread
 from time import sleep
 from typing import Any
 
-# 事件类型
+# Event types
 EVENT_TIMER = "eTimer"
 EVENT_TICK = "eTick."
 EVENT_TRADE = "eTrade."
@@ -16,11 +16,11 @@ EVENT_QUOTE = "eQuote."
 EVENT_CONTRACT = "eContract."
 
 
-# PA策略事件
+# PA strategy events
 EVENT_PA_LOG: str = "EVENT_PA_LOG"
 EVENT_PA_STRATEGY = "EVENT_PA_STRATEGY"
 
-# 算法交易事件
+# Algo trading events
 EVENT_ALGO_LOG = "eAlgoLog"
 EVENT_ALGO_UPDATE = "eAlgoUpdate"
 

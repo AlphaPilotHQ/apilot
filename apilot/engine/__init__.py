@@ -1,18 +1,18 @@
 """
-引擎模块
+Engine Module
 
-包含回测引擎、实盘引擎及其他交易核心引擎.
+Contains backtesting engine, live trading engine and other core trading engines.
 
-主要组件:
-- BacktestingEngine: 回测引擎,用于策略历史表现回测
-- OmsEngine: 订单管理系统引擎,处理订单生命周期
+Main components:
+- BacktestingEngine: Backtesting engine, used for historical strategy performance testing
+- OmsEngine: Order Management System engine, handles order lifecycle
 
-推荐用法:
+Recommended usage:
     from apilot.engine import BacktestingEngine
     engine = BacktestingEngine()
 """
 
-# 定义公共API
+# Define public API
 __all__ = [
     "EVENT_LOG",
     "EVENT_TIMER",
@@ -22,10 +22,10 @@ __all__ = [
     "OmsEngine",
 ]
 
-# 导入回测相关引擎
+# Import backtesting related engines
 from apilot.strategy.template import PATemplate
 
 from .backtest import BacktestingEngine
 
-# 导入核心引擎组件
+# Import core engine components
 from .oms_engine import OmsEngine

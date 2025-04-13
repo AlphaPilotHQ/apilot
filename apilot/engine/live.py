@@ -1,7 +1,7 @@
 """
-实时交易引擎模块
+Live Trading Engine Module
 
-实现交易策略的实时运行与管理,包括信号处理、订单执行与风控
+Implements real-time operation and management of trading strategies, including signal processing, order execution, and risk control
 """
 
 import copy
@@ -13,11 +13,11 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from apilot.core import (
-    # 常量和工具函数
+    # Constants and utility functions
     EVENT_ORDER,
     EVENT_TICK,
     EVENT_TRADE,
-    # 数据类和常量
+    # Data classes and constants
     BarData,
     BaseEngine,
     CancelRequest,
@@ -35,7 +35,7 @@ from apilot.core import (
     SubscribeRequest,
     TickData,
     TradeData,
-    # 工具函数
+    # Utility functions
     round_to,
 )
 from apilot.core.database import DATABASE_CONFIG, BaseDatabase, use_database
@@ -43,7 +43,7 @@ from apilot.strategy import PATemplate
 from apilot.utils.logger import get_logger
 from apilot.utils.symbol import split_symbol
 
-# 模块级初始化日志器
+# Module-level logger initialization
 logger = get_logger("LiveTrading")
 
 
@@ -69,12 +69,12 @@ class PAEngine(BaseEngine):
 
     def init_engine(self) -> None:
         """
-        初始化引擎
+        Initialize engine
         """
         self.load_strategy_setting()
         self.load_strategy_data()
         self.register_event()
-        logger.info("PA策略引擎初始化成功")
+        logger.info("PA strategy engine initialized successfully")
 
     def close(self) -> None:
         self.stop_all_strategies()
@@ -112,7 +112,7 @@ class PAEngine(BaseEngine):
 
     def process_trade_event(self, event: Event) -> None:
         """
-        处理成交事件
+        Process trade event
         """
         trade: TradeData = event.data
 
@@ -204,9 +204,7 @@ class PAEngine(BaseEngine):
     ) -> list:
         contract: ContractData | None = self.main_engine.get_contract(strategy.symbol)
         if not contract:
-            error_msg = (
-                f"[{strategy.strategy_name}] 委托失败,找不到合约:{strategy.symbol}"
-            )
+            error_msg = f"[{strategy.strategy_name}] Order failed, contract not found: {strategy.symbol}"
             logger.error(f"{error_msg}")
             return ""
 
@@ -214,9 +212,7 @@ class PAEngine(BaseEngine):
         price: float = round_to(price, contract.pricetick)
         volume: float = round_to(volume, contract.min_volume)
 
-        return self.send_limit_order(
-            strategy, contract, direction, price, volume
-        )
+        return self.send_limit_order(strategy, contract, direction, price, volume)
 
     def cancel_server_order(self, orderid: str, strategy=None) -> None:
         """
@@ -225,10 +221,10 @@ class PAEngine(BaseEngine):
         order: OrderData | None = self.main_engine.get_order(orderid)
         if not order:
             if strategy:
-                error_msg = f"[{strategy.strategy_name}] 撤单失败,找不到委托{orderid}"
+                error_msg = f"[{strategy.strategy_name}] Cancel order failed, order not found: {orderid}"
                 logger.error(f"{error_msg}")
             else:
-                error_msg = f"撤单失败,找不到委托{orderid}"
+                error_msg = f"Cancel order failed, order not found: {orderid}"
                 logger.error(f"{error_msg}")
             return
 
@@ -237,7 +233,7 @@ class PAEngine(BaseEngine):
 
     def cancel_order(self, strategy: PATemplate, orderid: str) -> None:
         """
-        取消策略委托
+        Cancel strategy order
         """
         self.cancel_server_order(orderid, strategy)
 
@@ -305,27 +301,29 @@ class PAEngine(BaseEngine):
             func(params) if params is not None else func()
         except Exception:
             strategy.trading = strategy.inited = False
-            error_msg = (
-                f"[{strategy.strategy_name}] 触发异常已停止\n{traceback.format_exc()}"
-            )
+            error_msg = f"[{strategy.strategy_name}] Exception triggered, stopped\n{traceback.format_exc()}"
             logger.critical(f"{error_msg}")
 
     def add_strategy(
         self, strategy_class: type, strategy_name: str, symbol: str, setting: dict
     ) -> None:
         if strategy_name in self.strategies:
-            error_msg = f"创建策略失败,存在重名{strategy_name}"
+            error_msg = (
+                f"Failed to create strategy, duplicate name exists: {strategy_name}"
+            )
             logger.error(f"{error_msg}")
             return
 
         if "." not in symbol:
-            error_msg = "创建策略失败,本地代码缺失交易所后缀"
+            error_msg = "Failed to create strategy, local code missing exchange suffix"
             logger.error(f"{error_msg}")
             return
 
         symbol_str, exchange_str = split_symbol(symbol)
         if exchange_str not in Exchange.__members__:
-            error_msg = "创建策略失败,本地代码的交易所后缀不正确"
+            error_msg = (
+                "Failed to create strategy, incorrect exchange suffix in local code"
+            )
             logger.error(f"{error_msg}")
             return
 
@@ -349,11 +347,13 @@ class PAEngine(BaseEngine):
         strategy: PATemplate = self.strategies[strategy_name]
 
         if strategy.inited:
-            error_msg = f"{strategy_name}已经完成初始化,禁止重复操作"
+            error_msg = (
+                f"{strategy_name} already initialized, duplicate operation prohibited"
+            )
             logger.error(f"{error_msg}")
             return
 
-        logger.info(f"{strategy_name}开始执行初始化")
+        logger.info(f"{strategy_name} starting initialization")
 
         # Call on_init function of strategy
         self.call_strategy_func(strategy, strategy.on_init)
@@ -374,22 +374,28 @@ class PAEngine(BaseEngine):
             )
             self.main_engine.subscribe(req, contract.gateway_name)
         else:
-            error_msg = f"行情订阅失败,找不到合约{strategy.symbol}"
+            error_msg = (
+                f"Market data subscription failed, contract {strategy.symbol} not found"
+            )
             logger.error(f"{error_msg}")
 
         # Put event to update init completed status.
         strategy.inited = True
-        logger.info(f"{strategy_name}初始化完成")
+        logger.info(f"{strategy_name} initialization completed")
 
     def start_strategy(self, strategy_name: str) -> None:
         strategy: PATemplate = self.strategies[strategy_name]
         if not strategy.inited:
-            error_msg = f"策略{strategy_name}启动失败,请先初始化"
+            error_msg = (
+                f"Strategy {strategy_name} start failed, please initialize first"
+            )
             logger.error(f"{error_msg}")
             return
 
         if strategy.trading:
-            error_msg = f"{strategy_name}已经启动,请勿重复操作"
+            error_msg = (
+                f"{strategy_name} already started, please do not repeat operation"
+            )
             logger.error(f"{error_msg}")
             return
         self.call_strategy_func(strategy, strategy.on_start)
@@ -421,7 +427,7 @@ class PAEngine(BaseEngine):
     def remove_strategy(self, strategy_name: str) -> bool:
         strategy: PATemplate = self.strategies[strategy_name]
         if strategy.trading:
-            error_msg = f"策略{strategy_name}移除失败,请先停止"
+            error_msg = f"Strategy {strategy_name} removal failed, please stop it first"
             logger.error(f"{error_msg}")
             return
 
@@ -444,7 +450,7 @@ class PAEngine(BaseEngine):
         # Remove from strategies
         self.strategies.pop(strategy_name)
 
-        logger.info(f"策略{strategy_name}移除成功")
+        logger.info(f"Strategy {strategy_name} removed successfully")
         return True
 
     def sync_strategy_data(self, strategy: PATemplate) -> None:
@@ -458,6 +464,6 @@ class PAEngine(BaseEngine):
         self.strategy_data[strategy.strategy_name] = data
 
     def stop_all_strategies(self) -> None:
-        """停止所有策略"""
+        """Stop all strategies"""
         for strategy_name in self.strategies.keys():
             self.stop_strategy(strategy_name)

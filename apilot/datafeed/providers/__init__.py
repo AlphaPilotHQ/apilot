@@ -1,13 +1,13 @@
 """
-数据提供者模块
+Data Provider Module
 
-包含所有数据库提供者的实现, 负责数据存储和加载.
+Contains implementations of all database providers, responsible for data storage and loading.
 """
 
-# 导入CSV数据库提供者
+# Import CSV database provider
 from .csv_provider import CsvDatabase
 
-# 尝试导入MongoDB数据库提供者(可选依赖)
+# Try to import MongoDB database provider (optional dependency)
 try:
     from .mongodb_provider import MongoDBDatabase
 
@@ -15,15 +15,15 @@ try:
 except ImportError:
     _HAS_MONGODB = False
 
-# 根据可用情况注册数据库提供者
+# Register database providers based on availability
 from apilot.core.database import register_database
 
-# 默认注册CSV提供者
+# Register CSV provider by default
 register_database("csv", CsvDatabase)
 
 __all__ = ["CsvDatabase"]
 
-# 如果MongoDB可用, 则添加到公开API中
+# If MongoDB is available, add it to the public API
 if _HAS_MONGODB:
     __all__.append("MongoDBDatabase")
     register_database("mongodb", MongoDBDatabase)

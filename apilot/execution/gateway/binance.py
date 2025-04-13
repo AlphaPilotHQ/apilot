@@ -177,13 +177,13 @@ class BinanceRestApi:
 
         # Set proxy
         if proxy_host and proxy_port:
-            self.gateway.write_log(f"使用代理: {proxy_host}:{proxy_port}")
-            # CCXT的代理设置
+            self.gateway.write_log(f"Using proxy: {proxy_host}:{proxy_port}")
+            # CCXT proxy settings
             options["proxies"] = {
                 "http": f"http://{proxy_host}:{proxy_port}",
                 "https": f"https://{proxy_host}:{proxy_port}",
             }
-            # 直接设置请求库的代理
+            # Directly set the request library proxy
             self.exchange_kwargs = {
                 "apiKey": api_key,
                 "secret": secret_key,
@@ -202,10 +202,10 @@ class BinanceRestApi:
 
         # Create the exchange instance
         try:
-            self.gateway.write_log("创建Binance交易所实例")
+            self.gateway.write_log("Creating Binance exchange instance")
             self.exchange = exchange_class(self.exchange_kwargs)
         except Exception as e:
-            self.gateway.write_log(f"创建Binance交易所实例失败: {e}")
+            self.gateway.write_log(f"Failed to create Binance exchange instance: {e}")
 
         # Start connection and initialization
         self.init()
@@ -217,7 +217,7 @@ class BinanceRestApi:
 
         # Fetch exchange info, symbols, trading rules
         try:
-            self.gateway.write_log("开始初始化Binance接口")
+            self.gateway.write_log("Starting to initialize Binance interface")
             self.exchange.load_markets()
 
             # Query account and positions
@@ -227,9 +227,9 @@ class BinanceRestApi:
             # Initialize contract info
             self.init_contracts()
 
-            self.gateway.write_log("Binance接口初始化成功")
+            self.gateway.write_log("Binance interface initialized successfully")
         except Exception as e:
-            self.gateway.write_log(f"Binance接口初始化失败: {e}")
+            self.gateway.write_log(f"Failed to initialize Binance interface: {e}")
 
     def init_contracts(self) -> None:
         """Initialize contract list"""
@@ -255,33 +255,41 @@ class BinanceRestApi:
 
             self.gateway.on_contract(contract)
 
-        self.gateway.write_log(f"合约信息查询成功: {len(self.contract_symbols)}个")
+        self.gateway.write_log(
+            f"Contract info query successful: {len(self.contract_symbols)} contracts"
+        )
 
     def query_account(self) -> None:
         """Query account balance"""
         try:
-            self.gateway.write_log("正在获取账户余额信息...")
+            self.gateway.write_log("Getting account balance information...")
 
-            # 测试代理连接
+            # Test proxy connection
             try:
-                # 先用一个简单的API调用检查连接
+                # First check connection with a simple API call
                 time_res = self.exchange.fetch_time()
-                self.gateway.write_log(f"成功连接到Binance API, 服务器时间: {time_res}")
+                self.gateway.write_log(
+                    f"Successfully connected to Binance API, server time: {time_res}"
+                )
             except Exception as conn_err:
-                self.gateway.write_log(f"连接到Binance API失败: {conn_err}")
-                self.gateway.write_log("请检查代理设置是否正确, 以及代理是否已开启")
+                self.gateway.write_log(f"Failed to connect to Binance API: {conn_err}")
+                self.gateway.write_log(
+                    "Please check if proxy settings are correct and if the proxy is running"
+                )
                 return
 
-            # 获取账户余额
+            # Get account balance
             try:
                 data = self.exchange.fetch_balance()
-                self.gateway.write_log("成功获取账户余额")
+                self.gateway.write_log("Successfully obtained account balance")
             except Exception as bal_err:
-                self.gateway.write_log(f"获取账户余额失败: {bal_err}")
-                self.gateway.write_log("请检查API密钥权限是否正确设置")
+                self.gateway.write_log(f"Failed to get account balance: {bal_err}")
+                self.gateway.write_log(
+                    "Please check if API key permissions are correctly set"
+                )
                 import traceback
 
-                self.gateway.write_log(f"详细错误: {traceback.format_exc()}")
+                self.gateway.write_log(f"Detailed error: {traceback.format_exc()}")
                 return
 
             # Process each currency
@@ -299,13 +307,13 @@ class BinanceRestApi:
 
                 self.gateway.on_account(account)
                 self.gateway.write_log(
-                    f"账户 {currency}: 总额={data['total'][currency]}, 可用={data['free'].get(currency, 0)}"
+                    f"Account {currency}: Total={data['total'][currency]}, Available={data['free'].get(currency, 0)}"
                 )
         except Exception as e:
-            self.gateway.write_log(f"账户资金查询失败: {e}")
+            self.gateway.write_log(f"Account balance query failed: {e}")
             import traceback
 
-            self.gateway.write_log(f"详细错误堆栈: {traceback.format_exc()}")
+            self.gateway.write_log(f"Detailed error stack: {traceback.format_exc()}")
 
     def query_position(self) -> None:
         """Query position data"""
@@ -367,7 +375,7 @@ class BinanceRestApi:
 
             return local_orderid
         except Exception as e:
-            self.gateway.write_log(f"委托下单失败: {e}")
+            self.gateway.write_log(f"Order placement failed: {e}")
             return ""
 
     def cancel_order(self, req: CancelRequest) -> None:
@@ -376,14 +384,18 @@ class BinanceRestApi:
             # Get sys orderid from local orderid
             sys_orderid = LOCAL_SYS_ORDER_ID_MAP.get(req.orderid, "")
             if not sys_orderid:
-                self.gateway.write_log(f"撤单失败: 找不到委托单 {req.orderid}")
+                self.gateway.write_log(
+                    f"Cancel order failed: Cannot find order {req.orderid}"
+                )
                 return
 
             # Cancel order via CCXT
             self.exchange.cancel_order(sys_orderid, req.symbol)
-            self.gateway.write_log(f"撤单请求发送成功: {req.orderid}")
+            self.gateway.write_log(
+                f"Cancel order request sent successfully: {req.orderid}"
+            )
         except Exception as e:
-            self.gateway.write_log(f"撤单失败: {e}")
+            self.gateway.write_log(f"Cancel order failed: {e}")
             if ORDER_NOT_EXISTS_ERROR in str(e):
                 # Order already finished or canceled
                 order = self.orders.get(req.orderid, None)
@@ -394,7 +406,7 @@ class BinanceRestApi:
     def subscribe(self, req: SubscribeRequest) -> None:
         """Subscribe to market data for a specific symbol"""
         # Currently we use rest API for everything, so we just record the subscription
-        self.gateway.write_log(f"订阅行情: {req.symbol}")
+        self.gateway.write_log(f"Subscribe to market data: {req.symbol}")
 
     def query_history(self, req: HistoryRequest) -> list[BarData]:
         """Query K-line history data"""
@@ -402,15 +414,15 @@ class BinanceRestApi:
             # Convert VeighNa interval to Binance interval
             interval = INTERVAL_VT2BINANCE.get(req.interval, "")
             if not interval:
-                self.gateway.write_log(f"不支持的K线周期: {req.interval}")
+                self.gateway.write_log(f"Unsupported K-line interval: {req.interval}")
                 return []
 
             # Calculate start time and end time
             # CCXT requires timestamps in milliseconds
 
-            # 仅使用开始时间, 结束时间暂不使用
+            # Only use start time, end time not used yet
             if req.end:
-                # 注意: Binance API目前未使用结束时间
+                # Note: Binance API currently does not use end time
                 pass
 
             start_time = None
@@ -443,9 +455,9 @@ class BinanceRestApi:
 
             return bars
         except Exception as e:
-            self.gateway.write_log(f"获取历史数据失败: {e}")
+            self.gateway.write_log(f"Failed to get historical data: {e}")
             return []
 
     def stop(self) -> None:
         """Stop the API"""
-        self.gateway.write_log("Binance接口断开连接")
+        self.gateway.write_log("Binance interface disconnected")

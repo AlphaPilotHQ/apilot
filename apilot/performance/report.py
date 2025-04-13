@@ -1,7 +1,7 @@
 """
-性能报告模块
+Performance Report Module
 
-整合计算、图表和AI分析,生成完整的策略性能报告
+Integrates calculations, charts and AI analysis to generate complete strategy performance reports
 """
 
 import pandas as pd
@@ -21,7 +21,7 @@ logger = get_logger("PerformanceReport")
 
 
 class PerformanceReport:
-    """性能报告类"""
+    """Performance Report Class"""
 
     def __init__(
         self,
@@ -29,7 +29,7 @@ class PerformanceReport:
         trades: list | None = None,
         capital: float = 0,
         annual_days: int = 240,
-    ):  # TODO：冗余
+    ):  # TODO: Redundant
         self.df = df
         self.trades = trades or []
         self.capital = capital

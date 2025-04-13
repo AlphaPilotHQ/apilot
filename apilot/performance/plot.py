@@ -1,18 +1,18 @@
 """
-绘图模块
+Plotting Module
 
-提供回测结果的图表可视化功能,专注于三种核心图表:
-- 资金曲线 (Equity Curve)
-- 回撤曲线 (Drawdown Curve)
-- 收益分布 (Return Distribution)
+Provides chart visualization for backtest results, focusing on three core charts:
+- Equity Curve
+- Drawdown Curve
+- Return Distribution
 """
 
 import plotly.graph_objects as go
 
 
-# 图表元素生成函数
+# Chart element generation functions
 def get_equity_trace(df):
-    """获取资金曲线图表元素"""
+    """Get equity curve chart element"""
     return go.Scatter(
         x=df.index,
         y=df["balance"],
@@ -23,7 +23,7 @@ def get_equity_trace(df):
 
 
 def get_drawdown_trace(df):
-    """获取回撤曲线图表元素"""
+    """Get drawdown curve chart element"""
     return go.Scatter(
         x=df.index,
         y=df["ddpercent"],
@@ -36,8 +36,8 @@ def get_drawdown_trace(df):
 
 
 def get_return_dist_trace(df):
-    """获取收益分布图表元素"""
-    # 转换为百分比以提高可读性
+    """Get return distribution chart element"""
+    # Convert to percentage for better readability
     returns_pct = (df["return"] * 100).dropna()
 
     return go.Histogram(
@@ -49,9 +49,9 @@ def get_return_dist_trace(df):
     )
 
 
-# 独立图表函数
+# Independent chart functions
 def create_equity_curve(df):
-    """创建资金曲线图"""
+    """Create equity curve chart"""
     if df is None or df.empty or "balance" not in df.columns:
         return go.Figure()
 
@@ -72,7 +72,7 @@ def create_equity_curve(df):
 
 
 def create_drawdown_curve(df):
-    """创建回撤曲线图"""
+    """Create drawdown curve chart"""
     if df is None or df.empty or "ddpercent" not in df.columns:
         return go.Figure()
 
@@ -93,7 +93,7 @@ def create_drawdown_curve(df):
 
 
 def create_return_distribution(df):
-    """创建收益分布图"""
+    """Create return distribution chart"""
     if df is None or df.empty or "return" not in df.columns:
         return go.Figure()
 

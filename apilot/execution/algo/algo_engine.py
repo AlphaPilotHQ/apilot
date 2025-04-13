@@ -1,7 +1,7 @@
 """
-执行算法引擎
+Execution Algorithm Engine
 
-管理算法实例的执行和监控, 处理市场数据和分发执行结果.
+Manages execution and monitoring of algorithm instances, processes market data and distributes execution results.
 """
 
 from collections import defaultdict
@@ -35,15 +35,15 @@ from .algo_template import AlgoTemplate
 
 ENGINE_NAME = "AlgoTrading"
 
-# 模块级初始化日志器
+# Initialize logger at module level
 logger = get_logger("AlgoEngine")
 
 
 class AlgoEngine(BaseEngine):
-    """算法引擎"""
+    """Algorithm Engine"""
 
     def __init__(self, main_engine: MainEngine, event_engine: EventEngine) -> None:
-        """构造函数"""
+        """Constructor"""
         super().__init__(main_engine, event_engine, ENGINE_NAME)
 
         self.algo_templates: dict[str, type[AlgoTemplate]] = {}
@@ -56,15 +56,15 @@ class AlgoEngine(BaseEngine):
         self.register_event()
 
     def init_engine(self) -> None:
-        """初始化引擎"""
-        logger.info("算法交易引擎启动")
+        """Initialize engine"""
+        logger.info("Algorithm trading engine started")
 
     def close(self) -> None:
-        """关闭引擎"""
+        """Close engine"""
         self.stop_all()
 
     def load_algo_template(self) -> None:
-        """载入算法类"""
+        """Load algorithm classes"""
         from .best_limit_algo import BestLimitAlgo
         from .iceberg_algo import IcebergAlgo
         from .sniper_algo import SniperAlgo
@@ -78,22 +78,22 @@ class AlgoEngine(BaseEngine):
         self.add_algo_template(BestLimitAlgo)
 
     def add_algo_template(self, template: AlgoTemplate) -> None:
-        """添加算法类"""
+        """Add algorithm class"""
         self.algo_templates[template.__name__] = template
 
     def get_algo_template(self) -> dict:
-        """获取算法类"""
+        """Get algorithm class"""
         return self.algo_templates
 
     def register_event(self) -> None:
-        """注册事件监听"""
+        """Register event listeners"""
         self.event_engine.register(EVENT_TICK, self.process_tick_event)
         self.event_engine.register(EVENT_TIMER, self.process_timer_event)
         self.event_engine.register(EVENT_ORDER, self.process_order_event)
         self.event_engine.register(EVENT_TRADE, self.process_trade_event)
 
     def process_tick_event(self, event: Event) -> None:
-        """处理行情事件"""
+        """Process tick event"""
         tick: TickData = event.data
         algos: set[AlgoTemplate] = self.symbol_algo_map[tick.symbol]
 
@@ -101,15 +101,15 @@ class AlgoEngine(BaseEngine):
             algo.update_tick(tick)
 
     def process_timer_event(self, event: Event) -> None:
-        """处理定时事件"""
-        # 生成列表避免字典改变
+        """Process timer event"""
+        # Create list to avoid dictionary changes
         algos: list[AlgoTemplate] = list(self.algos.values())
 
         for algo in algos:
             algo.update_timer()
 
     def process_trade_event(self, event: Event) -> None:
-        """处理成交事件"""
+        """Process trade event"""
         trade: TradeData = event.data
 
         algo: AlgoTemplate | None = self.orderid_algo_map.get(trade.orderid, None)
@@ -118,7 +118,7 @@ class AlgoEngine(BaseEngine):
             algo.update_trade(trade)
 
     def process_order_event(self, event: Event) -> None:
-        """处理委托事件"""
+        """Process order event"""
         order: OrderData = event.data
 
         algo: AlgoTemplate | None = self.orderid_algo_map.get(order.orderid, None)
@@ -135,58 +135,58 @@ class AlgoEngine(BaseEngine):
         volume: int,
         setting: dict,
     ) -> str:
-        """启动算法"""
+        """Start algorithm"""
         contract: ContractData | None = self.main_engine.get_contract(symbol)
         if not contract:
-            logger.warning(f"算法启动失败, 找不到合约: {symbol}")
+            logger.warning(f"Algorithm start failed, contract not found: {symbol}")
             return ""
 
         algo_template: AlgoTemplate = self.algo_templates[template_name]
 
-        # 创建算法实例
+        # Create algorithm instance
         algo_template._count += 1
         algo_name: str = f"{algo_template.__name__}_{algo_template._count}"
         algo: AlgoTemplate = algo_template(
             self, algo_name, symbol, direction, price, volume, setting
         )
 
-        # 订阅行情
+        # Subscribe to market data
         algos: set = self.symbol_algo_map[algo.symbol]
         if not algos:
             self.subscribe(contract.symbol, contract.exchange, contract.gateway_name)
         algos.add(algo)
 
-        # 启动算法
+        # Start algorithm
         algo.start()
         self.algos[algo_name] = algo
 
         return algo_name
 
     def pause_algo(self, algo_name: str) -> None:
-        """暂停算法"""
+        """Pause algorithm"""
         algo: AlgoTemplate | None = self.algos.get(algo_name, None)
         if algo:
             algo.pause()
 
     def resume_algo(self, algo_name: str) -> None:
-        """恢复算法"""
+        """Resume algorithm"""
         algo: AlgoTemplate | None = self.algos.get(algo_name, None)
         if algo:
             algo.resume()
 
     def stop_algo(self, algo_name: str) -> None:
-        """停止算法"""
+        """Stop algorithm"""
         algo: AlgoTemplate | None = self.algos.get(algo_name, None)
         if algo:
             algo.stop()
 
     def stop_all(self) -> None:
-        """停止全部算法"""
+        """Stop all algorithms"""
         for algo_name in list(self.algos.keys()):
             self.stop_algo(algo_name)
 
     def subscribe(self, symbol: str, exchange: Exchange, gateway_name: str) -> None:
-        """订阅行情"""
+        """Subscribe to market data"""
         req: SubscribeRequest = SubscribeRequest(symbol=symbol, exchange=exchange)
         self.main_engine.subscribe(req, gateway_name)
 
@@ -198,7 +198,7 @@ class AlgoEngine(BaseEngine):
         volume: float,
         order_type: OrderType,
     ) -> str:
-        """委托下单"""
+        """Send order"""
         contract: ContractData | None = self.main_engine.get_contract(algo.symbol)
         volume: float = float(round(volume / contract.min_volume) * contract.min_volume)
         if not volume:
@@ -219,12 +219,12 @@ class AlgoEngine(BaseEngine):
         return orderid
 
     def cancel_order(self, algo: AlgoTemplate, orderid: str) -> None:
-        """委托撤单"""
+        """Cancel order"""
         order: OrderData | None = self.main_engine.get_order(orderid)
 
         if not order:
             logger.warning(
-                f"[{ENGINE_NAME}:{algo.algo_name}] 委托撤单失败, 找不到委托: {orderid}"
+                f"[{ENGINE_NAME}:{algo.algo_name}] Cancel order failed, order not found: {orderid}"
             )
             return
 
@@ -232,31 +232,33 @@ class AlgoEngine(BaseEngine):
         self.main_engine.cancel_order(req, order.gateway_name)
 
     def get_tick(self, algo: AlgoTemplate) -> TickData | None:
-        """查询行情"""
+        """Get market data"""
         tick: TickData | None = self.main_engine.get_tick(algo.symbol)
 
         if not tick:
             logger.warning(
-                f"[{ENGINE_NAME}:{algo.algo_name}] 查询行情失败, 找不到行情: {algo.symbol}"
+                f"[{ENGINE_NAME}:{algo.algo_name}] Get market data failed, data not found: {algo.symbol}"
             )
 
         return tick
 
     def get_contract(self, algo: AlgoTemplate) -> ContractData | None:
-        """查询合约"""
+        """Get contract"""
         contract: ContractData | None = self.main_engine.get_contract(algo.symbol)
 
         if not contract:
             source = (
                 f"{ENGINE_NAME}:{algo.algo_name}" if algo.algo_name else ENGINE_NAME
             )
-            logger.warning(f"[{source}] 查询合约失败, 找不到合约: {algo.symbol}")
+            logger.warning(
+                f"[{source}] Get contract failed, contract not found: {algo.symbol}"
+            )
 
         return contract
 
     def put_algo_event(self, algo: AlgoTemplate, data: dict) -> None:
-        """推送更新"""
-        # 移除运行结束的算法实例
+        """Push update"""
+        # Remove finished algorithm instances
         if algo in self.algos.values() and algo.status in {
             AlgoStatus.STOPPED,
             AlgoStatus.FINISHED,

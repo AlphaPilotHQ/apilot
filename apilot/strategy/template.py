@@ -34,41 +34,41 @@ class PATemplate(ABC):
         self.inited: bool = False
         self.trading: bool = False
 
-        # 统一使用字典管理持仓和目标
-        self.pos_dict: dict[str, int] = defaultdict(int)  # 实际持仓
-        self.target_dict: dict[str, int] = defaultdict(int)  # 目标持仓
+        # Dictionary to manage positions and targets uniformly
+        self.pos_dict: dict[str, int] = defaultdict(int)  # Actual position
+        self.target_dict: dict[str, int] = defaultdict(int)  # Target position
 
-        # 委托缓存容器
+        # Order cache container
         self.orders: dict[str, OrderData] = {}
         self.active_orderids: set[str] = set()
 
-        # 复制变量列表并插入默认变量
+        # Copy variable list and insert default variables
         self.variables = copy(self.variables)
         self.variables.insert(0, "inited")
         self.variables.insert(1, "trading")
         self.variables.insert(2, "pos_dict")
         self.variables.insert(3, "target_dict")
 
-        # 设置策略参数
+        # Set strategy parameters
         for name in self.parameters:
             if name in setting:
                 setattr(self, name, setting[name])
 
     @classmethod
     def get_class_parameters(cls) -> dict:
-        """获取策略类默认参数字典"""
+        """Gets the default parameter dictionary for the strategy class."""
         return {name: getattr(cls, name) for name in cls.parameters}
 
     def get_parameters(self) -> dict:
-        """获取策略实例参数字典"""
+        """Gets the parameter dictionary for the strategy instance."""
         return {name: getattr(self, name) for name in self.parameters}
 
     def get_variables(self) -> dict:
-        """获取策略变量字典"""
+        """Gets the strategy variable dictionary."""
         return {name: getattr(self, name) for name in self.variables}
 
     def get_data(self) -> dict:
-        """获取策略数据"""
+        """Gets the strategy data."""
         data = {
             "strategy_name": self.strategy_name,
             "class_name": self.__class__.__name__,
@@ -103,28 +103,28 @@ class PATemplate(ABC):
             self.on_bar(bar)
 
     def on_trade(self, trade: TradeData) -> None:
-        # 更新持仓数据
+        # Update position data
         self.pos_dict[trade.symbol] += (
             trade.volume if trade.direction == Direction.LONG else -trade.volume
         )
 
     def on_order(self, order: OrderData) -> None:
-        # 更新委托缓存
+        # Update order cache
         self.orders[order.orderid] = order
 
-        # 如果委托不再活跃,从活跃委托集合中移除
+        # If the order is no longer active, remove it from the active order set
         if not order.is_active() and order.orderid in self.active_orderids:
             self.active_orderids.remove(order.orderid)
 
     def buy(self, symbol: str, price: float, volume: float) -> list[str]:
         """
-        买入
+        Sends a buy order.
         """
         return self.send_order(symbol, Direction.LONG, price, volume)
 
     def sell(self, symbol: str, price: float, volume: float) -> list[str]:
         """
-        卖出
+        Sends a sell order.
         """
         return self.send_order(symbol, Direction.SHORT, price, volume)
 
@@ -135,10 +135,10 @@ class PATemplate(ABC):
         price: float,
         volume: float,
     ) -> list[str]:
-        """发送委托"""
+        """Sends an order to the trading engine."""
         try:
             if self.trading:
-                # 根据是否为多币种模式调用不同的发单接口
+                # Send the order
                 orderids: list[str] = self.pa_engine.send_order(
                     self,
                     symbol,
@@ -147,44 +147,49 @@ class PATemplate(ABC):
                     volume,
                 )
 
-                # 添加到活跃委托集合
+                # Add to active order set
                 for orderid in orderids:
                     self.active_orderids.add(orderid)
 
                 return orderids
             else:
-                logger.warning(f"[{self.strategy_name}] 策略未启动交易,订单未发送")
+                logger.warning(
+                    f"[{self.strategy_name}] Strategy is not trading, order not sent"
+                )
                 return []
         except Exception as e:
-            logger.error(f"[{self.strategy_name}] 发送订单异常: {e!s}")
+            logger.error(f"[{self.strategy_name}] Sending order failed: {e!s}")
             return []
 
     def cancel_order(self, orderid: str) -> None:
-        """撤销委托"""
+        """Cancels a specific order."""
         if self.trading:
             self.pa_engine.cancel_order(self, orderid)
 
     def cancel_all(self) -> None:
-        """全撤活动委托"""
+        """Cancels all active orders for the strategy."""
         if self.trading:
             for orderid in list(self.active_orderids):
                 self.cancel_order(orderid)
 
-    def get_pos(self, symbol: str) -> int:
+    def get_pos(self, symbol: str) -> float:
         """
-        查询持仓
+        Gets the current position for a specific symbol.
+
+        Safely returns the position, handling potential numpy array types
+        and ensuring a float is returned.
         """
-        pos = self.pos_dict.get(symbol, 0)
-        # 将numpy数组转换为标量，避免在比较中出现问题
         import numpy as np
 
+        pos = self.pos_dict.get(symbol, 0)
         if isinstance(pos, np.ndarray):
             pos = float(pos)
         return pos
 
     def is_pos_equal(self, pos, value) -> bool:
         """
-        安全地比较持仓与值是否相等
+        Safely compares if the position is equal to a value.
+        Handles numpy arrays.
         """
         import numpy as np
 
@@ -194,7 +199,8 @@ class PATemplate(ABC):
 
     def is_pos_greater(self, pos, value) -> bool:
         """
-        安全地比较持仓是否大于值
+        Safely compares if the position is greater than a value.
+        Handles numpy arrays.
         """
         import numpy as np
 
@@ -204,7 +210,8 @@ class PATemplate(ABC):
 
     def is_pos_less(self, pos, value) -> bool:
         """
-        安全地比较持仓是否小于值
+        Safely compares if the position is less than a value.
+        Handles numpy arrays.
         """
         import numpy as np
 
@@ -213,15 +220,15 @@ class PATemplate(ABC):
         return pos < value
 
     def get_target(self, symbol: str) -> int:
-        """查询目标仓位"""
+        """Gets the target position for a specific symbol."""
         return self.target_dict.get(symbol, 0)
 
     def set_target(self, symbol: str, target: int) -> None:
-        """设置目标仓位"""
+        """Sets the target position for a specific symbol."""
         self.target_dict[symbol] = target
 
     def get_engine_type(self) -> EngineType:
-        """查询引擎类型"""
+        """Gets the type of the trading engine (backtesting or live)."""
         return self.pa_engine.get_engine_type()
 
     def get_pricetick(self, symbol: str) -> float:
@@ -237,7 +244,7 @@ class PATemplate(ABC):
         callback: Callable | None = None,
         use_database: bool = False,
     ) -> None:
-        """加载历史数据,适用于回测和实盘"""
+        """Loads historical bar data, suitable for backtesting and live trading."""
         if not self.symbols:
             return
 
@@ -252,7 +259,7 @@ class PATemplate(ABC):
                     callback(bar)
 
     def load_tick(self, count: int) -> None:
-        """加载历史Tick数据初始化策略"""
+        """Loads historical Tick data to initialize the strategy."""
         ticks: list[TickData] = self.pa_engine.load_tick(
             self.symbols[0], count, self.on_tick
         )
@@ -261,48 +268,48 @@ class PATemplate(ABC):
             self.on_tick(tick)
 
     def sync_data(self) -> None:
-        """同步策略变量值到磁盘存储"""
+        """Synchronizes strategy variable values to disk storage."""
         if self.trading:
             self.pa_engine.sync_strategy_data(self)
 
     def calculate_price(
         self, symbol: str, direction: Direction, reference: float
     ) -> float:
-        """计算调仓委托价格(支持按需重载实现)"""
+        """Calculates the order price for portfolio rebalancing (can be overridden)."""
         return reference
 
     def rebalance_portfolio(self, bars: dict[str, BarData]) -> None:
-        """基于目标执行调仓交易"""
+        """Executes portfolio rebalancing trades based on target positions."""
         self.cancel_all()
 
-        # 只发出当前K线切片有行情的合约的委托
+        # Only send orders for contracts that have data in the current bar slice
         for symbol, bar in bars.items():
-            # 计算仓差
+            # Calculate position difference
             target: int = self.get_target(symbol)
             pos: int = self.get_pos(symbol)
             diff: int = target - pos
 
-            # 多头
+            # Long position adjustment
             if diff > 0:
-                # 计算多头委托价
+                # Calculate long order price
                 order_price: float = self.calculate_price(
                     symbol, Direction.LONG, bar.close_price
                 )
-                # 发出买入委托
+                # Send buy order
                 self.buy(symbol, order_price, diff)
-            # 空头
+            # Short position adjustment
             elif diff < 0:
-                # 计算空头委托价
+                # Calculate short order price
                 order_price: float = self.calculate_price(
                     symbol, Direction.SHORT, bar.close_price
                 )
-                # 发出卖出委托
+                # Send sell order
                 self.sell(symbol, order_price, abs(diff))
 
     def get_order(self, orderid: str) -> OrderData | None:
-        """查询委托数据"""
+        """Queries order data by order ID."""
         return self.orders.get(orderid, None)
 
     def get_all_active_orderids(self) -> list[str]:
-        """获取全部活动状态的委托号"""
+        """Gets all active order IDs for the strategy."""
         return list(self.active_orderids)

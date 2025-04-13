@@ -31,31 +31,25 @@ class LocalOrderManager:
         """
         self.gateway: BaseGateway = gateway
 
-        # For generating local orderid
         self.order_prefix = order_prefix
         self.order_count: int = 0
         self.orders: dict[str, OrderData] = {}  # local_orderid: order
 
-        # Map between local and system orderid
         self.local_sys_orderid_map: dict[str, str] = {}
         self.sys_local_orderid_map: dict[str, str] = {}
 
-        # Push order data buf
         self.push_data_buf: dict[str, dict] = {}  # sys_orderid: data
 
-        # Callback for processing push order data
         self.push_data_callback: Callable = None
 
-        # Cancel request buf
         self.cancel_request_buf: dict[str, CancelRequest] = {}  # local_orderid: req
 
-        # Hook cancel order function
         self._cancel_order: Callable = gateway.cancel_order
         gateway.cancel_order = self.cancel_order
 
     def new_local_orderid(self) -> str:
         """
-        Generate a new local orderid.
+        Generates a new local order ID.
         """
         self.order_count += 1
         local_orderid: str = self.order_prefix + str(self.order_count).rjust(8, "0")
@@ -63,7 +57,7 @@ class LocalOrderManager:
 
     def get_local_orderid(self, sys_orderid: str) -> str:
         """
-        Get local orderid with sys orderid.
+        Gets the local order ID associated with a system order ID.
         """
         local_orderid: str = self.sys_local_orderid_map.get(sys_orderid, "")
 
@@ -75,14 +69,14 @@ class LocalOrderManager:
 
     def get_sys_orderid(self, local_orderid: str) -> str:
         """
-        Get sys orderid with local orderid.
+        Gets the system order ID associated with a local order ID.
         """
         sys_orderid: str = self.local_sys_orderid_map.get(local_orderid, "")
         return sys_orderid
 
     def update_orderid_map(self, local_orderid: str, sys_orderid: str) -> None:
         """
-        Update orderid map.
+        Updates the mapping between local and system order IDs.
         """
         self.sys_local_orderid_map[sys_orderid] = local_orderid
         self.local_sys_orderid_map[local_orderid] = sys_orderid
@@ -92,7 +86,7 @@ class LocalOrderManager:
 
     def check_push_data(self, sys_orderid: str) -> None:
         """
-        Check if any order push data waiting.
+        Checks if there is buffered push data for a system order ID and processes it.
         """
         if sys_orderid not in self.push_data_buf:
             return
@@ -103,7 +97,7 @@ class LocalOrderManager:
 
     def add_push_data(self, sys_orderid: str, data: dict) -> None:
         """
-        Add push data into buf.
+        Buffers push data associated with a system order ID.
         """
         self.push_data_buf[sys_orderid] = data
 

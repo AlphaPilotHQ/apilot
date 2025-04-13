@@ -1,14 +1,14 @@
 """
-核心模块
+Core Module
 
-包含量化交易平台的基础组件和数据结构.
+Contains basic components and data structures for the quantitative trading platform.
 
-推荐导入:
-from apilot.core import BarData, OrderData  # 常规使用(推荐)
-import apilot.core as apcore  # 大量组件使用
+Recommended imports:
+from apilot.core import BarData, OrderData  # Regular use (recommended)
+import apilot.core as apcore  # For using many components
 """
 
-# 定义公共API
+# Define public API
 __all__ = [
     "EVENT_ACCOUNT",
     "EVENT_CONTRACT",
@@ -50,7 +50,7 @@ __all__ = [
     "use_database",
 ]
 
-# 导入常量定义
+# Import constant definitions
 from apilot.utils.indicators import ArrayManager
 
 from .constant import (
@@ -62,7 +62,7 @@ from .constant import (
     Status,  # type: Enum
 )
 
-# 导入数据库接口
+# Import database interfaces
 from .database import (
     BarOverview,  # type: class
     BaseDatabase,  # type: class
@@ -70,10 +70,10 @@ from .database import (
     use_database,  # type: function
 )
 
-# 导入引擎组件
+# Import engine components
 from .engine import BaseEngine, MainEngine  # type: class, class
 
-# 导入事件相关组件
+# Import event-related components
 from .event import (
     EVENT_ACCOUNT,  # type: str
     EVENT_CONTRACT,  # type: str
@@ -87,10 +87,10 @@ from .event import (
     EventEngine,  # type: class
 )
 
-# 导入网关接口
+# Import gateway interfaces
 from .gateway import BaseGateway  # type: class
 
-# 导入核心数据对象
+# Import core data objects
 from .object import (
     AccountData,  # type: class
     BarData,  # type: class
@@ -106,5 +106,5 @@ from .object import (
     TradeData,  # type: class
 )
 
-# 导入配置和工具函数
+# Import configuration and utility functions
 from .utility import BarGenerator

@@ -1,7 +1,7 @@
 """
-数据源模块
+Data Source Module
 
-包含数据库接口和数据源实现, 用于存储和加载行情数据.
+Contains database interfaces and data source implementations for storing and loading market data.
 """
 
 from apilot.core.database import BaseDatabase
@@ -22,10 +22,10 @@ try:
 except ImportError:
     pass
 
-# MongoDB提供者已移至examples目录，不再自动注册
-# 如需使用，请参考examples/data_providers/mongodb_provider.py
+# MongoDB provider has been moved to examples directory, no longer auto-registered
+# If you need to use it, please refer to examples/data_providers/mongodb_provider.py
 
-# 定义公共API
+# Define public API
 __all__ = [
     "DATA_PROVIDERS",
     "CsvDatabase",

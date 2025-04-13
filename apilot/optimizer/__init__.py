@@ -1,26 +1,26 @@
 """
-优化模块
+Optimization Module
 
-提供策略参数优化功能,使用网格搜索优化.
+Provides strategy parameter optimization using grid search.
 
-主要组件:
-- OptimizationSetting: 优化配置类,用于设置参数范围和目标
-- run_grid_search: 运行网格搜索优化函数
+Main components:
+- OptimizationSetting: Optimization configuration class for setting parameter ranges and targets
+- run_grid_search: Function to run grid search optimization
 
-推荐用法:
+Recommended usage:
     from apilot.optimizer import OptimizationSetting, run_grid_search
 
-    # 创建优化设置
+    # Create optimization settings
     setting = OptimizationSetting()
     setting.add_parameter("atr_length", 10, 30, 5)
     setting.add_parameter("stop_multiplier", 2.0, 5.0, 1.0)
-    setting.set_target("total_return")  # 优化总回报率
+    setting.set_target("total_return")  # Optimize total return
 
-    # 运行优化
+    # Run optimization
     results = run_grid_search(strategy_class, setting, key_func)
 """
 
-# 定义公共API
+# Define public API
 __all__ = [
     "OptimizationSetting",
     "run_grid_search",

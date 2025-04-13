@@ -23,11 +23,10 @@ dependencies = [
     "plotly",
     "tqdm",
     "ccxt",
-    "pymongo>=4.6.2",  # MongoDB数据库支持
-    "requests",  # HTTP请求
-    "python-dateutil",  # 日期处理
-    "colorama",  # 终端彩色输出
-    "python-dotenv",  # 环境变量处理
+    "requests",
+    "python-dateutil",
+    "colorama",
+    "python-dotenv",
 ]
 
 [project.optional-dependencies]
@@ -36,12 +35,14 @@ dev = [
     "pytest-cov",
     "ruff",
     "mypy",
+    "pre-commit",
 ]
 all = [
     "pytest",
     "pytest-cov",
     "ruff",
     "mypy",
+    "pre-commit",
 ]
 
 [project.urls]
@@ -62,7 +63,7 @@ src = ["apilot"]
 [tool.ruff.lint]
 # 选择要检查的规则
 select = [
-    "E",    # pycodestyle 错误
+    "E",    # pycodestyle error
     "F",    # pyflakes
     "I",    # isort
     "N",    # pep8-naming
@@ -70,7 +71,7 @@ select = [
     "B",    # flake8-bugbear
     "C4",   # flake8-comprehensions
     "PT",   # flake8-pytest-style
-    "RUF",  # Ruff特有规则
+    "RUF",  # Ruff rule
 ]
 # 忽略特定的规则
 ignore = [

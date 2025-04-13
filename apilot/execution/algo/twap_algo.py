@@ -7,7 +7,7 @@ from .algo_template import AlgoTemplate
 
 
 class TwapAlgo(AlgoTemplate):
-    """TWAP算法类"""
+    """TWAP Algorithm Class"""
 
     default_setting: ClassVar[dict] = {"time": 600, "interval": 60}
 
@@ -23,16 +23,16 @@ class TwapAlgo(AlgoTemplate):
         volume: float,
         setting: dict,
     ) -> None:
-        """构造函数"""
+        """Constructor"""
         super().__init__(
             algo_engine, algo_name, symbol, direction, price, volume, setting
         )
 
-        # 参数
+        # Parameters
         self.time: int = setting["time"]
         self.interval: int = setting["interval"]
 
-        # 变量
+        # Variables
         self.order_volume: int = self.volume / (self.time / self.interval)
         contract: ContractData = self.get_contract()
         if contract:
@@ -44,20 +44,20 @@ class TwapAlgo(AlgoTemplate):
         self.put_event()
 
     def on_trade(self, trade: TradeData) -> None:
-        """成交回调"""
+        """Trade callback"""
         if self.traded >= self.volume:
             self.finish()
         else:
             self.put_event()
 
     def on_timer(self) -> None:
-        """定时回调"""
+        """Timer callback"""
         self.timer_count += 1
         self.total_count += 1
         self.put_event()
 
         if self.total_count >= self.time:
-            self.write_log("执行时间已结束, 停止算法")
+            self.write_log("Execution time ended, stopping algorithm")
             self.finish()
             return
 

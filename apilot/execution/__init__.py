@@ -1,35 +1,35 @@
 """
-量化交易执行模块
+Quantitative Trading Execution Module
 
-提供各种交易算法和执行引擎,用于智能化订单执行.
+Provides various trading algorithms and execution engines for intelligent order execution.
 
-主要组件:
-- AlgoEngine: 算法交易引擎,管理各种执行算法
-- AlgoTemplate: 算法交易模板,所有算法的基类
-- 多种预设算法实现,如冰山算法、TWAP算法等
+Main components:
+- AlgoEngine: Algorithm trading engine, manages various execution algorithms
+- AlgoTemplate: Algorithm trading template, base class for all algorithms
+- Multiple preset algorithm implementations, such as Iceberg algorithm, TWAP algorithm, etc.
 
-推荐用法:
+Recommended usage:
     from apilot.execution import AlgoEngine
     algo_engine = AlgoEngine(main_engine)
 """
 
-# 定义公共API
+# Define public API
 __all__ = [
-    # 算法引擎
+    # Algorithm engine
     "AlgoEngine",
-    # 算法模板
+    # Algorithm template
     "AlgoTemplate",
-    # 算法实现
+    # Algorithm implementations
     "BestLimitAlgo",
     "TwapAlgo",
 ]
 
-# 导入算法引擎
+# Import algorithm engine
 from .algo.algo_engine import AlgoEngine
 
-# 导入算法模板
+# Import algorithm template
 from .algo.algo_template import AlgoTemplate
 
-# 导入算法实现
+# Import algorithm implementations
 from .algo.best_limit_algo import BestLimitAlgo
 from .algo.twap_algo import TwapAlgo

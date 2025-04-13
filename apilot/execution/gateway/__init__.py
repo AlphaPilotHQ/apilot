@@ -1,8 +1,8 @@
 """
-交易网关模块
+Trading Gateway Module
 
-包含连接到不同交易所和交易API的网关实现.
+Contains gateway implementations for connecting to different exchanges and trading APIs.
 """
 
-# 导出网关实现
+# Export gateway implementations
 from .binance import BinanceGateway

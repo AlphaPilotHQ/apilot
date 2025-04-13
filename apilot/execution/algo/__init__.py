@@ -1,23 +1,23 @@
 """
-算法交易模块
+Algorithmic Trading Module
 
-包含各种执行算法的实现,用于优化交易执行.
+Contains implementations of various execution algorithms for optimizing trade execution.
 """
 
-# 首先导入apilot.core中需要的组件,以解决算法文件中的导入问题
+# First import required components from apilot.core to resolve import issues in algorithm files
 from apilot.core.constant import Direction, Exchange, OrderType
 from apilot.core.engine import BaseEngine
 from apilot.core.object import OrderData, OrderRequest, TickData, TradeData
 
-# 然后导出算法引擎和算法模板
+# Then export algorithm engine and algorithm template
 from .algo_engine import AlgoEngine
 from .algo_template import AlgoTemplate
 
-# 导出具体算法实现
+# Export specific algorithm implementations
 from .best_limit_algo import BestLimitAlgo
 from .twap_algo import TwapAlgo
 
-# 定义公共API
+# Define public API
 __all__ = [
     "AlgoEngine",
     "AlgoTemplate",

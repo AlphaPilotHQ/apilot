@@ -1,7 +1,7 @@
 """
-网格搜索优化模块
+Grid Search Optimization Module
 
-提供网格搜索参数优化功能，用于策略参数优化。
+Provides grid search parameter optimization for strategy parameters.
 """
 
 import logging
@@ -12,10 +12,10 @@ from tqdm import tqdm
 
 from .settings import OptimizationSetting
 
-# 类型定义
+# Type definitions
 KEY_FUNC = Callable[[dict[str, Any]], float]
 
-# 获取日志记录器
+# Get logger
 logger = logging.getLogger("Optimizer")
 
 
@@ -26,41 +26,45 @@ def run_grid_search(
     max_workers: int | None = None,
 ) -> list[dict]:
     """
-    使用网格搜索进行参数优化
+    Perform parameter optimization using grid search
 
     Args:
-        strategy_class: 策略类
-        optimization_setting: 需要优化的参数设置
-        key_func: 适应度评估函数，接收参数设置并返回适应度值（越大越好）
-        max_workers: 并行计算的最大进程数（目前未使用，保留接口兼容性）
+        strategy_class: Strategy class
+        optimization_setting: Parameter settings to optimize
+        key_func: Fitness evaluation function that receives parameter settings and returns fitness value (higher is better)
+        max_workers: Maximum number of parallel processes (currently unused, kept for interface compatibility)
 
     Returns:
-        按适应度排序的参数组合列表
+        List of parameter combinations sorted by fitness
     """
-    # 验证优化参数
+    # Validate optimization parameters
     valid, msg = optimization_setting.check_setting()
     if not valid:
-        logger.error(f"优化参数无效: {msg}")
+        logger.error(f"Invalid optimization parameters: {msg}")
         return []
 
-    # 生成所有参数组合
+    # Generate all parameter combinations
     settings = optimization_setting.generate_setting()
     total_combinations = len(settings)
 
-    # 日志输出
-    logger.info(f"开始网格搜索优化 (参数空间大小: {total_combinations})")
-    logger.info(f"优化目标: {optimization_setting.target_name or '未指定'}")
+    # Log output
+    logger.info(
+        f"Starting grid search optimization (parameter space size: {total_combinations})"
+    )
+    logger.info(
+        f"Optimization target: {optimization_setting.target_name or 'Not specified'}"
+    )
 
-    # 计算每个参数组合的适应度
+    # Calculate fitness for each parameter combination
     results = []
-    progress_bar = tqdm(settings, desc="参数优化进度")
+    progress_bar = tqdm(settings, desc="Parameter optimization progress")
 
     for i, setting in enumerate(progress_bar):
         try:
-            # 评估当前参数组合
+            # Evaluate current parameter combination
             fitness = key_func(setting)
 
-            # 跳过无效结果
+            # Skip invalid results
             if (
                 fitness is None
                 or not isinstance(fitness, int | float)
@@ -68,31 +72,33 @@ def run_grid_search(
             ):
                 continue
 
-            # 保存有效结果
+            # Save valid result
             result = setting.copy()
             result["fitness"] = fitness
             results.append(result)
 
-            # 记录进度
+            # Record progress
             if (i + 1) % 5 == 0 or i == 0 or i == len(settings) - 1:
-                logger.debug(f"已评估 {i + 1}/{total_combinations} 组参数")
+                logger.debug(f"Evaluated {i + 1}/{total_combinations} parameter sets")
 
         except Exception as e:
-            logger.warning(f"评估参数 {setting} 失败: {e!s}")
+            logger.warning(f"Failed to evaluate parameters {setting}: {e!s}")
 
-    # 按适应度排序（降序）
+    # Sort by fitness (descending)
     if results:
         results.sort(key=lambda x: x["fitness"], reverse=True)
 
-        # 显示最佳结果
+        # Display best results
         top_n = min(5, len(results))
-        logger.info(f"网格搜索完成,共找到 {len(results)} 个有效结果")
+        logger.info(f"Grid search completed, found {len(results)} valid results")
         for i in range(top_n):
             result = results[i]
-            fitness = result.pop("fitness")  # 临时移除fitness以便打印参数
-            logger.info(f"排名 {i + 1}: 适应度={fitness:.4f}, 参数={result}")
-            result["fitness"] = fitness  # 放回fitness
+            fitness = result.pop(
+                "fitness"
+            )  # Temporarily remove fitness for parameter printing
+            logger.info(f"Rank {i + 1}: Fitness={fitness:.4f}, Parameters={result}")
+            result["fitness"] = fitness  # Put fitness back
     else:
-        logger.warning("网格搜索未找到有效结果")
+        logger.warning("Grid search did not find any valid results")
 
     return results

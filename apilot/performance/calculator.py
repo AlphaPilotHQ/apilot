@@ -1,7 +1,7 @@
 """
-性能计算模块
+Performance Calculation Module
 
-专注于计算 Overview 和 Key Metrics 指标:
+Focuses on calculating Overview and Key Metrics indicators:
 - Overview: Backtest Period, Initial Capital, Final Capital, Total Return, Win Rate, Profit/Loss Ratio
 - Key Metrics: Annualized Return, Max Drawdown, Sharpe Ratio, Turnover
 """
@@ -22,21 +22,21 @@ def calculate_daily_results(
     trades: dict[str, TradeData], daily_data: dict[date, Any], sizes: dict[str, float]
 ) -> pd.DataFrame:
     """
-    计算每日交易结果
+    Calculate daily trading results
 
     Args:
-        trades: 交易数据字典
-        daily_data: 每日行情数据字典
-        sizes: 合约乘数字典
+        trades: Dictionary of trade data
+        daily_data: Dictionary of daily market data
+        sizes: Dictionary of contract multipliers
 
     Returns:
-        包含每日结果的DataFrame
+        DataFrame containing daily results
     """
     if not trades or not daily_data:
-        logger.info("计算每日结果所需数据不足")
+        logger.info("Insufficient data for calculating daily results")
         return pd.DataFrame()
 
-    # 将交易分配到对应的交易日
+    # Assign trades to their corresponding trading days
     daily_trades = {}
     for trade in trades.values():
         trade_date = trade.datetime.date()
@@ -44,11 +44,11 @@ def calculate_daily_results(
             daily_trades[trade_date] = []
         daily_trades[trade_date].append(trade)
 
-    # 计算每日结果
+    # Calculate daily results
     daily_results = []
 
     for current_date in sorted(daily_data.keys()):
-        # 初始化当天结果
+        # Initialize results for the current day
         result = {
             "date": current_date,
             "trades": daily_trades.get(current_date, []),
@@ -57,13 +57,13 @@ def calculate_daily_results(
             "pnl": 0.0,
         }
 
-        # 计算交易盈亏和资金变化
-        # 这里简化处理，具体实现应根据实际需求完善
+        # Calculate trade profits and capital changes
+        # Simplified handling here, specific implementation should be refined based on actual requirements
 
-        # 添加到结果列表
+        # Add to the results list
         daily_results.append(result)
 
-    # 转换为DataFrame
+    # Convert to DataFrame
     df = pd.DataFrame(daily_results)
     if not df.empty:
         df.set_index("date", inplace=True)
@@ -73,13 +73,13 @@ def calculate_daily_results(
 
 def calculate_trade_metrics(trades: list[TradeData]) -> dict[str, float]:
     """
-    计算交易相关指标
+    Calculate trade-related metrics
 
     Args:
-        trades: 交易列表
+        trades: List of trades
 
     Returns:
-        交易指标字典
+        Dictionary of trade metrics
     """
     if not trades:
         return {
@@ -90,23 +90,24 @@ def calculate_trade_metrics(trades: list[TradeData]) -> dict[str, float]:
             "avg_loss": 0.0,
         }
 
-    # 根据交易方向和开平标志分析交易
-    # 先按照交易对和方向分组
+    # Analyze trades based on direction and opening/closing flags
+    # First group by trading pair and direction
     position_trades = {}  # {symbol: {direction: [trades]}}
 
-    # 组织交易配对
+    # Organize trade pairing
     for trade in trades:
         symbol = trade.symbol
-        # 处理方向，支持中英文和枚举值
+        # Process direction, supporting Chinese, English and enum values
         if hasattr(trade.direction, "value"):
             direction = trade.direction.value
         else:
             direction = str(trade.direction)
 
-        # 将中文方向转换为英文（兼容处理）
-        if direction in ["多", "买"]:
+        # Convert Chinese direction terms to English (for compatibility)
+        # "多"/"买" = long/buy, "空"/"卖" = short/sell
+        if direction in ["多", "买"]:  # Chinese: "long", "buy"
             direction = "LONG"
-        elif direction in ["空", "卖"]:
+        elif direction in ["空", "卖"]:  # Chinese: "short", "sell"
             direction = "SHORT"
 
         if symbol not in position_trades:
@@ -114,61 +115,63 @@ def calculate_trade_metrics(trades: list[TradeData]) -> dict[str, float]:
 
         position_trades[symbol][direction].append(trade)
 
-    # 收集所有交易
+    # Collect all trades
     closed_trades = []
 
     for _symbol, directions in position_trades.items():
-        # 分析多头和空头交易
-        for direction, trades_list in directions.items():
-            # 按时间排序交易
+        # Analyze long and short trades
+        for _direction, trades_list in directions.items():
+            # Sort trades by time
             sorted_trades = sorted(trades_list, key=lambda t: t.datetime)
 
             for trade in sorted_trades:
-                # 检查交易是否有盈亏记录
+                # Check if the trade has profit/loss record
                 if not hasattr(trade, "profit"):
-                    # 没有profit属性的交易设置为0（中性）
+                    # Set trade without profit attribute to 0 (neutral)
                     trade.profit = 0
 
                 closed_trades.append(trade)
 
-                # 记录交易的盈亏情况
+                # Record trade's profit/loss situation
                 profit_value = getattr(trade, "profit", 0)
                 if profit_value != 0:
-                    logger.debug(f"交易 {trade.tradeid} 盈亏: {profit_value:.2f}")
+                    logger.debug(
+                        f"Trade {trade.tradeid} profit/loss: {profit_value:.2f}"
+                    )
 
-    # 计算胜负统计
+    # Calculate win/loss statistics
     winning_trades = [t for t in closed_trades if getattr(t, "profit", 0) > 0]
     losing_trades = [t for t in closed_trades if getattr(t, "profit", 0) < 0]
     neutral_trades = [t for t in closed_trades if getattr(t, "profit", 0) == 0]
 
-    # 识别开仓和平仓交易
-    # 在这个系统中，profit为0的大多是开仓交易
+    # Identify opening and closing trades
+    # In this system, trades with profit=0 are mostly opening trades
     opening_trades = len(neutral_trades)
     closing_trades = len(winning_trades) + len(losing_trades)
 
-    # 只考虑有实际盈亏的交易（排除开仓交易）
+    # Only consider trades with actual profit/loss (exclude opening trades)
     true_total_trades = closing_trades
     win_count = len(winning_trades)
     loss_count = len(losing_trades)
 
-    # 详细记录日志 TODO：改成参数+结果
+    # Detailed logging TODO: Change to parameters + results
     logger.info(
-        f"交易统计: 总交易 {len(closed_trades)}, 盈利 {win_count}, 亏损 {loss_count}, "
-        f"开仓/持平 {opening_trades}, 有效交易 {true_total_trades}"
+        f"Trade statistics: Total trades {len(closed_trades)}, Profitable {win_count}, Loss {loss_count}, "
+        f"Opening/Neutral {opening_trades}, Effective trades {true_total_trades}"
     )
 
-    # 胜率只考虑有盈亏的交易
+    # Win rate only considers trades with profit/loss
     win_rate = (win_count / true_total_trades * 100) if true_total_trades > 0 else 0
 
-    # 计算盈利因子(总盈利/总亏损)
+    # Calculate profit factor (total profit / total loss)
     total_profit = sum(getattr(t, "profit", 0) for t in winning_trades)
     total_loss = abs(sum(getattr(t, "profit", 0) for t in losing_trades))
 
-    # 计算盈亏指标
-    # 计算总盈亏比 - 总盈利/总亏损
+    # Calculate profit/loss metrics
+    # Calculate total profit/loss ratio - total profit/total loss
     profit_loss_ratio = (total_profit / total_loss) if total_loss > 0 else float("inf")
 
-    # 计算平均值（仅用于报告）
+    # Calculate averages (for reporting only)
     avg_profit = total_profit / win_count if win_count > 0 else 0
     avg_loss = total_loss / loss_count if loss_count > 0 else 0
 
@@ -195,20 +198,20 @@ def calculate_statistics(
     annual_days: int = 240,
 ) -> dict[str, Any]:
     """
-    计算并返回完整的性能统计指标
+    Calculate and return complete performance statistics
 
     Args:
-        df: 包含每日结果的DataFrame
-        trades: 交易列表
-        capital: 初始资金
-        annual_days: 年交易日数
+        df: DataFrame containing daily results
+        trades: List of trades
+        capital: Initial capital
+        annual_days: Number of trading days per year
 
     Returns:
-        包含性能统计指标的字典
+        Dictionary containing performance statistics
     """
-    # 初始化统计指标
+    # Initialize statistics
     stats = {
-        # Overview部分
+        # Overview section
         "start_date": "",
         "end_date": "",
         "total_days": 0,
@@ -217,12 +220,12 @@ def calculate_statistics(
         "total_return": 0,
         "win_rate": 0,
         "profit_factor": 0,
-        # Key Metrics部分
+        # Key Metrics section
         "annual_return": 0,
         "max_drawdown": 0,
         "sharpe_ratio": 0,
         "total_turnover": 0,
-        # 额外的盈亏分析
+        # Additional profit/loss analysis
         "total_profit": 0,
         "total_loss": 0,
         "avg_profit": 0,
@@ -231,24 +234,24 @@ def calculate_statistics(
         "loss_days": 0,
     }
 
-    # 如果没有数据，返回空结果
+    # If there's no data, return empty results
     if df is None or df.empty:
-        logger.warning("没有可用的交易数据")
+        logger.warning("No available trading data")
         return stats
 
-    # 计算基本统计数据
+    # Calculate basic statistics
 
-    # 1. 时间范围
+    # 1. Time range
     stats["start_date"] = df.index[0]
     stats["end_date"] = df.index[-1]
     stats["total_days"] = len(df)
 
-    # 2. 资金变化
+    # 2. Capital changes
     if "balance" in df.columns:
         stats["final_capital"] = df["balance"].iloc[-1]
         stats["total_return"] = ((stats["final_capital"] / capital) - 1) * 100
 
-    # 3. 回报指标
+    # 3. Return metrics
     if "return" in df.columns:
         daily_returns = df["return"].values
         if len(daily_returns) > 0 and np.std(daily_returns) > 0:
@@ -259,37 +262,37 @@ def calculate_statistics(
                 stats["total_return"] / stats["total_days"] * annual_days
             )
 
-        # 计算盈利天数和亏损天数
+        # Calculate profitable days and loss days
         if "net_pnl" in df.columns:
             stats["profit_days"] = (df["net_pnl"] > 0).sum()
             stats["loss_days"] = (df["net_pnl"] < 0).sum()
 
-    # 4. 回撤
+    # 4. Drawdown
     if "ddpercent" in df.columns:
         stats["max_drawdown"] = df["ddpercent"].min()
 
-    # 5. 交易相关指标
+    # 5. Trade-related metrics
     if "turnover" in df.columns:
         stats["total_turnover"] = df["turnover"].sum()
-        # 计算周转率（总成交金额/初始资金）
+        # Calculate turnover ratio (total transaction amount/initial capital)
         if capital > 0:
             stats["turnover_ratio"] = stats["total_turnover"] / capital
         else:
             stats["turnover_ratio"] = 0.0
 
-    # 6. 交易分析
+    # 6. Trade analysis
     if trades:
-        # 计算交易相关指标
+        # Calculate trade-related metrics
         trade_metrics = calculate_trade_metrics(trades)
 
-        # 更新统计数据
+        # Update statistics
         stats.update(trade_metrics)
 
-        # 确保胜率和盈亏比显示在Overview部分
+        # Ensure win rate and profit/loss ratio display in Overview section
         stats["win_rate"] = trade_metrics.get("win_rate", 0)
         stats["profit_loss_ratio"] = trade_metrics.get("profit_loss_ratio", 0)
 
-    # 清理无效值
+    # Clean invalid values
     stats = {
         k: np.nan_to_num(v, nan=0.0, posinf=0.0, neginf=0.0) for k, v in stats.items()
     }

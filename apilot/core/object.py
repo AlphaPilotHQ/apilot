@@ -4,7 +4,7 @@ Basic data structure used for general trading function in the trading platform.
 
 import datetime
 from dataclasses import dataclass, field
-from datetime import datetime as dt  # 模块名冲突错误
+from datetime import datetime as dt  # Avoid module name conflict
 from logging import INFO
 
 from .constant import (
@@ -306,20 +306,19 @@ class AccountData(BaseData):
 
 @dataclass
 class LogData(BaseData):
-    """日志数据结构
-
-    包含日志消息、级别、来源和时间戳等信息,用于事件驱动的日志系统
+    """
+    Log data structure for event-driven logging system
     """
 
-    msg: str = ""  # 日志消息
-    level: int = INFO  # 日志级别
-    source: str = ""  # 日志来源
-    timestamp: dt = field(default_factory=datetime.datetime.now)  # 日志记录时间
-    extra: dict = field(default_factory=dict)  # 额外信息字典,可用于扩展
+    msg: str = ""  # Log message
+    level: int = INFO  # Log level
+    source: str = ""  # Log source
+    timestamp: dt = field(default_factory=datetime.datetime.now)  # Timestamp
+    extra: dict = field(default_factory=dict)  # Extra information
 
     @property
     def level_name(self) -> str:
-        """获取日志级别名称"""
+        """Get log level name"""
         import logging
 
         return logging.getLevelName(self.level)

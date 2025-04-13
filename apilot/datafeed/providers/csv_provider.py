@@ -39,24 +39,24 @@ class CsvDatabase(BaseDatabase):
     ) -> list[BarData]:
         try:
             df = pd.read_csv(self.csv_path)
-            logger.debug(f"CSV{symbol} 已加载,区间 {interval},行数: {len(df)}")
+            logger.debug(f"CSV{symbol} loaded, interval {interval}, rows: {len(df)}")
 
             if self.datetime_index >= 0:
-                logger.debug(f"转换日期时间字段格式{self.dtformat}")
+                logger.debug(f"Converting datetime field format {self.dtformat}")
                 df["datetime"] = pd.to_datetime(
                     df.iloc[:, self.datetime_index], format=self.dtformat
                 )
 
             df = df[(df["datetime"] >= start) & (df["datetime"] <= end)]
-            logger.debug(f"筛选后数据行数: {len(df)}")
+            logger.debug(f"Filtered data rows: {len(df)}")
 
             bars = []
 
-            # 转换为BarData对象
+            # Convert to BarData objects
             for _, row in df.iterrows():
                 bar = BarData(
                     symbol=symbol,
-                    exchange="LOCAL",  # TODO： 是否可以删除
+                    exchange="LOCAL",  # TODO: Can this be removed?
                     datetime=row["datetime"],
                     interval=interval,
                     volume=float(row.iloc[self.volume_index])
@@ -81,11 +81,11 @@ class CsvDatabase(BaseDatabase):
                 )
                 bars.append(bar)
 
-            logger.debug(f"成功创建 {len(bars)} 个Bar对象")
+            logger.debug(f"Successfully created {len(bars)} Bar objects")
             return bars
 
         except Exception as e:
-            logger.error(f"CSV数据加载失败: {e}")
+            logger.error(f"CSV data loading failed: {e}")
             return []
 
     def load_tick_data(

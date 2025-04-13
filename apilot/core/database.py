@@ -1,7 +1,7 @@
 """
-数据库抽象接口和实现
+Database abstract interface and implementation
 
-定义了行情数据存储的通用接口和工厂方法
+Defines common interfaces and factory methods for market data storage
 """
 
 from abc import ABC, abstractmethod
@@ -40,7 +40,7 @@ class TickOverview:
 
 class BaseDatabase(ABC):
     """
-    抽象基类,定义了数据库接口的标准方法
+    Abstract base class defining standard methods for database interface
     """
 
     @abstractmethod
@@ -51,48 +51,48 @@ class BaseDatabase(ABC):
         start: datetime,
         end: datetime,
     ) -> list[BarData]:
-        """加载K线数据的抽象方法"""
+        """Abstract method to load bar data"""
         pass
-    
+
     def load_tick_data(
         self, symbol: str, start: datetime, end: datetime
     ) -> list[TickData]:
-        """加载Tick数据（可选实现）"""
+        """Load tick data (optional)"""
         return []
-    
+
     def delete_bar_data(self, symbol: str, interval: Interval) -> int:
-        """删除K线数据（可选实现）"""
+        """Delete bar data (optional)"""
         return 0
-    
+
     def delete_tick_data(self, symbol: str) -> int:
-        """删除Tick数据（可选实现）"""
+        """Delete tick data (optional)"""
         return 0
-    
+
     def get_bar_overview(self) -> list[BarOverview]:
-        """获取K线数据概览（可选实现）"""
+        """Get bar data overview (optional)"""
         return []
-    
+
     def get_tick_overview(self) -> list[TickOverview]:
-        """获取Tick数据概览（可选实现）"""
+        """Get tick data overview (optional)"""
         return []
 
 
-# 内部使用的数据库实现注册表
+# Internal database implementation registry
 _DATABASE_REGISTRY: dict[str, type[BaseDatabase]] = {}
 
-# 配置数据库
+# Configure database
 DATABASE_CONFIG: dict[str, Any] = {"name": "", "params": {}}
 
 
 def register_database(name: str, database_class: type) -> None:
-    """注册自定义数据库实现"""
+    """Register custom database implementation"""
     _DATABASE_REGISTRY[name] = database_class
 
 
 def use_database(name: str, **kwargs) -> BaseDatabase:
-    """使用指定的数据库实现"""
+    """Use specified database implementation"""
     if name in _DATABASE_REGISTRY:
         database_class = _DATABASE_REGISTRY[name]
         return database_class(**kwargs)
     else:
-        raise ValueError(f"未找到数据库实现: {name}")
+        raise ValueError(f"Database implementation not found: {name}")

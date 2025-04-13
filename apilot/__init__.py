@@ -1,19 +1,19 @@
 """
-AlphaPilot (apilot) - 量化交易平台
+AlphaPilot (apilot) - AI-driven quant, open to all.
 
-这个包提供了一套完整的量化交易工具,包括数据获取、策略开发、回测和实盘交易功能.
+This package provides a complete set of quantitative trading tools, including data acquisition, strategy development, backtesting and live trading.
 
-推荐导入方式:
-    import apilot as ap                     # 一般用法
-    from apilot import BarData, TickData    # 导入特定组件
-    import apilot.core as apcore            # 大量使用某模块
+Recommended import methods:
+    import apilot as ap                     # General usage
+    from apilot import BarData, TickData    # Import specific components
+    import apilot.core as apcore            # Extensive use of a module
 
-版本: 0.1.0
+Version: 0.1.0
 """
 
 __version__ = "0.1.0"
 
-# 定义公共API
+# Define public API
 __all__ = [
     "AccountData",
     "ArrayManager",
@@ -52,10 +52,10 @@ __all__ = [
     "utils",
 ]
 
-# 导出子模块 (包级别)
+# Export submodules (package level)
 from . import core, datafeed, engine, execution, optimizer, performance, strategy, utils
 
-# 导出常量
+# Export constants
 from .core.constant import (
     Direction,
     Exchange,
@@ -65,7 +65,7 @@ from .core.constant import (
     Status,
 )
 
-# 导出核心数据对象
+# Export core data objects
 from .core.object import (
     AccountData,
     BarData,
@@ -76,20 +76,20 @@ from .core.object import (
     TradeData,
 )
 
-# 导出工具类
+# Export utility classes
 from .core.utility import BarGenerator
 
-# 导出回测和优化组件
+# Export backtesting and optimization components
 from .engine.backtest import BacktestingEngine
 from .optimizer import OptimizationSetting, run_grid_search
 
-# 导出性能分析组件
+# Export performance analysis components
 from .performance.report import PerformanceReport
 
-# 导出策略模板
+# Export strategy templates
 from .strategy.template import PATemplate
 from .utils.indicators import ArrayManager
 
-# 导出日志系统
+# Export logging system
 from .utils.logger import get_logger, log_exceptions, set_level
 from .utils.order_manager import LocalOrderManager

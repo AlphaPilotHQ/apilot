@@ -1,17 +1,18 @@
 """
-策略模块
+Strategy Module
 
-包含各种交易策略的模板和实现,支持PA策略和目标持仓策略.
+Contains templates and implementations for various trading strategies,
+supporting both PA (Portfolio Allocation) and target position strategies.
 
-主要组件:
-- PATemplate: PA策略基类,提供标准的策略框架
+Main Components:
+- PATemplate: Base class for PA strategies, providing a standard framework.
 
 """
 
-# 从模板导入基类
+# Import base class from the template module
 from .template import PATemplate
 
-# 定义公共API
+# Define public API
 __all__ = [
     "PATemplate",
 ]

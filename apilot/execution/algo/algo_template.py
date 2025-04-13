@@ -13,7 +13,7 @@ from apilot.core.constant import AlgoStatus
 from apilot.core.utility import virtual
 from apilot.utils.logger import get_logger
 
-# 模块级初始化日志器
+# Module level logger initialization
 logger = get_logger("AlgoTrading")
 
 if TYPE_CHECKING:
@@ -21,13 +21,13 @@ if TYPE_CHECKING:
 
 
 class AlgoTemplate:
-    """算法模板"""
+    """Algorithm Template"""
 
-    _count: int = 0  # 实例计数
+    _count: int = 0  # Instance counter
 
-    display_name: str = ""  # 显示名称
-    default_setting: ClassVar[dict] = {}  # 默认参数
-    variables: ClassVar[list] = []  # 变量名称
+    display_name: str = ""  # Display name
+    default_setting: ClassVar[dict] = {}  # Default parameters
+    variables: ClassVar[list] = []  # Variable names
 
     def __init__(
         self,
@@ -39,7 +39,7 @@ class AlgoTemplate:
         volume: int,
         setting: dict,
     ) -> None:
-        """构造函数"""
+        """Constructor"""
         self.algo_engine: BaseEngine = algo_engine
         self.algo_name: str = algo_name
 
@@ -55,12 +55,12 @@ class AlgoTemplate:
         self.active_orders: dict[str, OrderData] = {}
 
     def update_tick(self, tick: TickData) -> None:
-        """行情数据更新"""
+        """Update market data"""
         if self.status == AlgoStatus.RUNNING:
             self.on_tick(tick)
 
     def update_order(self, order: OrderData) -> None:
-        """委托数据更新"""
+        """Update order data"""
         if order.is_active():
             self.active_orders[order.orderid] = order
         elif order.orderid in self.active_orders:
@@ -69,7 +69,7 @@ class AlgoTemplate:
         self.on_order(order)
 
     def update_trade(self, trade: TradeData) -> None:
-        """成交数据更新"""
+        """Update trade data"""
         cost: float = self.traded_price * self.traded + trade.price * trade.volume
         self.traded += trade.volume
         self.traded_price = cost / self.traded
@@ -77,66 +77,66 @@ class AlgoTemplate:
         self.on_trade(trade)
 
     def update_timer(self) -> None:
-        """每秒定时更新"""
+        """Update timer every second"""
         if self.status == AlgoStatus.RUNNING:
             self.on_timer()
 
     @virtual
     def on_tick(self, tick: TickData) -> None:
-        """行情回调"""
+        """Tick data callback"""
         pass
 
     @virtual
     def on_order(self, order: OrderData) -> None:
-        """委托回调"""
+        """Order callback"""
         pass
 
     @virtual
     def on_trade(self, trade: TradeData) -> None:
-        """成交回调"""
+        """Trade callback"""
         pass
 
     @virtual
     def on_timer(self) -> None:
-        """定时回调"""
+        """Timer callback"""
         pass
 
     def start(self) -> None:
-        """启动"""
+        """Start algorithm"""
         self.status = AlgoStatus.RUNNING
         self.put_event()
 
-        logger.info(f"[Algo:{self.algo_name}] 算法启动")
+        logger.info(f"[Algo:{self.algo_name}] Algorithm started")
 
     def stop(self) -> None:
-        """停止"""
+        """Stop algorithm"""
         self.status = AlgoStatus.STOPPED
         self.cancel_all()
         self.put_event()
 
-        logger.info(f"[Algo:{self.algo_name}] 算法停止")
+        logger.info(f"[Algo:{self.algo_name}] Algorithm stopped")
 
     def finish(self) -> None:
-        """结束"""
+        """Finish algorithm"""
         self.status = AlgoStatus.FINISHED
         self.cancel_all()
         self.put_event()
 
-        logger.info(f"[Algo:{self.algo_name}] 算法结束")
+        logger.info(f"[Algo:{self.algo_name}] Algorithm finished")
 
     def pause(self) -> None:
-        """暂停"""
+        """Pause algorithm"""
         self.status = AlgoStatus.PAUSED
         self.put_event()
 
-        logger.info(f"[Algo:{self.algo_name}] 算法暂停")
+        logger.info(f"[Algo:{self.algo_name}] Algorithm paused")
 
     def resume(self) -> None:
-        """恢复"""
+        """Resume algorithm"""
         self.status = AlgoStatus.RUNNING
         self.put_event()
 
-        logger.info(f"[Algo:{self.algo_name}] 算法恢复")
+        logger.info(f"[Algo:{self.algo_name}] Algorithm resumed")
 
     def buy(
         self,
@@ -144,11 +144,11 @@ class AlgoTemplate:
         volume: float,
         order_type: OrderType = OrderType.LIMIT,
     ) -> None:
-        """买入"""
+        """Buy order"""
         if self.status != AlgoStatus.RUNNING:
             return
 
-        msg: str = f"{self.symbol}, 委托买入{order_type.value}, {volume}@{price}"
+        msg: str = f"{self.symbol}, buy order {order_type.value}, {volume}@{price}"
         logger.info(f"[Algo:{self.algo_name}] {msg}")
 
         return self.algo_engine.send_order(
@@ -161,11 +161,11 @@ class AlgoTemplate:
         volume: float,
         order_type: OrderType = OrderType.LIMIT,
     ) -> None:
-        """卖出"""
+        """Sell order"""
         if self.status != AlgoStatus.RUNNING:
             return
 
-        msg: str = f"{self.symbol}委托卖出{order_type.value}, {volume}@{price}"
+        msg: str = f"{self.symbol}, sell order {order_type.value}, {volume}@{price}"
         logger.info(f"[Algo:{self.algo_name}] {msg}")
 
         return self.algo_engine.send_order(
@@ -173,11 +173,11 @@ class AlgoTemplate:
         )
 
     def cancel_order(self, orderid: str) -> None:
-        """撤销委托"""
+        """Cancel order"""
         self.algo_engine.cancel_order(self, orderid)
 
     def cancel_all(self) -> None:
-        """全撤委托"""
+        """Cancel all orders"""
         if not self.active_orders:
             return
 
@@ -185,29 +185,29 @@ class AlgoTemplate:
             self.cancel_order(orderid)
 
     def get_tick(self) -> TickData | None:
-        """查询行情"""
+        """Get market data"""
         return self.algo_engine.get_tick(self)
 
     def get_contract(self) -> ContractData | None:
-        """查询合约"""
+        """Get contract info"""
         return self.algo_engine.get_contract(self)
 
     def get_parameters(self) -> dict:
-        """获取算法参数"""
+        """Get algorithm parameters"""
         strategy_parameters: dict = {}
         for name in self.default_setting.keys():
             strategy_parameters[name] = getattr(self, name)
         return strategy_parameters
 
     def get_variables(self) -> dict:
-        """获取算法变量"""
+        """Get algorithm variables"""
         strategy_variables: dict = {}
         for name in self.variables:
             strategy_variables[name] = getattr(self, name)
         return strategy_variables
 
     def get_data(self) -> dict:
-        """获取算法信息"""
+        """Get algorithm information"""
         algo_data: dict = {
             "algo_name": self.algo_name,
             "symbol": self.symbol,
@@ -223,6 +223,6 @@ class AlgoTemplate:
         return algo_data
 
     def put_event(self) -> None:
-        """推送更新"""
+        """Push update"""
         data: dict = self.get_data()
         self.algo_engine.put_algo_event(self, data)

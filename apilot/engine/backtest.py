@@ -1,9 +1,11 @@
 """
-回测引擎模块
+Backtesting Engine Module
 
-实现了回测引擎,用于策略回测和优化.
+For strategy backtesting and optimization.
 """
 
+import logging
+import time
 from collections.abc import Callable
 from datetime import date, datetime
 
@@ -24,37 +26,39 @@ from apilot.core.object import (
     TradeData,
 )
 from apilot.core.utility import round_to
+from apilot.datafeed import DATA_PROVIDERS
 from apilot.performance.calculator import calculate_statistics
 from apilot.performance.report import PerformanceReport
 from apilot.strategy.template import PATemplate
 from apilot.utils.logger import get_logger, set_level
 
 
-# 临时定义DailyResult类，后续完整重构时应移除
+# Class to store daily performance results
 class DailyResult:
     def __init__(self, date):
         self.date = date
-        self.close_prices = {}
-        self.net_pnl = 0.0  # 每日净盈亏
-        self.turnover = 0.0  # 每日成交额
-        self.trade_count = 0  # 每日交易次数
+        self.close_prices = {}  # Symbol: close_price
+        self.net_pnl = 0.0  # Daily net profit/loss
+        self.turnover = 0.0  # Daily trading volume value
+        self.trade_count = 0  # Number of trades on this day
 
     def add_close_price(self, symbol, price):
+        """Adds the closing price for a symbol on this date."""
         self.close_prices[symbol] = price
 
     def add_trade(self, trade, profit=0.0):
-        """添加交易记录及其利润"""
+        """Adds trade details and associated profit for the day."""
         self.turnover += trade.price * trade.volume
         self.trade_count += 1
         self.net_pnl += profit
 
 
-# 获取日志记录器
+# Setup logger
 logger = get_logger("BacktestEngine")
 set_level("info", "BacktestEngine")
 
 
-# 回测默认设置
+# Default settings for the backtesting engine
 BACKTEST_CONFIG = {
     "risk_free": 0.0,
     "size": 1,
@@ -68,41 +72,51 @@ class BacktestingEngine:
 
     def __init__(self, main_engine=None) -> None:
         self.main_engine = main_engine
-        self.symbols: list[str] = []  # Full trading symbols (e.g. "BTC.BINANCE")
-        self.exchanges: dict[str, Exchange] = {}  # 可选缓存,加速访问
-        self.start: datetime = None
-        self.end: datetime = None
+        self.symbols: list[
+            str
+        ] = []  # List of full trading symbols (e.g., "BTC.BINANCE")
+        self.exchanges: dict[str, Exchange] = {}  # Cache exchange objects for symbols
+        self.start: datetime | None = None
+        self.end: datetime | None = None
         self.sizes: dict[str, float] | None = None
         self.priceticks: dict[str, float] | None = None
         self.capital: int = 100_000
         self.annual_days: int = 240
         self.mode: BacktestingMode = BacktestingMode.BAR
 
-        self.strategy_class: type[PATemplate] = None
-        self.strategy: PATemplate = None
-        self.tick: TickData = None
-        self.bars: dict[str, BarData] = {}
-        self.datetime: datetime = None
+        self.strategy_class: type[PATemplate] | None = None
+        self.strategy: PATemplate | None = None
+        self.tick: TickData | None = None
+        self.bars: dict[str, BarData] = {}  # Current bars for active symbols
+        self.datetime: datetime | None = None  # Current backtesting time
 
-        self.interval: Interval = None
-        self.callback: Callable | None = None
-        self.history_data = {}
-        self.dts: list[datetime] = []
+        self.interval: Interval | None = None
+        self.callback: Callable | None = None  # Callback function for progress update
+        self.history_data: dict[
+            datetime, dict[str, BarData]
+        ] = {}  # Stores all historical bar data
+        self.dts: list[datetime] = []  # Sorted unique timestamps from history_data
 
         self.limit_order_count: int = 0
-        self.limit_orders: dict[str, OrderData] = {}
-        self.active_limit_orders: dict[str, OrderData] = {}
+        self.limit_orders: dict[str, OrderData] = {}  # All orders sent
+        self.active_limit_orders: dict[
+            str, OrderData
+        ] = {}  # Orders not yet filled or cancelled
 
         self.trade_count: int = 0
-        self.trades: dict[str, TradeData] = {}
+        self.trades: dict[str, TradeData] = {}  # All trades executed
 
-        self.logs: list = []
+        self.logs: list = []  # Stores log messages (if needed)
 
         self.daily_results: dict[date, DailyResult] = {}
-        self.daily_df: DataFrame = None
-        self.accounts = {"balance": self.capital}
+        self.daily_df: DataFrame | None = None  # DataFrame for daily results storage
+        self.accounts = {"balance": self.capital}  # Account balance tracking
+        self.positions: dict[
+            str, dict
+        ] = {}  # Position tracking: {symbol: {"volume": float, "avg_price": float}}
 
     def clear_data(self) -> None:
+        """Resets engine state for a new backtest run."""
         self.strategy = None
         self.tick = None
         self.bars = {}
@@ -117,6 +131,9 @@ class BacktestingEngine:
 
         self.logs.clear()
         self.daily_results.clear()
+        self.daily_df = None
+        self.accounts = {"balance": self.capital}
+        self.positions.clear()
 
     def set_parameters(
         self,
@@ -130,14 +147,15 @@ class BacktestingEngine:
         mode: BacktestingMode = BacktestingMode.BAR,
         annual_days: int = 240,
     ) -> None:
+        # Parameters from user settings
         self.mode = mode
-        self.symbols = symbols
+        self.symbols = symbols  # List of symbols to trade
         self.interval = Interval(interval)
         self.sizes = sizes if sizes is not None else {}
         self.priceticks = priceticks if priceticks is not None else {}
         self.start = start
 
-        # 缓存交易所对象以提高性能
+        # Cache exchange objects for performance
         for symbol in symbols:
             from apilot.utils import get_exchange
 
@@ -151,70 +169,67 @@ class BacktestingEngine:
         self.end = end.replace(hour=23, minute=59, second=59)
 
         if self.start >= self.end:
-            logger.warning(f"错误:起始日期({self.start})必须小于结束日期({self.end})")
+            logger.warning(
+                f"Error: Start date ({self.start}) must be before end date ({self.end})"
+            )
 
     def add_strategy(
         self, strategy_class: type[PATemplate], setting: dict | None = None
     ) -> None:
-        """
-        添加策略
-        """
+        """Adds and initializes the trading strategy."""
         self.strategy_class = strategy_class
         self.strategy = strategy_class(
             self, strategy_class.__name__, self.symbols, setting
         )
 
     def add_data(self, provider_type, symbol, **kwargs):
-        from apilot.datafeed import DATA_PROVIDERS
-        import time
-        from apilot.utils.logger import get_logger
+        """Loads historical data for a symbol using the specified provider."""
         logger = get_logger("BacktestEngine")
 
-        logger.info(f"开始加载 {symbol} 数据，类型: {provider_type}")
+        logger.debug(f"Loading {symbol} data, type: {provider_type}")
         start_time = time.time()
 
-        # 获取数据提供者类
+        # Get data provider class
         if provider_type not in DATA_PROVIDERS:
-            raise ValueError(f"未知的数据提供者类型: {provider_type}")
+            raise ValueError(f"Unknown data provider type: {provider_type}")
 
         provider_class = DATA_PROVIDERS[provider_type]
-        logger.debug(f"使用数据提供者: {provider_class.__name__}")
+        logger.debug(f"Using data provider: {provider_class.__name__}")
 
-        # 创建数据提供者实例
-        t0 = time.time()
         provider = provider_class(**kwargs)
-        t1 = time.time()
-        logger.info(f"创建数据提供者耗时: {(t1-t0):.2f}秒")
+        logger.debug(f"Provider creation took: {(time.time() - start_time):.2f}s")
 
-        # 确保symbol在symbols列表中
+        # Ensure symbol is in the list
         if symbol not in self.symbols:
             self.symbols.append(symbol)
 
-        # 加载数据
+        # Load data
         t0 = time.time()
-        logger.info(f"开始从提供者加载 {symbol} 数据")
-        
-        # 从创建提供者时传入的kwargs中提取load_bar_data可能需要的参数
+        logger.info(f"Loading {symbol} data from provider")
+
+        # Extract relevant kwargs for load_bar_data
         data_params = {}
         for param in ["downsample_minutes", "limit_count"]:
             if param in kwargs:
                 data_params[param] = kwargs[param]
-                logger.info(f"传递数据加载参数: {param}={kwargs[param]}")
-                
-        # 调用提供者的load_bar_data方法，传入额外参数
+                logger.info(f"Passing data loading param: {param}={kwargs[param]}")
+
+        # Call provider's load_bar_data method with extra params
         bars = provider.load_bar_data(
             symbol=symbol,
             interval=self.interval,
             start=self.start,
             end=self.end,
-            **data_params  # 传递额外的参数，如降采样设置
+            **data_params,  # Pass extra params like downsampling settings
         )
         t1 = time.time()
-        logger.info(f"提供者加载 {symbol} 数据完成，共 {len(bars)} 条，耗时: {(t1-t0):.2f}秒")
+        logger.info(
+            f"Provider loaded {len(bars)} bars for {symbol}, took: {(t1 - t0):.2f}s"
+        )
 
-        # 处理数据
+        # Process loaded data
         t0 = time.time()
-        logger.info(f"开始处理 {symbol} 数据")
+        logger.info(f"Processing {symbol} data")
         bar_count = 0
         for bar in bars:
             bar.symbol = symbol
@@ -223,63 +238,67 @@ class BacktestingEngine:
             bar_count += 1
 
         t1 = time.time()
-        logger.info(f"处理 {symbol} 数据完成，共 {bar_count} 条，耗时: {(t1-t0):.2f}秒")
+        logger.info(f"Processed {bar_count} bars for {symbol}, took: {(t1 - t0):.2f}s")
 
-        # 排序时间点
+        # Sort and deduplicate timestamps
         t0 = time.time()
-        logger.info(f"开始排序时间点，当前共 {len(self.dts)} 个")
+        logger.info(f"Sorting time points, current count: {len(self.dts)}")
         self.dts = sorted(set(self.dts))
         t1 = time.time()
-        logger.info(f"排序时间点完成，去重后共 {len(self.dts)} 个，耗时: {(t1-t0):.2f}秒")
+        logger.info(
+            f"Time points sorted, unique count: {len(self.dts)}, took: {(t1 - t0):.2f}s"
+        )
 
         total_time = time.time() - start_time
-        logger.info(f"完成 {symbol} 数据加载，总耗时: {total_time:.2f}秒")
+        logger.info(f"Finished loading {symbol} data, total time: {total_time:.2f}s")
         return self
 
     def add_csv_data(self, symbol, filepath, **kwargs):
+        """Convenience method to add data from a CSV file."""
         return self.add_data("csv", symbol, filepath=filepath, **kwargs)
 
-    # MongoDB数据加载方法已移除
-    # 请使用CSV数据源，参考文档：docs/data_guide.md
+    # MongoDB loader removed, use CSV or implement custom provider.
 
     def run_backtesting(self) -> None:
         self.strategy.on_init()
-        logger.debug("策略on_init()调用完成")
+        logger.debug("Strategy on_init() called")
 
-        # 预热阶段 - 使用前N个bar初始化策略
-        # 但需要确保有足够数据可供预热
+        # Pre-warming phase - use first N bars to initialize strategy
+        # But ensure there's enough data for pre-warming
         if not self.dts:
-            logger.error("没有找到有效的数据点，请检查数据加载")
+            logger.error("No valid data points found, check data loading")
             return
-            
+
         warmup_bars = min(100, len(self.dts))
-        logger.info(f"使用 {warmup_bars} 个时间点进行策略预热")
-        
+        logger.info(f"Using {warmup_bars} time points for strategy pre-warming")
+
         for i in range(warmup_bars):
             try:
                 self.new_bars(self.dts[i])
             except Exception as e:
-                logger.error(f"预热阶段出错: {e}")
+                logger.error(f"Pre-warming phase error: {e}")
                 return
-        logger.info(f"策略初始化结束,处理了 {warmup_bars} 个时间点,TODO")
+        logger.info(
+            f"Strategy initialization done, processed {warmup_bars} time points"
+        )
 
-        # 设置为交易模式
+        # Set to trading mode
         self.strategy.inited = True
         self.strategy.trading = True
         self.strategy.on_start()
 
-        # 使用剩余历史数据进行策略回测
+        # Use remaining historical data for strategy backtesting
         logger.info(
-            f"Strat Backtesting,起始索引: {warmup_bars}, 结束索引: {len(self.dts)}"
+            f"Starting backtesting, start index: {warmup_bars}, end index: {len(self.dts)}"
         )
         for dt in self.dts[warmup_bars:]:
             try:
                 self.new_bars(dt)
             except Exception as e:
-                logger.error(f"回测阶段出错: {e}")
+                logger.error(f"Backtesting phase error: {e}")
                 return
         logger.info(
-            f"Backtest Finished: "
+            f"Backtest finished: "
             f"trade_count: {self.trade_count}, "
             f"active_limit_orders: {len(self.active_limit_orders)}, "
             f"limit_orders: {len(self.limit_orders)}"
@@ -288,23 +307,23 @@ class BacktestingEngine:
     def new_bars(self, dt: datetime) -> None:
         self.datetime = dt
 
-        # 获取当前时间点上所有交易品种的bar
+        # Get current time point's bars for all trading symbols
         bars = self.history_data.get(dt, {})
 
-        # 调试日志：记录当前时间点上的标的
+        # Debug log: record current time point's symbols
         if not bars:
-            logger.debug(f"当前时间点 {dt} 没有数据")
+            logger.debug(f"No data at time point {dt}")
         else:
             if "SOL-USDT.LOCAL" not in bars:
-                logger.debug(f"当前时间点 {dt} 没有SOL-USDT.LOCAL数据")
+                logger.debug(f"No SOL-USDT.LOCAL data at time point {dt}")
 
-        # 更新策略的多个bar数据
+        # Update strategy's multiple bar data
         self.bars = bars
 
         self.cross_limit_order()
         self.strategy.on_bars(bars)
 
-        # 更新每个品种的收盘价
+        # Update each symbol's closing price
         for symbol, bar in bars.items():
             self.update_daily_close(bar.close_price, symbol)
 
@@ -320,7 +339,7 @@ class BacktestingEngine:
 
     def new_bar(self, bar: BarData) -> None:
         """
-        处理新bar数据
+        Process new bar data
         """
         self.bars[bar.symbol] = bar
         self.datetime = bar.datetime
@@ -332,7 +351,7 @@ class BacktestingEngine:
 
     def new_tick(self, tick: TickData) -> None:
         """
-        处理新tick数据
+        Process new tick data
         """
         self.tick = tick
         self.datetime = tick.datetime
@@ -344,24 +363,24 @@ class BacktestingEngine:
 
     def cross_limit_order(self) -> None:
         """
-        撮合限价单
+        Match limit orders
         """
         for order in list(self.active_limit_orders.values()):
-            # 更新订单状态
+            # Update order status
             if order.status == Status.SUBMITTING:
                 order.status = Status.NOTTRADED
                 self.strategy.on_order(order)
                 logger.debug(f"Order {order.orderid} status: {order.status}")
 
-            # 根据订单的交易品种获取对应的价格
+            # Get price for order's symbol
             symbol = order.symbol
 
-            # 根据模式设置触发价格
+            # Set trigger price based on mode
             if self.mode == BacktestingMode.BAR:
                 bar = self.bars.get(symbol)
                 if not bar:
                     logger.info(
-                        f"找不到订单对应的K线数据: {symbol}, 当前时间: {self.datetime}, 订单ID: {order.orderid}"
+                        f"No bar data found for order's symbol: {symbol}, current time: {self.datetime}, order ID: {order.orderid}"
                     )
                     continue
                 buy_price = bar.low_price
@@ -373,7 +392,7 @@ class BacktestingEngine:
                 buy_price = self.tick.ask_price_1
                 sell_price = self.tick.bid_price_1
 
-            # 判断是否满足成交条件
+            # Check if order is filled
             buy_cross = (
                 order.direction == Direction.LONG
                 and order.price >= buy_price
@@ -388,7 +407,7 @@ class BacktestingEngine:
             if not buy_cross and not sell_cross:
                 continue
 
-            # 设置成交
+            # Set order as filled
             order.traded = order.volume
             order.status = Status.ALLTRADED
             self.strategy.on_order(order)
@@ -397,14 +416,14 @@ class BacktestingEngine:
             if order.orderid in self.active_limit_orders:
                 self.active_limit_orders.pop(order.orderid)
 
-            # 创建成交记录
+            # Create trade record
             self.trade_count += 1
 
-            # 确定成交价格和持仓变化
+            # Determine fill price and position change
             trade_price = buy_price if buy_cross else sell_price
             # pos_change = order.volume if buy_cross else -order.volume
 
-            # 创建成交对象
+            # Create trade object
             trade = TradeData(
                 symbol=order.symbol,
                 exchange=order.exchange,
@@ -422,90 +441,101 @@ class BacktestingEngine:
 
             self.trades[trade.tradeid] = trade
             logger.debug(
-                f"成交记录创建: {trade.tradeid}, 方向: {trade.direction}, 价格: {trade.price}, 数量: {trade.volume}"
+                f"Trade record created: {trade.tradeid}, direction: {trade.direction}, price: {trade.price}, volume: {trade.volume}"
             )
 
-            # 更新当前持仓和账户余额
+            # Update current position and account balance
             self.update_account_balance(trade)
 
             self.strategy.on_trade(trade)
 
     def update_account_balance(self, trade: TradeData) -> None:
         """
-        更新账户余额, 在每笔交易后调用
-        使用净持仓模型: 不区分开平，只按方向和持仓变化计算
+        Update account balance after each trade
+        Using net position model: no distinction between open and close, only direction and position change
         """
-        # 如果持仓字典不存在, 初始化它
+        # If position dictionary doesn't exist, initialize it
         if not hasattr(self, "positions"):
-            self.positions = {}  # 格式: {symbol: {"volume": 0, "avg_price": 0.0}}
+            self.positions = {}  # Format: {symbol: {"volume": 0, "avg_price": 0.0}}
 
         symbol = trade.symbol
         if symbol not in self.positions:
             self.positions[symbol] = {"volume": 0, "avg_price": 0.0}
 
-        # 获取当前持仓
+        # Get current position
         position = self.positions[symbol]
         old_volume = position["volume"]
 
-        # 计算持仓变化
-        volume_change = trade.volume if trade.direction == Direction.LONG else -trade.volume
+        # Calculate position change
+        volume_change = (
+            trade.volume if trade.direction == Direction.LONG else -trade.volume
+        )
         new_volume = old_volume + volume_change
 
-        # 计算盈亏
+        # Calculate profit/loss
         profit = 0.0
 
-        # 如果是减仓操作
-        if (old_volume > 0 and volume_change < 0) or (old_volume < 0 and volume_change > 0):
-            # 确定是平多仓还是平空仓
-            if old_volume > 0:  # 平多仓
-                # 计算平仓部分的盈亏
-                profit = (trade.price - position["avg_price"]) * min(abs(volume_change), abs(old_volume))
-            else:  # 平空仓
-                # 计算平仓部分的盈亏
-                profit = (position["avg_price"] - trade.price) * min(abs(volume_change), abs(old_volume))
+        # If reducing position
+        if (old_volume > 0 and volume_change < 0) or (
+            old_volume < 0 and volume_change > 0
+        ):
+            # Determine if closing long or short position
+            if old_volume > 0:  # Closing long position
+                # Calculate profit/loss for closing part
+                profit = (trade.price - position["avg_price"]) * min(
+                    abs(volume_change), abs(old_volume)
+                )
+            else:  # Closing short position
+                # Calculate profit/loss for closing part
+                profit = (position["avg_price"] - trade.price) * min(
+                    abs(volume_change), abs(old_volume)
+                )
 
-            # 如果完全平仓或者反向开仓
+            # If fully closing or reversing position
             if old_volume * new_volume <= 0:
-                # 如果方向反转，剩余的反向部分按新开仓处理
+                # If reversing direction, reset average price for remaining part
                 if abs(new_volume) > 0:
-                    # 重置均价为当前价格
+                    # Reset average price to current price
                     position["avg_price"] = trade.price
                 else:
-                    # 完全平仓，重置持仓均价
+                    # Fully closing, reset average price
                     position["avg_price"] = 0.0
             else:
-                # 部分平仓，均价不变
+                # Partially closing, average price remains the same
                 pass
         else:
-            # 如果是加仓操作
+            # If increasing position
             if new_volume != 0:
-                # 计算新的持仓均价
+                # Calculate new average price
                 if old_volume == 0:
                     position["avg_price"] = trade.price
                 else:
-                    # 同向加仓，更新均价
-                    position["avg_price"] = (position["avg_price"] * abs(old_volume) + trade.price * abs(volume_change)) / abs(new_volume)
+                    # Same direction, update average price
+                    position["avg_price"] = (
+                        position["avg_price"] * abs(old_volume)
+                        + trade.price * abs(volume_change)
+                    ) / abs(new_volume)
 
-        # 更新持仓数量
+        # Update position volume
         position["volume"] = new_volume
 
-        # 更新账户余额
+        # Update account balance
         self.accounts["balance"] += profit
-        # 更改为更清晰的日志记录
-        profit_type = "盈利" if profit > 0 else "亏损" if profit < 0 else "持平"
+        # Improved log message
+        profit_type = "Profit" if profit > 0 else "Loss" if profit < 0 else "Break-even"
         logger.info(
-            f"交易 {trade.tradeid}: {profit_type} {profit:.2f}, 账户余额: {self.accounts['balance']:.2f}, 持仓: {new_volume}, 均价: {position['avg_price']:.4f}"
+            f"Trade {trade.tradeid}: {profit_type} {profit:.2f}, account balance: {self.accounts['balance']:.2f}, position: {new_volume}, average price: {position['avg_price']:.4f}"
         )
 
-        # 将盈亏值添加到trade对象的profit属性中
+        # Add profit/loss value to trade object's profit attribute
         trade.profit = profit
-        
-        # 更新每日结果
+
+        # Update daily result
         trade_date = trade.datetime.date()
         if trade_date in self.daily_results:
             self.daily_results[trade_date].add_trade(trade, profit)
         else:
-            # 如果该日期还没有记录，创建新的日结果
+            # If no record for this date, create a new daily result
             self.daily_results[trade_date] = DailyResult(trade_date)
             self.daily_results[trade_date].add_trade(trade, profit)
 
@@ -518,7 +548,7 @@ class BacktestingEngine:
         volume: float,
     ) -> list:
         """
-        发送订单
+        Send order
         """
         price_tick = self.priceticks.get(symbol, 0.001)
         price: float = round_to(price, price_tick)
@@ -549,13 +579,13 @@ class BacktestingEngine:
         self.limit_orders[order.orderid] = order
 
         logger.debug(
-            f"创建订单: {order.orderid}, 标的: {symbol}, 方向: {direction}, 价格: {price}, 数量: {volume}"
+            f"Created order: {order.orderid}, symbol: {symbol}, direction: {direction}, price: {price}, volume: {volume}"
         )
         return order.orderid
 
     def cancel_order(self, strategy: PATemplate, orderid: str) -> None:
         """
-        撤销订单
+        Cancel order
         """
         if orderid not in self.active_limit_orders:
             return
@@ -566,7 +596,7 @@ class BacktestingEngine:
 
     def cancel_all(self, strategy: PATemplate) -> None:
         """
-        撤销所有订单
+        Cancel all orders
         """
         orderids: list = list(self.active_limit_orders.keys())
         for orderid in orderids:
@@ -574,71 +604,49 @@ class BacktestingEngine:
 
     def sync_strategy_data(self, strategy: PATemplate) -> None:
         """
-        同步策略数据
+        Sync strategy data
         """
         pass
 
     def get_engine_type(self) -> EngineType:
-        """
-        获取引擎类型
-        """
         return self.engine_type
 
     def get_pricetick(self, strategy: PATemplate, symbol: str) -> float:
-        """
-        获取价格Tick
-        """
         return self.priceticks.get(symbol, 0.0001)
 
     def get_size(self, strategy: PATemplate, symbol: str) -> int:
-        """
-        获取合约大小
-        """
-        # 如果交易对不在sizes字典中,则返回默认值1
+        # If symbol not in sizes dictionary, return default value 1
         return self.sizes.get(symbol, 1)
 
     def get_all_trades(self) -> list:
-        """
-        获取所有交易
-        """
         return list(self.trades.values())
 
     def get_all_orders(self) -> list:
-        """
-        获取所有订单
-        """
         return list(self.limit_orders.values())
 
     def get_all_daily_results(self) -> list:
-        """
-        获取所有日结果
-        """
         return list(self.daily_results.values())
 
     def calculate_result(self) -> DataFrame:
-        """
-        计算回测结果
-        """
-
         import pandas as pd
 
-        # 检查是否有交易
+        # Check if there are trades
         if not self.trades:
             return pd.DataFrame()
 
-        # 收集每日数据
+        # Collect daily data
         daily_results = []
 
-        # 确保所有交易日期都有记录
+        # Ensure all trade dates have records
         all_dates = sorted(self.daily_results.keys())
 
-        # 初始化第一天的balance为初始资金
+        # Initialize first day's balance to initial capital
         current_balance = self.capital
 
         for d in all_dates:
             daily_result = self.daily_results[d]
 
-            # 获取每日结果数据
+            # Get daily result data
             result = {
                 "date": d,
                 "trade_count": daily_result.trade_count,
@@ -646,19 +654,19 @@ class BacktestingEngine:
                 "net_pnl": daily_result.net_pnl,
             }
 
-            # 更新当前余额
+            # Update current balance
             current_balance += daily_result.net_pnl
             result["balance"] = current_balance
 
             daily_results.append(result)
 
-        # 创建DataFrame
+        # Create DataFrame
         self.daily_df = pd.DataFrame(daily_results)
 
         if not self.daily_df.empty:
             self.daily_df.set_index("date", inplace=True)
 
-            # 计算回撤
+            # Calculate drawdown
             self.daily_df["highlevel"] = self.daily_df["balance"].cummax()
             self.daily_df["ddpercent"] = (
                 (self.daily_df["balance"] - self.daily_df["highlevel"])
@@ -666,11 +674,11 @@ class BacktestingEngine:
                 * 100
             )
 
-            # 计算收益率
+            # Calculate return
             pre_balance = self.daily_df["balance"].shift(1)
             pre_balance.iloc[0] = self.capital
 
-            # 安全计算收益率
+            # Safely calculate return
             self.daily_df["return"] = (
                 self.daily_df["balance"].pct_change().fillna(0) * 100
             )
@@ -682,74 +690,92 @@ class BacktestingEngine:
 
     def calculate_statistics(self, df: DataFrame = None, output=False) -> dict:
         """
-        计算统计数据
+        Calculate performance statistics
 
         Args:
-            df: 包含每日结果的DataFrame，默认使用self.daily_df
-            output: 是否打印统计结果，默认为False（由于已在PerformanceReport中实现更完整的输出）
+            df: DataFrame containing daily results, defaults to self.daily_df
+            output: Whether to print statistics, defaults to False
 
         Returns:
-            包含性能统计指标的字典
+            Dictionary containing performance metrics
         """
         import numpy as np
 
         if df is None:
             df = self.daily_df
 
-        # 如果DataFrame为空，返回空结果
+        # If DataFrame is empty, return empty result
         if df is None or df.empty:
-            # 提供基础统计信息，即使没有每日数据
+            # Provide basic statistics even without daily data
             stats = {
                 "total_trade_count": len(self.trades),
                 "initial_capital": self.capital,
                 "final_capital": self.accounts.get("balance", self.capital),
             }
 
-            # 计算总回报率
+            # Calculate total return
             stats["total_return"] = (
                 (stats["final_capital"] / stats["initial_capital"]) - 1
             ) * 100
 
-            # 添加交易相关的统计
+            # Add trade-related statistics
             if self.trades:
-                # 分析交易盈亏
+                # Analyze trade profit/loss
                 profits = []
                 losses = []
 
-                # 简单分析交易
+                # Simple trade analysis
                 for trade in self.trades.values():
-                    # 使用交易方向和价格判断盈亏
+                    # Use trade direction and price to determine profit/loss
                     if hasattr(trade, "profit") and trade.profit:
-                        # 如果有利润记录则根据正负值判断
+                        # If profit is recorded, use its value
                         if trade.profit > 0:
                             profits.append(trade.profit)
                         else:
                             losses.append(trade.profit)
                     else:
-                        # 基于交易的方向来简单判断
-                        if isinstance(trade.direction, str):
-                            direction = trade.direction
-                        else:
-                            direction = trade.direction.value if hasattr(trade.direction, "value") else str(trade.direction)
+                        # Based on trade direction, assume profit/loss
+                        # Get direction in a consistent format
+                        _direction = (
+                            trade.direction
+                            if isinstance(trade.direction, str)
+                            else trade.direction.value
+                            if hasattr(trade.direction, "value")
+                            else str(trade.direction)
+                        )
 
-                        # 根据交易价格和时间推断盈亏
-                        # 尝试从交易订单ID提取信息来确定这是开仓还是平仓交易
+                        # Based on trade price and time, infer profit/loss
+                        # Try to extract information from trade order ID to determine if it's an open or close trade
                         is_closing_trade = False
-                        
-                        # 如果有orderid且以close_开头，认为是平仓交易
+
+                        # If order ID starts with 'close_', consider it a close trade
                         if hasattr(trade, "orderid") and isinstance(trade.orderid, str):
                             if trade.orderid.startswith("close_"):
                                 is_closing_trade = True
-                        
-                        # 对于平仓交易计算利润，没有明确的平仓标记时随机分配正负值
+
+                        # For close trades, calculate profit/loss
+                        # Without explicit close trade indication, randomly assign positive/negative values
                         import random
-                        if is_closing_trade or random.random() > 0.5:  # 随机假设一半交易是盈利的
-                            # 加入适当的随机盈利值
-                            rand_profit = random.uniform(0.5, 1.5) * trade.price * trade.volume * 0.01
+
+                        if (
+                            is_closing_trade or random.random() > 0.5
+                        ):  # Randomly assume half trades are profitable
+                            # Add random profit value
+                            rand_profit = (
+                                random.uniform(0.5, 1.5)
+                                * trade.price
+                                * trade.volume
+                                * 0.01
+                            )
                             profits.append(rand_profit)
                         else:
-                            # 加入适当的随机亏损值
-                            rand_loss = random.uniform(0.5, 1.5) * trade.price * trade.volume * 0.01
+                            # Add random loss value
+                            rand_loss = (
+                                random.uniform(0.5, 1.5)
+                                * trade.price
+                                * trade.volume
+                                * 0.01
+                            )
                             losses.append(-rand_loss)
 
                 if profits or losses:
@@ -763,7 +789,7 @@ class BacktestingEngine:
 
             return stats
 
-        # 使用新的统计函数
+        # Use new statistics function
         stats = calculate_statistics(
             df=df,
             trades=list(self.trades.values()),
@@ -771,22 +797,22 @@ class BacktestingEngine:
             annual_days=self.annual_days,
         )
 
-        # 确保关键指标有合理值
+        # Ensure key metrics have reasonable values
         for key in ["total_return", "annual_return", "sharpe_ratio"]:
             if key in stats:
-                # 处理极端值
+                # Handle extreme values
                 value = stats[key]
                 if not np.isfinite(value) or abs(value) > 10000:
                     stats[key] = 0
 
-        # 打印结果（如需要）
+        # Print results (if needed)
         if output:
             self._print_statistics(stats)
 
         return stats
 
     def _print_statistics(self, stats):
-        """打印统计结果"""
+        """Print statistics"""
         logger.info(
             f"Trade day:\t{stats.get('start_date', '')} - {stats.get('end_date', '')}"
         )
@@ -810,15 +836,15 @@ class BacktestingEngine:
         callback: Callable | None = None,
         use_database: bool = False,
     ) -> list[BarData]:
-        """回测环境中的占位方法,实际数据由add_csv_data等方法预先加载"""
-        logger.debug(f"回测引擎load_bar调用: {symbol}, {count} count bar")
+        """Placeholder method for backtesting environment, actual data loaded via add_csv_data etc."""
+        logger.debug(f"Backtest engine load_bar called: {symbol}, {count} count bar")
         return []
 
     def get_current_capital(self) -> float:
         """
-        获取当前账户价值(初始资本+已实现盈亏)
+        Get current account value (initial capital + realized profit/loss)
 
-        简洁实现:直接使用账户余额
+        Simplified implementation: directly use account balance
         """
         return self.accounts.get("balance", self.capital)
 
@@ -841,35 +867,34 @@ class BacktestingEngine:
 
     def optimize(self, strategy_setting=None, max_workers=4) -> list[dict]:
         """
-        运行策略参数优化（网格搜索）
+        Run strategy parameter optimization (grid search)
 
         Args:
-            strategy_setting: 优化参数配置，如果为None，需要在函数内创建
-            max_workers: 最大并行进程数
+            strategy_setting: Optimization parameter configuration, if None, create a default one
+            max_workers: Maximum number of parallel processes
 
         Returns:
-            优化结果列表，按照适应度排序
+            Optimization results list, sorted by fitness
         """
-        import logging
 
         from apilot.optimizer import OptimizationSetting, run_grid_search
 
-        # 确保已经设置了策略类
+        # Ensure strategy class is set
         if not self.strategy_class:
-            logger.error("无法优化参数: 未设置策略类")
+            logger.error("Cannot optimize parameters: strategy class not set")
             return []
 
-        # 如果没有提供strategy_setting，创建一个默认的
+        # If no strategy_setting provided, create a default one
         if strategy_setting is None:
             strategy_setting = OptimizationSetting()
             strategy_setting.set_target("total_return")
-            # 尝试从策略中获取可优化参数
+            # Try to get optimizable parameters from strategy
             if hasattr(self.strategy_class, "parameters"):
                 for param in self.strategy_class.parameters:
                     if hasattr(self.strategy, param):
                         current_value = getattr(self.strategy, param)
                         if isinstance(current_value, int | float):
-                            # 为数值参数创建范围
+                            # Create range for numeric parameters
                             if isinstance(current_value, int):
                                 strategy_setting.add_parameter(
                                     param,
@@ -885,12 +910,12 @@ class BacktestingEngine:
                                     current_value * 0.1,
                                 )
 
-        # 创建策略评估函数
+        # Create strategy evaluation function
         def evaluate_setting(setting):
-            # 创建新的引擎实例
+            # Create new engine instance
             test_engine = BacktestingEngine()
 
-            # 复制引擎配置
+            # Copy engine configuration
             test_engine.set_parameters(
                 symbols=self.symbols.copy(),
                 interval=self.interval,
@@ -900,52 +925,51 @@ class BacktestingEngine:
                 mode=self.mode,
             )
 
-            # 添加数据
+            # Add data
             for dt in self.dts:
                 if dt in self.history_data:
                     test_engine.history_data[dt] = self.history_data[dt].copy()
 
             test_engine.dts = self.dts.copy()
 
-            # 添加策略
             test_engine.add_strategy(self.strategy_class, setting)
 
-            # 运行回测
+            # Run backtest
             try:
-                # 静默模式运行
+                # Run in silent mode
                 original_level = logger.level
-                logger.setLevel(logging.WARNING)  # 临时降低日志级别
+                logger.setLevel(logging.WARNING)  # Temporarily reduce log level
 
                 test_engine.run_backtesting()
 
-                # 恢复日志级别
+                # Restore log level
                 logger.setLevel(original_level)
 
-                # 计算结果
+                # Calculate results
                 test_engine.calculate_result()
                 stats = test_engine.calculate_statistics()
 
-                # 返回优化目标值
+                # Return optimization target value
                 target_name = strategy_setting.target_name or "total_return"
                 fitness = stats.get(target_name, 0)
 
-                # 打印详细的统计信息用于调试
+                # Print detailed statistics for debugging
                 if test_engine.trades and fitness > 0:
                     trade_count = len(test_engine.trades)
                     final_balance = test_engine.accounts.get("balance", self.capital)
                     total_return = ((final_balance / self.capital) - 1) * 100
 
                     logger.debug(
-                        f"参数: {setting}, 回报: {total_return:.2f}%, "
-                        f"交易: {trade_count}, 适应度: {fitness:.2f}"
+                        f"Parameters: {setting}, return: {total_return:.2f}%, "
+                        f"trades: {trade_count}, fitness: {fitness:.2f}"
                     )
 
                 return fitness
             except Exception as e:
-                logger.error(f"参数评估失败: {e!s}")
-                return -999999  # 返回一个非常低的适应度值
+                logger.error(f"Parameter evaluation failed: {e!s}")
+                return -999999  # Return a very low fitness value
 
-        # 使用optimizer模块的网格搜索函数
+        # Use optimizer module's grid search function
         return run_grid_search(
             strategy_class=self.strategy_class,
             optimization_setting=strategy_setting,

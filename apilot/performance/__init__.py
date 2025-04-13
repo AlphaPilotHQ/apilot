@@ -1,15 +1,15 @@
 """
-性能分析和报告模块
+Performance Analysis and Reporting Module
 
-提供性能计算、可视化和报告功能，包括:
+Provides performance calculation, visualization and reporting functions, including:
 - Overview: Backtest Period, Initial Capital, Final Capital, Total Return, Win Rate, Profit/Loss Ratio
 - Key Metrics: Annualized Return, Max Drawdown, Sharpe Ratio, Turnover
 - Plot: Equity Curve, Drawdown Curve, Daily Return Distribution
-- AI Summary: 策略智能评估
+- AI Summary: Strategy Intelligent Assessment
 """
 
-# 导出性能计算函数和工具
-# 导出AI分析函数
+# Export performance calculation functions and tools
+# Export AI analysis functions
 from apilot.performance.aisummary import (
     generate_strategy_assessment,
 )
@@ -18,7 +18,7 @@ from apilot.performance.calculator import (
     calculate_trade_metrics,
 )
 
-# 导出图表函数
+# Export chart functions
 from apilot.performance.plot import (
     create_drawdown_curve,
     create_equity_curve,
@@ -28,13 +28,13 @@ from apilot.performance.plot import (
     get_return_dist_trace,
 )
 
-# 导出报告功能
+# Export reporting functions
 from apilot.performance.report import (
     PerformanceReport,
 )
 
 __all__ = [
-    # 按字母排序的导出列表
+    # Alphabetically sorted export list
     "calculate_statistics",
     "calculate_trade_metrics",
     "create_drawdown_curve",

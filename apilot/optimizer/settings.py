@@ -1,25 +1,26 @@
 """
-参数优化设置模块
+Parameter optimization settings module
 
-提供参数空间的定义和管理功能，用于策略参数优化。
+Provides parameter space definition and management for strategy optimization.
 """
 
 import logging
 from itertools import product
 
-# 获取日志记录器
+# Get logger
 logger = logging.getLogger("Optimizer")
 
 
 class OptimizationSetting:
     """
-    优化参数设置类
+    Optimization parameter settings class
 
-    用于定义参数空间和生成参数组合的工具类。支持离散型参数和连续型参数。
+    Utility class for defining parameter space and generating parameter combinations.
+    Supports both discrete and continuous parameters.
     """
 
     def __init__(self) -> None:
-        """初始化优化设置"""
+        """Initialize optimization settings"""
         self.params: dict[str, list] = {}
         self.target_name: str = ""
 
@@ -31,20 +32,20 @@ class OptimizationSetting:
         step: float | None = None,
     ) -> tuple[bool, str]:
         """
-        添加优化参数
+        Add optimization parameter
 
-        可以添加两种类型的参数:
-        1. 离散型: 直接添加具体数值列表 [1, 2, 3, 4, 5]
-        2. 连续型: 给定 start/end/step, 生成均匀分布的数值
+        Two types of parameters can be added:
+        1. Discrete: Directly add a specific value list [1, 2, 3, 4, 5]
+        2. Continuous: Given start/end/step, generate uniformly distributed values
 
         Args:
-            name: 参数名称
-            start: 参数起始值或离散列表
-            end: 参数结束值（连续型）
-            step: 参数步长（连续型）
+            name: Parameter name
+            start: Parameter start value or discrete list
+            end: Parameter end value (for continuous)
+            step: Parameter step (for continuous)
 
         Returns:
-            (成功标志, 错误信息)
+            (success flag, error message)
         """
         try:
             if end is None or step is None:
@@ -68,19 +69,19 @@ class OptimizationSetting:
 
     def set_target(self, target_name: str) -> None:
         """
-        设置优化目标
+        Set optimization target
 
         Args:
-            target_name: 优化目标指标名称（如'total_return', 'sharpe_ratio'等）
+            target_name: Name of the optimization target metric (e.g. 'total_return', 'sharpe_ratio', etc.)
         """
         self.target_name = target_name
 
     def generate_setting(self) -> list[dict]:
         """
-        生成所有参数组合
+        Generate all parameter combinations
 
         Returns:
-            包含所有参数组合的字典列表
+            List of dictionaries containing all parameter combinations
         """
         keys = self.params.keys()
         values = self.params.values()
@@ -95,13 +96,13 @@ class OptimizationSetting:
 
     def check_setting(self) -> tuple[bool, str]:
         """
-        检查优化参数是否有效
+        Check if optimization parameters are valid
 
         Returns:
-            (有效标志, 错误信息)
+            (valid flag, error message)
         """
         if not self.params:
-            return False, "优化参数为空"
+            return False, "Optimization parameters are empty"
 
         params_range = False
         for value in self.params.values():
@@ -110,6 +111,9 @@ class OptimizationSetting:
                 break
 
         if not params_range:
-            return False, "所有参数都是固定值,无法进行优化"
+            return (
+                False,
+                "All parameters are fixed values, optimization is not possible",
+            )
 
         return True, ""
