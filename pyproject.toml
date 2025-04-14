@@ -5,9 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "apilot"
 dynamic = ["version"]
-authors = [
-    {name = "AlphaPilot", email = "contact@alphapilot.tech"},
-]
+authors = [{name = "AlphaPilot", email = "contact@alphapilot.tech"},]
 description = "AI-Driven Qutan, Open to All"
 readme = "README.md"
 license = {text = "MIT"}
@@ -16,15 +14,9 @@ requires-python = ">=3.10"
 dependencies = [
     "numpy",
     "pandas",
-    "matplotlib",
-    "seaborn",
-    "deap",
-    "pyzmq",
     "plotly",
     "tqdm",
     "ccxt",
-    "requests",
-    "python-dateutil",
     "colorama",
     "python-dotenv",
 ]
@@ -34,14 +26,12 @@ dev = [
     "pytest",
     "pytest-cov",
     "ruff",
-    "mypy",
     "pre-commit",
 ]
 all = [
     "pytest",
     "pytest-cov",
     "ruff",
-    "mypy",
     "pre-commit",
 ]
 
@@ -53,6 +43,9 @@ Issues = "https://github.com/AlphaPilotHQ/apilot/issues"
 
 [tool.setuptools]
 packages = ["apilot"]
+
+[tool.setuptools.dynamic]
+version = {attr = "apilot.version.__version__"}
 
 [tool.ruff]
 line-length = 88
