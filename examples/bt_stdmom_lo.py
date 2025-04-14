@@ -14,8 +14,7 @@ from apilot.utils.logger import setup_logging
 
 setup_logging("bt_stdmom_lo")
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger = logging.getLogger("bt_stdmom_lo")
 
 
 class StdMomentumStrategy(ap.PATemplate):

@@ -11,7 +11,6 @@ from math import ceil, floor
 from .constant import Interval
 from .object import BarData
 
-# Get module logger
 logger = logging.getLogger(__name__)
 
 

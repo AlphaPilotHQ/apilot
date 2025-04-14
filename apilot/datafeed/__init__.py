@@ -6,7 +6,7 @@ Contains database interfaces and data source implementations for storing and loa
 
 from apilot.core.database import BaseDatabase
 
-from .providers.csv_provider import CsvDatabase
+from .csv_provider import CsvDatabase
 
 DATA_PROVIDERS = {}
 
@@ -16,8 +16,6 @@ def register_provider(name, provider_class):
 
 
 try:
-    from .providers.csv_provider import CsvDatabase
-
     register_provider("csv", CsvDatabase)
 except ImportError:
     pass

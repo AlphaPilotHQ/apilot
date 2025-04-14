@@ -36,23 +36,34 @@ __all__ = [
     "Status",
     "TradeData",
     "__version__",
+    "algo",
     "core",
     "create_csv_data",
     "create_mongodb_data",
     "datafeed",
     "engine",
-    "execution",
-    "setup_logging",
+    "gateway",
     "optimizer",
     "performance",
     "risk",
     "run_grid_search",
+    "setup_logging",
     "strategy",
     "utils",
 ]
 
 # Export submodules (package level)
-from . import core, datafeed, engine, execution, optimizer, performance, strategy, utils
+from . import (
+    algo,
+    core,
+    datafeed,
+    engine,
+    gateway,
+    optimizer,
+    performance,
+    strategy,
+    utils,
+)
 
 # Export constants
 from .core.constant import (
@@ -85,7 +96,7 @@ from .engine.backtest import BacktestingEngine
 from .engine.live import PAEngine
 
 # Export gateway components
-from .execution.gateway.binance import BinanceGateway
+from .gateway.binance import BinanceGateway
 from .optimizer import OptimizationSetting, run_grid_search
 
 # Export performance analysis components
