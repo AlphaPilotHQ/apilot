@@ -5,7 +5,7 @@ from copy import copy
 from typing import Any, ClassVar
 
 from apilot.core.constant import Direction, EngineType, Interval
-from apilot.core.object import BarData, OrderData, TickData, TradeData
+from apilot.core.object import BarData, OrderData, TradeData
 from apilot.core.utility import virtual
 from apilot.utils.logger import get_logger
 
@@ -88,10 +88,6 @@ class PATemplate(ABC):
 
     @virtual
     def on_stop(self) -> None:
-        pass
-
-    @virtual
-    def on_tick(self, tick: TickData) -> None:
         pass
 
     @virtual
@@ -257,15 +253,6 @@ class PATemplate(ABC):
             if bars and callback:
                 for bar in bars:
                     callback(bar)
-
-    def load_tick(self, count: int) -> None:
-        """Loads historical Tick data to initialize the strategy."""
-        ticks: list[TickData] = self.pa_engine.load_tick(
-            self.symbols[0], count, self.on_tick
-        )
-
-        for tick in ticks:
-            self.on_tick(tick)
 
     def sync_data(self) -> None:
         """Synchronizes strategy variable values to disk storage."""

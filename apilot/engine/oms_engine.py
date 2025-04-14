@@ -11,7 +11,6 @@ from apilot.core import (
     EVENT_ORDER,
     EVENT_POSITION,
     EVENT_QUOTE,
-    EVENT_TICK,
     EVENT_TRADE,
     # 数据类
     AccountData,
@@ -27,7 +26,6 @@ from apilot.core import (
     OrderRequest,
     PositionData,
     QuoteData,
-    TickData,
     TradeData,
 )
 
@@ -41,7 +39,6 @@ class OmsEngine(BaseEngine):
         """"""
         super().__init__(main_engine, event_engine, "oms")
 
-        self.ticks: dict[str, TickData] = {}
         self.orders: dict[str, OrderData] = {}
         self.trades: dict[str, TradeData] = {}
         self.positions: dict[str, PositionData] = {}
@@ -57,7 +54,6 @@ class OmsEngine(BaseEngine):
 
     def add_function(self) -> None:
         """Add query function to main engine."""
-        self.main_engine.get_tick = self.get_tick
         self.main_engine.get_order = self.get_order
         self.main_engine.get_trade = self.get_trade
         self.main_engine.get_position = self.get_position
@@ -65,7 +61,6 @@ class OmsEngine(BaseEngine):
         self.main_engine.get_contract = self.get_contract
         self.main_engine.get_quote = self.get_quote
 
-        self.main_engine.get_all_ticks = self.get_all_ticks
         self.main_engine.get_all_orders = self.get_all_orders
         self.main_engine.get_all_trades = self.get_all_trades
         self.main_engine.get_all_positions = self.get_all_positions
@@ -81,18 +76,12 @@ class OmsEngine(BaseEngine):
 
     def register_event(self) -> None:
         """"""
-        self.event_engine.register(EVENT_TICK, self.process_tick_event)
         self.event_engine.register(EVENT_ORDER, self.process_order_event)
         self.event_engine.register(EVENT_TRADE, self.process_trade_event)
         self.event_engine.register(EVENT_POSITION, self.process_position_event)
         self.event_engine.register(EVENT_ACCOUNT, self.process_account_event)
         self.event_engine.register(EVENT_CONTRACT, self.process_contract_event)
         self.event_engine.register(EVENT_QUOTE, self.process_quote_event)
-
-    def process_tick_event(self, event: Event) -> None:
-        """"""
-        tick: TickData = event.data
-        self.ticks[tick.symbol] = tick
 
     def process_order_event(self, event: Event) -> None:
         """"""
@@ -138,12 +127,6 @@ class OmsEngine(BaseEngine):
         elif quote.quoteid in self.active_quotes:
             self.active_quotes.pop(quote.quoteid)
 
-    def get_tick(self, symbol: str) -> TickData | None:
-        """
-        Get latest market tick data by symbol.
-        """
-        return self.ticks.get(symbol, None)
-
     def get_order(self, orderid: str) -> OrderData | None:
         """
         Get latest order data by orderid.
@@ -179,12 +162,6 @@ class OmsEngine(BaseEngine):
         Get latest quote data by quoteid.
         """
         return self.quotes.get(quoteid, None)
-
-    def get_all_ticks(self) -> list[TickData]:
-        """
-        Get all tick data.
-        """
-        return list(self.ticks.values())
 
     def get_all_orders(self) -> list[OrderData]:
         """
@@ -270,3 +247,16 @@ class OmsEngine(BaseEngine):
         Simple stub for crypto/US markets
         """
         return None
+
+    def close(self) -> None:
+        """
+        Close the engine and release resources.
+        """
+        self.orders.clear()
+        self.trades.clear()
+        self.positions.clear()
+        self.accounts.clear()
+        self.contracts.clear()
+        self.quotes.clear()
+        self.active_orders.clear()
+        self.active_quotes.clear()

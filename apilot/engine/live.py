@@ -9,13 +9,11 @@ import traceback
 from collections import defaultdict
 from collections.abc import Callable
 from concurrent.futures import Future, ThreadPoolExecutor
-from datetime import datetime, timedelta
 from typing import Any
 
 from apilot.core import (
     # Constants and utility functions
     EVENT_ORDER,
-    EVENT_TICK,
     EVENT_TRADE,
     # Data classes and constants
     BarData,
@@ -33,17 +31,14 @@ from apilot.core import (
     OrderRequest,
     OrderType,
     SubscribeRequest,
-    TickData,
     TradeData,
     # Utility functions
     round_to,
 )
-from apilot.core.database import DATABASE_CONFIG, BaseDatabase, use_database
 from apilot.strategy import PATemplate
 from apilot.utils.logger import get_logger
 from apilot.utils.symbol import split_symbol
 
-# Module-level logger initialization
 logger = get_logger("LiveTrading")
 
 
@@ -63,16 +58,8 @@ class PAEngine(BaseEngine):
         self.strategy_orderid_map = defaultdict(set)
         self.init_executor = ThreadPoolExecutor(max_workers=1)
         self.tradeids = set()
-        self.database: BaseDatabase = use_database(
-            DATABASE_CONFIG.get("name", ""), **DATABASE_CONFIG.get("params", {})
-        )
 
     def init_engine(self) -> None:
-        """
-        Initialize engine
-        """
-        self.load_strategy_setting()
-        self.load_strategy_data()
         self.register_event()
         logger.info("PA strategy engine initialized successfully")
 
@@ -80,20 +67,8 @@ class PAEngine(BaseEngine):
         self.stop_all_strategies()
 
     def register_event(self) -> None:
-        self.event_engine.register(EVENT_TICK, self.process_tick_event)
         self.event_engine.register(EVENT_ORDER, self.process_order_event)
         self.event_engine.register(EVENT_TRADE, self.process_trade_event)
-
-    def process_tick_event(self, event: Event) -> None:
-        tick = event.data
-
-        strategies = self.symbol_strategy_map[tick.symbol]
-        if not strategies:
-            return
-
-        for strategy in strategies:
-            if strategy.inited:
-                self.call_strategy_func(strategy, strategy.on_tick, tick)
 
     def process_order_event(self, event: Event) -> None:
         order = event.data
@@ -111,9 +86,6 @@ class PAEngine(BaseEngine):
         self.call_strategy_func(strategy, strategy.on_order, order)
 
     def process_trade_event(self, event: Event) -> None:
-        """
-        Process trade event
-        """
         trade: TradeData = event.data
 
         # Avoid processing duplicate trade
@@ -272,27 +244,8 @@ class PAEngine(BaseEngine):
         callback: Callable[[BarData], None],
         use_database: bool,
     ) -> list:
-        symbol_str, exchange_str = split_symbol(symbol)
-        end: datetime = datetime.now()
-        start: datetime = end - timedelta(days=count)
-        bars: list = []
-
-        # Try to query bars from database, if not found, load from database.
-        bars: list = self.database.load_bar_data(
-            symbol_str, exchange_str, interval, start, end
-        )
-
-        return bars
-
-    def load_tick(
-        self, symbol: str, count: int, callback: Callable[[TickData], None]
-    ) -> list:
-        symbol_str, exchange_str = split_symbol(symbol)
-        end: datetime = datetime.now()
-        start: datetime = end - timedelta(days=count)
-        ticks: list = self.database.load_tick_data(symbol_str, exchange_str, start, end)
-
-        return ticks
+        logger.info(f"From exchange get {symbol} history data")
+        return []
 
     def call_strategy_func(
         self, strategy: PATemplate, func: Callable, params: Any = None
@@ -305,37 +258,52 @@ class PAEngine(BaseEngine):
             logger.critical(f"{error_msg}")
 
     def add_strategy(
-        self, strategy_class: type, strategy_name: str, symbol: str, setting: dict
+        self,
+        strategy_class: type,
+        strategy_name: str,
+        symbols: str | list[str],
+        setting: dict,
     ) -> None:
         if strategy_name in self.strategies:
-            error_msg = (
-                f"Failed to create strategy, duplicate name exists: {strategy_name}"
-            )
+            error_msg = f"Strategy {strategy_name} already exists, duplicate creation not allowed"
             logger.error(f"{error_msg}")
             return
 
-        if "." not in symbol:
-            error_msg = "Failed to create strategy, local code missing exchange suffix"
+        # 检查symbols参数 - 可以是字符串或字符串列表
+        if isinstance(symbols, str):
+            if not symbols:
+                error_msg = "Symbol cannot be empty"
+                logger.error(f"{error_msg}")
+                return
+            # 验证单个交易对格式
+            symbol_str, exchange_str = split_symbol(symbols)
+            if exchange_str not in Exchange.__members__:
+                error_msg = (
+                    "Failed to create strategy, incorrect exchange suffix in local code"
+                )
+                logger.error(f"{error_msg}")
+                return
+        elif isinstance(symbols, list) and symbols:
+            # 验证所有交易对的格式
+            for symbol in symbols:
+                symbol_str, exchange_str = split_symbol(symbol)
+                if exchange_str not in Exchange.__members__:
+                    error_msg = f"Failed to create strategy, incorrect exchange suffix in {symbol}"
+                    logger.error(f"{error_msg}")
+                    return
+        else:
+            error_msg = "Symbols must be a non-empty string or list"
             logger.error(f"{error_msg}")
             return
 
-        symbol_str, exchange_str = split_symbol(symbol)
-        if exchange_str not in Exchange.__members__:
-            error_msg = (
-                "Failed to create strategy, incorrect exchange suffix in local code"
-            )
-            logger.error(f"{error_msg}")
-            return
-
-        strategy: PATemplate = strategy_class(self, strategy_name, symbol, setting)
+        # 创建策略实例
+        strategy: PATemplate = strategy_class(self, strategy_name, symbols, setting)
         self.strategies[strategy_name] = strategy
 
-        # Add symbol to strategy map.
-        strategies: list = self.symbol_strategy_map[symbol]
-        strategies.append(strategy)
-
-        # Update to setting file.
-        self.update_strategy_setting(strategy_name, setting)
+        # 将策略添加到每个交易对的映射中
+        for symbol in strategy.symbols:
+            strategies: list = self.symbol_strategy_map[symbol]
+            strategies.append(strategy)
 
     def init_strategy(self, strategy_name: str) -> Future:
         return self.init_executor.submit(self._init_strategy, strategy_name)
@@ -366,22 +334,33 @@ class PAEngine(BaseEngine):
                 if value is not None:
                     setattr(strategy, name, value)
 
-        # Subscribe market data
-        contract: ContractData | None = self.main_engine.get_contract(strategy.symbol)
-        if contract:
-            req: SubscribeRequest = SubscribeRequest(
-                symbol=contract.symbol, exchange=contract.exchange
-            )
-            self.main_engine.subscribe(req, contract.gateway_name)
-        else:
-            error_msg = (
-                f"Market data subscription failed, contract {strategy.symbol} not found"
-            )
-            logger.error(f"{error_msg}")
+        # 订阅策略中所有交易对的行情数据
+        subscription_failed = False
+        for symbol in strategy.symbols:
+            logger.info(f"From exchange get {symbol} history data")
+            contract: ContractData | None = self.main_engine.get_contract(symbol)
+            if contract:
+                req: SubscribeRequest = SubscribeRequest(
+                    symbol=contract.symbol, exchange=contract.exchange
+                )
+                self.main_engine.subscribe(req, contract.gateway_name)
+            else:
+                error_msg = (
+                    f"Market data subscription failed, contract {symbol} not found"
+                )
+                logger.error(f"{error_msg}")
+                subscription_failed = True
 
-        # Put event to update init completed status.
+        # 即使某些交易对订阅失败，也标记策略初始化完成
+        # 但日志中会记录失败的交易对
         strategy.inited = True
-        logger.info(f"{strategy_name} initialization completed")
+
+        if subscription_failed:
+            logger.warning(
+                f"{strategy_name} initialization completed with subscription failures"
+            )
+        else:
+            logger.info(f"{strategy_name} initialization completed")
 
     def start_strategy(self, strategy_name: str) -> None:
         strategy: PATemplate = self.strategies[strategy_name]
@@ -401,58 +380,6 @@ class PAEngine(BaseEngine):
         self.call_strategy_func(strategy, strategy.on_start)
         strategy.trading = True
 
-    def stop_strategy(self, strategy_name: str) -> None:
-        strategy: PATemplate = self.strategies[strategy_name]
-        if not strategy.trading:
-            return
-
-        # Call on_stop function of the strategy
-        self.call_strategy_func(strategy, strategy.on_stop)
-
-        # Change trading status of strategy to False
-        strategy.trading = False
-
-        # Cancel all orders of the strategy
-        self.cancel_all(strategy)
-
-        # Sync strategy variables to data file
-        self.sync_strategy_data(strategy)
-
-    def edit_strategy(self, strategy_name: str, setting: dict) -> None:
-        strategy: PATemplate = self.strategies[strategy_name]
-        strategy.update_setting(setting)
-
-        self.update_strategy_setting(strategy_name, setting)
-
-    def remove_strategy(self, strategy_name: str) -> bool:
-        strategy: PATemplate = self.strategies[strategy_name]
-        if strategy.trading:
-            error_msg = f"Strategy {strategy_name} removal failed, please stop it first"
-            logger.error(f"{error_msg}")
-            return
-
-        # Remove setting
-        self.remove_strategy_setting(strategy_name)
-
-        # Remove from symbol strategy map
-        strategies: list = self.symbol_strategy_map[strategy.symbol]
-        strategies.remove(strategy)
-
-        # Remove from active orderid map
-        if strategy_name in self.strategy_orderid_map:
-            orderids: set = self.strategy_orderid_map.pop(strategy_name)
-
-            # Remove orderid strategy map
-            for orderid in orderids:
-                if orderid in self.orderid_strategy_map:
-                    self.orderid_strategy_map.pop(orderid)
-
-        # Remove from strategies
-        self.strategies.pop(strategy_name)
-
-        logger.info(f"Strategy {strategy_name} removed successfully")
-        return True
-
     def sync_strategy_data(self, strategy: PATemplate) -> None:
         """
         Sync strategy data into json file.
@@ -465,5 +392,19 @@ class PAEngine(BaseEngine):
 
     def stop_all_strategies(self) -> None:
         """Stop all strategies"""
-        for strategy_name in self.strategies.keys():
-            self.stop_strategy(strategy_name)
+        for strategy_name in list(self.strategies.keys()):
+            strategy = self.strategies[strategy_name]
+            if not strategy.trading:
+                continue
+
+            # Call on_stop function of the strategy
+            self.call_strategy_func(strategy, strategy.on_stop)
+
+            # Change trading status of strategy to False
+            strategy.trading = False
+
+            # Cancel all orders of the strategy
+            self.cancel_all(strategy)
+
+            # Sync strategy variables to data file
+            self.sync_strategy_data(strategy)

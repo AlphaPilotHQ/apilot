@@ -57,7 +57,6 @@ class Interval(Enum):
     HOUR4 = "4h"
     DAILY = "d"
     WEEKLY = "w"
-    TICK = "tick"
 
 
 class EngineType(Enum):
@@ -72,13 +71,7 @@ class AlgoStatus(Enum):
     FINISHED = "FINISHED"
 
 
-class BacktestingMode(Enum):
-    BAR = 1
-    TICK = 2
-
-
 INTERVAL_DELTA_MAP: dict[Interval, timedelta] = {
-    Interval.TICK: timedelta(milliseconds=1),
     Interval.MINUTE: timedelta(minutes=1),
     Interval.HOUR: timedelta(hours=1),
     Interval.DAILY: timedelta(days=1),

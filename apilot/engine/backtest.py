@@ -12,7 +12,6 @@ from datetime import date, datetime
 from pandas import DataFrame
 
 from apilot.core.constant import (
-    BacktestingMode,
     Direction,
     EngineType,
     Exchange,
@@ -22,7 +21,6 @@ from apilot.core.constant import (
 from apilot.core.object import (
     BarData,
     OrderData,
-    TickData,
     TradeData,
 )
 from apilot.core.utility import round_to
@@ -82,11 +80,9 @@ class BacktestingEngine:
         self.priceticks: dict[str, float] | None = None
         self.capital: int = 100_000
         self.annual_days: int = 240
-        self.mode: BacktestingMode = BacktestingMode.BAR
 
         self.strategy_class: type[PATemplate] | None = None
         self.strategy: PATemplate | None = None
-        self.tick: TickData | None = None
         self.bars: dict[str, BarData] = {}  # Current bars for active symbols
         self.datetime: datetime | None = None  # Current backtesting time
 
@@ -118,7 +114,6 @@ class BacktestingEngine:
     def clear_data(self) -> None:
         """Resets engine state for a new backtest run."""
         self.strategy = None
-        self.tick = None
         self.bars = {}
         self.datetime = None
 
@@ -144,11 +139,10 @@ class BacktestingEngine:
         priceticks: dict[str, float] | None = None,
         capital: int = 100_000,
         end: datetime | None = None,
-        mode: BacktestingMode = BacktestingMode.BAR,
         annual_days: int = 240,
     ) -> None:
         # Parameters from user settings
-        self.mode = mode
+        # self.mode removed - framework now uses bar-based data only
         self.symbols = symbols  # List of symbols to trade
         self.interval = Interval(interval)
         self.sizes = sizes if sizes is not None else {}
@@ -349,18 +343,6 @@ class BacktestingEngine:
 
         self.update_daily_close(bar.close_price, bar.symbol)
 
-    def new_tick(self, tick: TickData) -> None:
-        """
-        Process new tick data
-        """
-        self.tick = tick
-        self.datetime = tick.datetime
-
-        self.cross_limit_order()
-        self.strategy.on_tick(tick)
-
-        self.update_daily_close(tick.last_price, tick.symbol)
-
     def cross_limit_order(self) -> None:
         """
         Match limit orders
@@ -375,22 +357,14 @@ class BacktestingEngine:
             # Get price for order's symbol
             symbol = order.symbol
 
-            # Set trigger price based on mode
-            if self.mode == BacktestingMode.BAR:
-                bar = self.bars.get(symbol)
-                if not bar:
-                    logger.info(
-                        f"No bar data found for order's symbol: {symbol}, current time: {self.datetime}, order ID: {order.orderid}"
-                    )
-                    continue
-                buy_price = bar.low_price
-                sell_price = bar.high_price
-
-            else:
-                if self.tick.symbol != symbol:
-                    continue
-                buy_price = self.tick.ask_price_1
-                sell_price = self.tick.bid_price_1
+            bar = self.bars.get(symbol)
+            if not bar:
+                logger.info(
+                    f"No bar data found for order's symbol: {symbol}, current time: {self.datetime}, order ID: {order.orderid}"
+                )
+                continue
+            buy_price = bar.low_price
+            sell_price = bar.high_price
 
             # Check if order is filled
             buy_cross = (
@@ -922,7 +896,7 @@ class BacktestingEngine:
                 start=self.start,
                 end=self.end,
                 capital=self.capital,
-                mode=self.mode,
+                # mode removed - framework now uses bar-based data only
             )
 
             # Add data

@@ -1,7 +1,7 @@
 from random import uniform
 from typing import ClassVar
 
-from apilot.core import BaseEngine, Direction, OrderData, TickData, TradeData
+from apilot.core import BaseEngine, OrderData, TradeData
 
 from .algo_template import AlgoTemplate
 
@@ -55,21 +55,6 @@ class BestLimitAlgo(AlgoTemplate):
             )
             self.finish()
             return
-
-    def on_tick(self, tick: TickData) -> None:
-        """Tick data callback"""
-        if self.direction == Direction.LONG:
-            if not self.orderid:
-                self.buy_best_limit(tick.bid_price_1)
-            elif self.order_price != tick.bid_price_1:
-                self.cancel_all()
-        else:
-            if not self.orderid:
-                self.sell_best_limit(tick.ask_price_1)
-            elif self.order_price != tick.ask_price_1:
-                self.cancel_all()
-
-        self.put_event()
 
     def on_trade(self, trade: TradeData) -> None:
         """Trade callback"""

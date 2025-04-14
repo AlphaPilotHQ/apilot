@@ -33,7 +33,7 @@ Official website: [www.alphapilot.tech](https://www.alphapilot.tech)
 
 - **Core Module**: Contains all abstract interfaces and core data structures
   - Abstract base classes (BaseEngine, BaseGateway, etc.)
-  - Data models (OrderData, TickData, etc.)
+  - Data models (OrderData)
   - Constant definitions (Direction, Interval, etc.)
   - Basic event system
 

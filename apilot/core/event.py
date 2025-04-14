@@ -7,7 +7,6 @@ from typing import Any
 
 # Event types
 EVENT_TIMER = "eTimer"
-EVENT_TICK = "eTick."
 EVENT_TRADE = "eTrade."
 EVENT_ORDER = "eOrder."
 EVENT_POSITION = "ePosition."

@@ -7,7 +7,7 @@ Contains implementations of various execution algorithms for optimizing trade ex
 # First import required components from apilot.core to resolve import issues in algorithm files
 from apilot.core.constant import Direction, Exchange, OrderType
 from apilot.core.engine import BaseEngine
-from apilot.core.object import OrderData, OrderRequest, TickData, TradeData
+from apilot.core.object import OrderData, OrderRequest, TradeData
 
 # Then export algorithm engine and algorithm template
 from .algo_engine import AlgoEngine
@@ -28,7 +28,6 @@ __all__ = [
     "OrderData",
     "OrderRequest",
     "OrderType",
-    "TickData",
     "TradeData",
     "TwapAlgo",
 ]

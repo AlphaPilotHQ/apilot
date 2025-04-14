@@ -15,7 +15,6 @@ from apilot.core.engine import (
 from apilot.core.event import (
     EVENT_ALGO_UPDATE,
     EVENT_ORDER,
-    EVENT_TICK,
     EVENT_TIMER,
     EVENT_TRADE,
     Event,
@@ -26,7 +25,6 @@ from apilot.core.object import (
     OrderData,
     OrderRequest,
     SubscribeRequest,
-    TickData,
     TradeData,
 )
 from apilot.utils.logger import get_logger
@@ -66,14 +64,10 @@ class AlgoEngine(BaseEngine):
     def load_algo_template(self) -> None:
         """Load algorithm classes"""
         from .best_limit_algo import BestLimitAlgo
-        from .iceberg_algo import IcebergAlgo
-        from .sniper_algo import SniperAlgo
         from .stop_algo import StopAlgo
         from .twap_algo import TwapAlgo
 
         self.add_algo_template(TwapAlgo)
-        self.add_algo_template(IcebergAlgo)
-        self.add_algo_template(SniperAlgo)
         self.add_algo_template(StopAlgo)
         self.add_algo_template(BestLimitAlgo)
 
@@ -87,18 +81,9 @@ class AlgoEngine(BaseEngine):
 
     def register_event(self) -> None:
         """Register event listeners"""
-        self.event_engine.register(EVENT_TICK, self.process_tick_event)
         self.event_engine.register(EVENT_TIMER, self.process_timer_event)
         self.event_engine.register(EVENT_ORDER, self.process_order_event)
         self.event_engine.register(EVENT_TRADE, self.process_trade_event)
-
-    def process_tick_event(self, event: Event) -> None:
-        """Process tick event"""
-        tick: TickData = event.data
-        algos: set[AlgoTemplate] = self.symbol_algo_map[tick.symbol]
-
-        for algo in algos:
-            algo.update_tick(tick)
 
     def process_timer_event(self, event: Event) -> None:
         """Process timer event"""
@@ -230,17 +215,6 @@ class AlgoEngine(BaseEngine):
 
         req: CancelRequest = order.create_cancel_request()
         self.main_engine.cancel_order(req, order.gateway_name)
-
-    def get_tick(self, algo: AlgoTemplate) -> TickData | None:
-        """Get market data"""
-        tick: TickData | None = self.main_engine.get_tick(algo.symbol)
-
-        if not tick:
-            logger.warning(
-                f"[{ENGINE_NAME}:{algo.algo_name}] Get market data failed, data not found: {algo.symbol}"
-            )
-
-        return tick
 
     def get_contract(self, algo: AlgoTemplate) -> ContractData | None:
         """Get contract"""

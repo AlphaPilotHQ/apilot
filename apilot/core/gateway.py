@@ -7,7 +7,6 @@ from .event import (
     EVENT_ORDER,
     EVENT_POSITION,
     EVENT_QUOTE,
-    EVENT_TICK,
     EVENT_TRADE,
     Event,
     EventEngine,
@@ -25,7 +24,6 @@ from .object import (
     QuoteData,
     QuoteRequest,
     SubscribeRequest,
-    TickData,
     TradeData,
 )
 
@@ -43,7 +41,7 @@ class BaseGateway(ABC):
     Implementation requirements:
     * Thread-safe and non-blocking
     * Must implement all abstractmethod
-    * Must handle callbacks for on_tick, on_trade, on_order,
+    * Must handle callbacks for on_trade, on_order,
       on_position, on_account, on_contract
     """
 
@@ -72,16 +70,6 @@ class BaseGateway(ABC):
         """
         event: Event = Event(type, data)
         self.event_engine.put(event)
-
-    def on_tick(self, tick: TickData) -> None:
-        """
-        Push tick event.
-
-        Args:
-            tick: Tick data object
-        """
-        self.on_event(EVENT_TICK, tick)
-        self.on_event(EVENT_TICK + tick.symbol, tick)
 
     def on_trade(self, trade: TradeData) -> None:
         """

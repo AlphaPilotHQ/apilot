@@ -25,8 +25,10 @@ from apilot.core.object import (
     HistoryRequest,
     OrderData,
     OrderRequest,
+    QuoteRequest,
     SubscribeRequest,
 )
+from apilot.utils.logger import get_logger
 
 # Binance exchange symbols for apilot
 EXCHANGE_BINANCE = Exchange.BINANCE
@@ -59,10 +61,6 @@ SYS_LOCAL_ORDER_ID_MAP = {}
 
 
 class BinanceGateway(BaseGateway):
-    """
-    apilot gateway for Binance connection using CCXT.
-    """
-
     default_name = "BINANCE"
     default_setting: ClassVar[dict[str, Any]] = {
         "API Key": "",
@@ -77,16 +75,15 @@ class BinanceGateway(BaseGateway):
         """Constructor"""
         super().__init__(event_engine, gateway_name)
 
-        self.trade_ws_api = None
-        self.market_ws_api = None
-        self.rest_api = BinanceRestApi(self)
+        self.logger = get_logger(f"Binance_{gateway_name}")
 
-        self.orders = {}
-        self.order_count = 0
+        # Track connection time for order IDs
         self.connect_time = 0
 
+        # REST API client
+        self.rest_api = BinanceRestApi(self)
+
     def connect(self, setting: dict) -> None:
-        """Connect to exchange"""
         api_key = setting["API Key"]
         secret_key = setting["Secret Key"]
         session_number = setting["Session Number"]
@@ -103,32 +100,31 @@ class BinanceGateway(BaseGateway):
         self.connect_time = int(datetime.now().timestamp())
 
     def subscribe(self, req: SubscribeRequest) -> None:
-        """Subscribe to market data"""
         self.rest_api.subscribe(req)
 
     def send_order(self, req: OrderRequest) -> str:
-        """Send order"""
         return self.rest_api.send_order(req)
 
     def cancel_order(self, req: CancelRequest) -> None:
-        """Cancel order"""
         self.rest_api.cancel_order(req)
 
     def query_account(self) -> None:
-        """Query account balance"""
         self.rest_api.query_account()
 
     def query_position(self) -> None:
-        """Query positions"""
         self.rest_api.query_position()
 
     def query_history(self, req: HistoryRequest) -> list[BarData]:
-        """Query history data"""
         return self.rest_api.query_history(req)
 
     def close(self) -> None:
-        """Close connection"""
         self.rest_api.stop()
+
+    def send_quote(self, req: QuoteRequest) -> str:
+        return ""
+
+    def cancel_quote(self, req: CancelRequest) -> None:
+        pass
 
 
 class BinanceRestApi:
@@ -138,9 +134,8 @@ class BinanceRestApi:
         """Constructor"""
         self.gateway = gateway
         self.gateway_name = gateway.gateway_name
-
-        self.trade_ws_connected = False
-        self.market_ws_connected = False
+        # Create a dedicated logger instead of relying on gateway's logger
+        self.logger = get_logger(f"BinanceRestApi_{self.gateway_name}")
 
         self.api_key = ""
         self.secret_key = ""
@@ -151,7 +146,6 @@ class BinanceRestApi:
         self.order_count = 0
         self.connect_time = 0
 
-        self.positions = {}
         self.orders = {}
 
         # For restoring data from small network interruption
@@ -175,37 +169,34 @@ class BinanceRestApi:
         exchange_class = ccxt.binance
         options = {}
 
-        # Set proxy
+        # Prepare exchange kwargs
+        self.exchange_kwargs = {
+            "apiKey": api_key,
+            "secret": secret_key,
+            "options": options,
+        }
+
+        # Set proxy if provided
         if proxy_host and proxy_port:
-            self.gateway.write_log(f"Using proxy: {proxy_host}:{proxy_port}")
-            # CCXT proxy settings
+            proxy_url = f"http://{proxy_host}:{proxy_port}"
+            self.logger.info(f"Using proxy: {proxy_url}")
+            # Set proxy in options for CCXT
             options["proxies"] = {
-                "http": f"http://{proxy_host}:{proxy_port}",
-                "https": f"https://{proxy_host}:{proxy_port}",
+                "http": proxy_url,
+                "https": proxy_url.replace("http:", "https:"),
             }
-            # Directly set the request library proxy
-            self.exchange_kwargs = {
-                "apiKey": api_key,
-                "secret": secret_key,
-                "options": options,
-                "proxies": {
-                    "http": f"http://{proxy_host}:{proxy_port}",
-                    "https": f"http://{proxy_host}:{proxy_port}",
-                },
-            }
-        else:
-            self.exchange_kwargs = {
-                "apiKey": api_key,
-                "secret": secret_key,
-                "options": options,
+            # Also set for requests library
+            self.exchange_kwargs["proxies"] = {
+                "http": proxy_url,
+                "https": proxy_url,
             }
 
         # Create the exchange instance
         try:
-            self.gateway.write_log("Creating Binance exchange instance")
+            self.logger.info("Creating Binance exchange instance")
             self.exchange = exchange_class(self.exchange_kwargs)
         except Exception as e:
-            self.gateway.write_log(f"Failed to create Binance exchange instance: {e}")
+            self.logger.error(f"Failed to create Binance exchange instance: {e}")
 
         # Start connection and initialization
         self.init()
@@ -215,21 +206,14 @@ class BinanceRestApi:
         if not self.exchange:
             return
 
-        # Fetch exchange info, symbols, trading rules
+        # Fetch exchange info and initialize
         try:
-            self.gateway.write_log("Starting to initialize Binance interface")
+            self.logger.info("Initializing Binance interface")
             self.exchange.load_markets()
-
-            # Query account and positions
             self.query_account()
-            self.query_position()
-
-            # Initialize contract info
             self.init_contracts()
-
-            self.gateway.write_log("Binance interface initialized successfully")
         except Exception as e:
-            self.gateway.write_log(f"Failed to initialize Binance interface: {e}")
+            self.logger.error(f"Failed to initialize Binance interface: {e}")
 
     def init_contracts(self) -> None:
         """Initialize contract list"""
@@ -255,41 +239,31 @@ class BinanceRestApi:
 
             self.gateway.on_contract(contract)
 
-        self.gateway.write_log(
+        self.logger.info(
             f"Contract info query successful: {len(self.contract_symbols)} contracts"
         )
 
     def query_account(self) -> None:
         """Query account balance"""
         try:
-            self.gateway.write_log("Getting account balance information...")
+            self.logger.info("Getting account balance information...")
 
-            # Test proxy connection
+            # Test API connection with a simple call
             try:
-                # First check connection with a simple API call
-                time_res = self.exchange.fetch_time()
-                self.gateway.write_log(
-                    f"Successfully connected to Binance API, server time: {time_res}"
-                )
+                self.exchange.fetch_time()
             except Exception as conn_err:
-                self.gateway.write_log(f"Failed to connect to Binance API: {conn_err}")
-                self.gateway.write_log(
-                    "Please check if proxy settings are correct and if the proxy is running"
+                self.logger.error(f"Failed to connect to Binance API: {conn_err}")
+                self.logger.error(
+                    "Please check network connection and API key permissions"
                 )
                 return
 
             # Get account balance
             try:
                 data = self.exchange.fetch_balance()
-                self.gateway.write_log("Successfully obtained account balance")
+                self.logger.info("Successfully obtained account balance")
             except Exception as bal_err:
-                self.gateway.write_log(f"Failed to get account balance: {bal_err}")
-                self.gateway.write_log(
-                    "Please check if API key permissions are correctly set"
-                )
-                import traceback
-
-                self.gateway.write_log(f"Detailed error: {traceback.format_exc()}")
+                self.logger.error(f"Failed to get account balance: {bal_err}")
                 return
 
             # Process each currency
@@ -306,19 +280,18 @@ class BinanceRestApi:
                 )
 
                 self.gateway.on_account(account)
-                self.gateway.write_log(
+                self.logger.info(
                     f"Account {currency}: Total={data['total'][currency]}, Available={data['free'].get(currency, 0)}"
                 )
         except Exception as e:
-            self.gateway.write_log(f"Account balance query failed: {e}")
             import traceback
 
-            self.gateway.write_log(f"Detailed error stack: {traceback.format_exc()}")
+            self.logger.error(f"Account balance query failed: {e}")
+            self.logger.error(f"Detailed error: {traceback.format_exc()}")
 
     def query_position(self) -> None:
-        """Query position data"""
-        # For spot market, we use account balances
-        self.query_account()
+        """Query position data - for spot market, positions are derived from account balances"""
+        pass
 
     def send_order(self, req: OrderRequest) -> str:
         """Send an order to Binance"""
@@ -327,23 +300,9 @@ class BinanceRestApi:
             self.order_count += 1
             local_orderid = f"{self.connect_time}{self.order_count}"
 
-            # Convert request to Binance params
+            # Convert request to Binance parameters
             side = "buy" if req.direction == Direction.LONG else "sell"
             ordertype = ORDERTYPE_VT2BINANCE.get(req.type, "")
-
-            params = {
-                "symbol": req.symbol,
-                "side": side,
-                "type": ordertype,
-            }
-
-            # Add price and quantity according to order type
-            if req.type == OrderType.LIMIT:
-                params["price"] = str(req.price)
-                params["quantity"] = str(req.volume)
-                params["timeInForce"] = "GTC"
-            else:
-                params["quantity"] = str(req.volume)
 
             # Send order via CCXT
             result = self.exchange.create_order(
@@ -375,7 +334,7 @@ class BinanceRestApi:
 
             return local_orderid
         except Exception as e:
-            self.gateway.write_log(f"Order placement failed: {e}")
+            self.logger.error(f"Order placement failed: {e}")
             return ""
 
     def cancel_order(self, req: CancelRequest) -> None:
@@ -384,18 +343,16 @@ class BinanceRestApi:
             # Get sys orderid from local orderid
             sys_orderid = LOCAL_SYS_ORDER_ID_MAP.get(req.orderid, "")
             if not sys_orderid:
-                self.gateway.write_log(
+                self.logger.error(
                     f"Cancel order failed: Cannot find order {req.orderid}"
                 )
                 return
 
             # Cancel order via CCXT
             self.exchange.cancel_order(sys_orderid, req.symbol)
-            self.gateway.write_log(
-                f"Cancel order request sent successfully: {req.orderid}"
-            )
+            self.logger.info(f"Cancel order request sent successfully: {req.orderid}")
         except Exception as e:
-            self.gateway.write_log(f"Cancel order failed: {e}")
+            self.logger.error(f"Cancel order failed: {e}")
             if ORDER_NOT_EXISTS_ERROR in str(e):
                 # Order already finished or canceled
                 order = self.orders.get(req.orderid, None)
@@ -405,8 +362,7 @@ class BinanceRestApi:
 
     def subscribe(self, req: SubscribeRequest) -> None:
         """Subscribe to market data for a specific symbol"""
-        # Currently we use rest API for everything, so we just record the subscription
-        self.gateway.write_log(f"Subscribe to market data: {req.symbol}")
+        # Currently using REST API polling - subscription is handled internally
 
     def query_history(self, req: HistoryRequest) -> list[BarData]:
         """Query K-line history data"""
@@ -414,20 +370,11 @@ class BinanceRestApi:
             # Convert apilot interval to Binance interval
             interval = INTERVAL_VT2BINANCE.get(req.interval, "")
             if not interval:
-                self.gateway.write_log(f"Unsupported K-line interval: {req.interval}")
+                self.logger.error(f"Unsupported K-line interval: {req.interval}")
                 return []
 
-            # Calculate start time and end time
-            # CCXT requires timestamps in milliseconds
-
-            # Only use start time, end time not used yet
-            if req.end:
-                # Note: Binance API currently does not use end time
-                pass
-
-            start_time = None
-            if req.start:
-                start_time = int(req.start.timestamp() * 1000)
+            # Convert start time to millisecond timestamp for CCXT
+            start_time = int(req.start.timestamp() * 1000) if req.start else None
 
             # Fetch OHLCV data
             data = self.exchange.fetch_ohlcv(
@@ -455,9 +402,9 @@ class BinanceRestApi:
 
             return bars
         except Exception as e:
-            self.gateway.write_log(f"Failed to get historical data: {e}")
+            self.logger.error(f"Failed to get historical data: {e}")
             return []
 
     def stop(self) -> None:
         """Stop the API"""
-        self.gateway.write_log("Binance interface disconnected")
+        self.logger.info("Binance interface disconnected")

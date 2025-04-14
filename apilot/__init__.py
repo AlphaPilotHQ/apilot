@@ -5,7 +5,7 @@ This package provides a complete set of quantitative trading tools, including da
 
 Recommended import methods:
     import apilot as ap                     # General usage
-    from apilot import BarData, TickData    # Import specific components
+    from apilot import BarData              # Import specific components
     import apilot.core as apcore            # Extensive use of a module
 
 """
@@ -19,20 +19,23 @@ __all__ = [
     "BacktestingEngine",
     "BarData",
     "BarGenerator",
+    "BinanceGateway",
     "ContractData",
     "Direction",
+    "EventEngine",
     "Exchange",
     "Interval",
     "LocalOrderManager",
+    "MainEngine",
     "OptimizationSetting",
     "OrderData",
     "OrderType",
+    "PAEngine",
     "PATemplate",
     "PerformanceReport",
     "PositionData",
     "Product",
     "Status",
-    "TickData",
     "TradeData",
     "__version__",
     "core",
@@ -64,6 +67,10 @@ from .core.constant import (
     Product,
     Status,
 )
+from .core.engine import MainEngine
+
+# Export core engine components
+from .core.event import EventEngine
 
 # Export core data objects
 from .core.object import (
@@ -72,7 +79,6 @@ from .core.object import (
     ContractData,
     OrderData,
     PositionData,
-    TickData,
     TradeData,
 )
 
@@ -81,6 +87,10 @@ from .core.utility import BarGenerator
 
 # Export backtesting and optimization components
 from .engine.backtest import BacktestingEngine
+from .engine.live import PAEngine
+
+# Export gateway components
+from .execution.gateway.binance import BinanceGateway
 from .optimizer import OptimizationSetting, run_grid_search
 
 # Export performance analysis components

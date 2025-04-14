@@ -66,6 +66,7 @@ select = [
     "RUF",  # Ruff rule
 ]
 ignore = [
+    "RUF001",
     "RUF002",  # Ignore full-width punctuation check
     "RUF022",  # Ignore __all__ sorting check
     "E501",    # Ignore line length warnings

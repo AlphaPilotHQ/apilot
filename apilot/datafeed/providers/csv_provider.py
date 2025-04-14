@@ -8,7 +8,7 @@ from datetime import datetime
 
 import pandas as pd
 
-from apilot.core import BarData, Interval, TickData
+from apilot.core import BarData, Interval
 from apilot.core.database import BaseDatabase
 from apilot.utils.logger import get_logger, set_level
 
@@ -88,24 +88,10 @@ class CsvDatabase(BaseDatabase):
             logger.error(f"CSV data loading failed: {e}")
             return []
 
-    def load_tick_data(
-        self, symbol: str, start: datetime, end: datetime
-    ) -> list[TickData]:
-        """Load tick data from CSV (not implemented yet)"""
-        raise NotImplementedError("CSV provider does not support tick data yet")
-
     def delete_bar_data(self, symbol: str, interval: Interval) -> int:
         """Delete bar data (not implemented)"""
         return 0
 
-    def delete_tick_data(self, symbol: str) -> int:
-        """Delete tick data (not implemented)"""
-        return 0
-
     def get_bar_overview(self) -> list[dict]:
         """Get bar data overview (not implemented)"""
-        return []
-
-    def get_tick_overview(self) -> list[dict]:
-        """Get tick data overview (not implemented)"""
         return []

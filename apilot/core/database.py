@@ -10,7 +10,7 @@ from datetime import datetime
 from typing import Any
 
 from .constant import Interval
-from .object import BarData, TickData
+from .object import BarData
 
 
 @dataclass
@@ -21,18 +21,6 @@ class BarOverview:
 
     symbol: str = ""
     interval: Interval = None
-    count: int = 0
-    start: int = None
-    end: int = None
-
-
-@dataclass
-class TickOverview:
-    """
-    Overview of tick data stored in database.
-    """
-
-    symbol: str = ""
     count: int = 0
     start: int = None
     end: int = None
@@ -54,26 +42,12 @@ class BaseDatabase(ABC):
         """Abstract method to load bar data"""
         pass
 
-    def load_tick_data(
-        self, symbol: str, start: datetime, end: datetime
-    ) -> list[TickData]:
-        """Load tick data (optional)"""
-        return []
-
     def delete_bar_data(self, symbol: str, interval: Interval) -> int:
         """Delete bar data (optional)"""
         return 0
 
-    def delete_tick_data(self, symbol: str) -> int:
-        """Delete tick data (optional)"""
-        return 0
-
     def get_bar_overview(self) -> list[BarOverview]:
         """Get bar data overview (optional)"""
-        return []
-
-    def get_tick_overview(self) -> list[TickOverview]:
-        """Get tick data overview (optional)"""
         return []
 
 

@@ -23,6 +23,8 @@ from .object import (
     SubscribeRequest,
 )
 
+logger = get_logger("MainEngine")
+
 
 class MainEngine:
     """
@@ -72,10 +74,6 @@ class MainEngine:
         return gateway
 
     def init_engines(self) -> None:
-        """
-        Init all engines.
-        """
-        # Import from engine package instead of individual modules
         from apilot.engine import OmsEngine
 
         self.add_engine(OmsEngine)
@@ -86,7 +84,7 @@ class MainEngine:
         """
         gateway: BaseGateway = self.gateways.get(gateway_name, None)
         if not gateway:
-            get_logger().error(f"Gateway not found: {gateway_name}")
+            logger.error(f"Gateway not found: {gateway_name}")
         return gateway
 
     def get_engine(self, engine_name: str) -> "BaseEngine":
@@ -129,7 +127,7 @@ class MainEngine:
 
     def subscribe(self, req: SubscribeRequest, gateway_name: str) -> None:
         """
-        Subscribe tick data update of a specific gateway.
+        Subscribe market data update of a specific gateway.
         """
         gateway: BaseGateway = self.get_gateway(gateway_name)
         if gateway:

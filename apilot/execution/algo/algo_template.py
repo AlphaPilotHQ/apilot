@@ -6,7 +6,6 @@ from apilot.core import (
     Direction,
     OrderData,
     OrderType,
-    TickData,
     TradeData,
 )
 from apilot.core.constant import AlgoStatus
@@ -54,11 +53,6 @@ class AlgoTemplate:
 
         self.active_orders: dict[str, OrderData] = {}
 
-    def update_tick(self, tick: TickData) -> None:
-        """Update market data"""
-        if self.status == AlgoStatus.RUNNING:
-            self.on_tick(tick)
-
     def update_order(self, order: OrderData) -> None:
         """Update order data"""
         if order.is_active():
@@ -80,11 +74,6 @@ class AlgoTemplate:
         """Update timer every second"""
         if self.status == AlgoStatus.RUNNING:
             self.on_timer()
-
-    @virtual
-    def on_tick(self, tick: TickData) -> None:
-        """Tick data callback"""
-        pass
 
     @virtual
     def on_order(self, order: OrderData) -> None:
@@ -183,10 +172,6 @@ class AlgoTemplate:
 
         for orderid in self.active_orders.keys():
             self.cancel_order(orderid)
-
-    def get_tick(self) -> TickData | None:
-        """Get market data"""
-        return self.algo_engine.get_tick(self)
 
     def get_contract(self) -> ContractData | None:
         """Get contract info"""

@@ -83,13 +83,6 @@ class TurtleSignalStrategy(ap.PATemplate):
         Strategy stop callback
         """
 
-    def on_tick(self, tick: ap.TickData):
-        """
-        Tick data update callback
-        """
-        # Update tick data to bar generator
-        self.bg.update_tick(tick)
-
     def on_bar(self, bar: ap.BarData):
         """
         Bar data update callback - core trading logic

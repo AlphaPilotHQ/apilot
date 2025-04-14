@@ -8,7 +8,7 @@ from decimal import Decimal
 from math import ceil, floor
 
 from .constant import Interval
-from .object import BarData, TickData
+from .object import BarData
 
 
 def round_to(value: float, target: float) -> float:
@@ -108,9 +108,8 @@ class BarGenerator:
         # State tracking
         self.last_dt: datetime = None
 
-        # For tick to bar conversion
+        # For bar storage
         self.bars: dict[str, BarData] = {}
-        self.last_ticks: dict[str, TickData] = {}
 
         # For bar aggregation - dictionary to store all symbols
         self.window_bars: dict[str, BarData] = {}
@@ -118,71 +117,6 @@ class BarGenerator:
         # For hourly bar handling
         self.hour_bars: dict[str, BarData] = {}
         self.finished_hour_bars: dict[str, BarData] = {}
-
-    def update_tick(self, tick: TickData) -> None:
-        """
-        Update tick data and generate 1-minute bars.
-
-        Args:
-            tick: The tick data to process
-        """
-        if not tick.last_price:
-            return
-
-        # Check if we need to finish the current bar
-        if self.last_dt and self.last_dt.minute != tick.datetime.minute:
-            for bar in self.bars.values():
-                bar.datetime = bar.datetime.replace(second=0, microsecond=0)
-
-            # Call the callback with the current bars
-            self.on_bar(self.bars)
-            self.bars = {}
-
-        # Get or create bar for this symbol
-        bar = self._get_or_create_tick_bar(tick)
-
-        # Update the bar with this tick
-        self._update_tick_bar(bar, tick)
-
-        # Update tracking state
-        self.last_dt = tick.datetime
-
-    def _get_or_create_tick_bar(self, tick: TickData) -> BarData:
-        """Get existing bar or create a new one for this tick."""
-        bar: BarData | None = self.bars.get(tick.symbol)
-        if not bar:
-            bar = BarData(
-                symbol=tick.symbol,
-                exchange=tick.exchange,
-                interval=Interval.MINUTE,
-                datetime=tick.datetime,
-                gateway_name=tick.gateway_name,
-                open_price=tick.last_price,
-                high_price=tick.last_price,
-                low_price=tick.last_price,
-                close_price=tick.last_price,
-                open_interest=tick.open_interest,
-            )
-            self.bars[bar.symbol] = bar
-        return bar
-
-    def _update_tick_bar(self, bar: BarData, tick: TickData) -> None:
-        """Update a bar with new tick data."""
-        # Update OHLC
-        bar.high_price = max(bar.high_price, tick.last_price)
-        bar.low_price = min(bar.low_price, tick.last_price)
-        bar.close_price = tick.last_price
-        bar.open_interest = tick.open_interest
-        bar.datetime = tick.datetime
-
-        # Update volume and turnover based on the difference from last tick
-        last_tick: TickData | None = self.last_ticks.get(tick.symbol)
-        if last_tick:
-            bar.volume += max(tick.volume - last_tick.volume, 0)
-            bar.turnover += max(tick.turnover - last_tick.turnover, 0)
-
-        # Store the tick for the next update
-        self.last_ticks[tick.symbol] = tick
 
     def update_bar(self, bar: BarData) -> None:
         """
