@@ -87,7 +87,9 @@ class StdMomentumStrategy(ap.PATemplate):
         self.cancel_all()
 
         # Record received multi-symbol bar data
-        logger.debug(f"on_5min_bar received complete multi-symbol data: {list(bars.keys())}")
+        logger.debug(
+            f"on_5min_bar received complete multi-symbol data: {list(bars.keys())}"
+        )
 
         # Execute data update and trading logic for each trading symbol
         for symbol, bar in bars.items():
@@ -153,7 +155,9 @@ class StdMomentumStrategy(ap.PATemplate):
                     )
                     self.sell(symbol=symbol, price=bar.close_price, volume=size)
 
-            elif current_pos > 0:  # Long position -> standard deviation trailing stop-loss
+            elif (
+                current_pos > 0
+            ):  # Long position -> standard deviation trailing stop-loss
                 # Calculate trailing stop price
                 long_stop = (
                     self.intra_trade_high[symbol]
@@ -166,7 +170,9 @@ class StdMomentumStrategy(ap.PATemplate):
                         symbol=symbol, price=bar.close_price, volume=abs(current_pos)
                     )
 
-            elif current_pos < 0:  # Short position -> standard deviation trailing stop-loss
+            elif (
+                current_pos < 0
+            ):  # Short position -> standard deviation trailing stop-loss
                 # Calculate trailing stop price
                 short_stop = (
                     self.intra_trade_low[symbol]
@@ -297,7 +303,9 @@ def run_backtesting(
         # Set parameter ranges
         setting.add_parameter("std_period", 15, 50, 5)  # Standard deviation period
         setting.add_parameter("mom_threshold", 0.02, 0.06, 0.01)  # Momentum threshold
-        setting.add_parameter("trailing_std_scale", 2.0, 7.0, 1.0)  # Stop-loss coefficient
+        setting.add_parameter(
+            "trailing_std_scale", 2.0, 7.0, 1.0
+        )  # Stop-loss coefficient
 
         # Run optimization
         results = engine.optimize(strategy_setting=setting)
@@ -307,7 +315,9 @@ def run_backtesting(
             best_setting = results[0].copy()
             fitness = best_setting.pop("fitness", 0)
 
-            logger.info(f"Optimal parameter combination: {best_setting}, fitness: {fitness:.4f}")
+            logger.info(
+                f"Optimal parameter combination: {best_setting}, fitness: {fitness:.4f}"
+            )
 
             # Reconfigure strategy with optimal parameters
             engine.strategy = None  # Clear original strategy

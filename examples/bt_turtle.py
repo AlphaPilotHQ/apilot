@@ -156,7 +156,9 @@ class TurtleSignalStrategy(ap.PATemplate):
 
             # Short stop loss logic: take min of ATR stop and 10-day high
             cover_price = min(self.short_stop, self.exit_up)
-            self.buy(symbol, cover_price, abs(current_pos), True)  # Close short position
+            self.buy(
+                symbol, cover_price, abs(current_pos), True
+            )  # Close short position
 
     def on_trade(self, trade: ap.TradeData):
         """
