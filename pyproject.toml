@@ -17,7 +17,6 @@ dependencies = [
     "plotly",
     "tqdm",
     "ccxt",
-    "colorama",
     "python-dotenv",
 ]
 

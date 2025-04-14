@@ -20,7 +20,6 @@ from .object import (
     OrderData,
     OrderRequest,
     PositionData,
-    QuoteData,
     QuoteRequest,
     SubscribeRequest,
     TradeData,
@@ -109,15 +108,20 @@ class BaseGateway(ABC):
         self.on_event(EVENT_ACCOUNT, account)
         self.on_event(EVENT_ACCOUNT + account.accountid, account)
 
-    def on_quote(self, quote: QuoteData) -> None:
+    def on_quote(self, data: Any) -> None:
         """
-        Push quote event.
+        Push quote event. Can handle both QuoteData and BarData.
 
         Args:
-            quote: Quote data object
+            data: Quote data object or Bar data object
         """
-        self.on_event(EVENT_QUOTE, quote)
-        self.on_event(EVENT_QUOTE + quote.symbol, quote)
+        from apilot.utils.logger import get_logger
+
+        get_logger("Gateway").info(
+            f"推送行情数据: {data.symbol}, 类型: {type(data).__name__}"
+        )
+        self.on_event(EVENT_QUOTE, data)
+        self.on_event(EVENT_QUOTE + data.symbol, data)
 
     def on_contract(self, contract: ContractData) -> None:
         """

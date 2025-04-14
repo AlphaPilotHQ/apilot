@@ -116,16 +116,19 @@ class OmsEngine(BaseEngine):
         self.contracts[contract.symbol] = contract
 
     def process_quote_event(self, event: Event) -> None:
-        """"""
-        quote: QuoteData = event.data
-        self.quotes[quote.quoteid] = quote
+        """处理行情事件，可以是QuoteData或BarData"""
+        data = event.data
+        # 如果是QuoteData，保存到quotes字典
+        if hasattr(data, "quoteid"):
+            quote: QuoteData = data
+            self.quotes[quote.quoteid] = quote
 
-        # If quote is active, then update data in dict.
-        if quote.is_active():
-            self.active_quotes[quote.quoteid] = quote
-        # Otherwise, pop inactive quote from in dict
-        elif quote.quoteid in self.active_quotes:
-            self.active_quotes.pop(quote.quoteid)
+            # If quote is active, then update data in dict.
+            if quote.is_active():
+                self.active_quotes[quote.quoteid] = quote
+            # Otherwise, pop inactive quote from in dict
+            elif quote.quoteid in self.active_quotes:
+                self.active_quotes.pop(quote.quoteid)
 
     def get_order(self, orderid: str) -> OrderData | None:
         """

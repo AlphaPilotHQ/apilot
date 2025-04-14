@@ -92,11 +92,16 @@ class PATemplate(ABC):
 
     @virtual
     def on_bar(self, bar: BarData) -> None:
-        pass
+        """
+        处理单个交易标的的K线数据。
 
-    def on_bars(self, bars: dict[str, BarData]) -> None:
-        for _symbol, bar in bars.items():
-            self.on_bar(bar)
+        引擎会对每个订阅的交易标的分别调用此方法。
+        策略可以在此方法中实现各交易标的的独立处理逻辑。
+
+        Args:
+            bar: 单个交易标的的K线数据
+        """
+        pass
 
     def on_trade(self, trade: TradeData) -> None:
         # Update position data

@@ -19,13 +19,9 @@ Recommended usage:
 from .indicators import ArrayManager
 from .logger import get_logger, log_exceptions, set_level
 
-# Order management tools
-from .order_manager import LocalOrderManager
-
 # Define public API
 __all__ = [
     "ArrayManager",
-    "LocalOrderManager",
     "get_logger",
     "log_exceptions",
     "set_level",

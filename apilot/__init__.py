@@ -24,7 +24,6 @@ __all__ = [
     "Direction",
     "EventEngine",
     "Interval",
-    "LocalOrderManager",
     "MainEngine",
     "OptimizationSetting",
     "OrderData",
@@ -100,4 +99,3 @@ from .utils.indicators import ArrayManager
 
 # Export logging system
 from .utils.logger import get_logger, log_exceptions, set_level
-from .utils.order_manager import LocalOrderManager

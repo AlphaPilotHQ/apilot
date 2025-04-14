@@ -14,6 +14,7 @@ from typing import Any
 from apilot.core import (
     # Constants and utility functions
     EVENT_ORDER,
+    EVENT_QUOTE,
     EVENT_TRADE,
     # Data classes and constants
     BarData,
@@ -67,6 +68,7 @@ class PAEngine(BaseEngine):
     def register_event(self) -> None:
         self.event_engine.register(EVENT_ORDER, self.process_order_event)
         self.event_engine.register(EVENT_TRADE, self.process_trade_event)
+        self.event_engine.register(EVENT_QUOTE, self.process_quote_event)
 
     def process_order_event(self, event: Event) -> None:
         order = event.data
@@ -82,6 +84,39 @@ class PAEngine(BaseEngine):
 
         # Call strategy on_order function
         self.call_strategy_func(strategy, strategy.on_order, order)
+
+    def process_quote_event(self, event: Event) -> None:
+        """处理行情事件"""
+        data = event.data
+
+        # 如果是BarData，交给策略处理
+        if hasattr(data, "open_price"):
+            bar: BarData = data
+            symbol = bar.symbol
+
+            # 为订阅该交易对的所有策略调用on_bar方法
+            strategies = self.symbol_strategy_map.get(symbol, [])
+            if not strategies:
+                logger.warning(f"收到 {symbol} 的K线数据，但没有策略订阅此交易对")
+                return
+
+            logger.info(
+                f"处理 {symbol} K线数据: 时间={bar.datetime}, 价格={bar.close_price:.2f}, 策略数量={len(strategies)}"
+            )
+
+            # 直接调用on_bar方法，不再使用bar_dict和on_bars
+            for strategy in strategies:
+                if strategy.inited and strategy.trading:
+                    logger.info(
+                        f"调用策略 {strategy.strategy_name} 的on_bar方法，传递K线: {symbol} @ {bar.datetime}"
+                    )
+                    self.call_strategy_func(strategy, strategy.on_bar, bar)
+                else:
+                    logger.warning(
+                        f"策略 {strategy.strategy_name} 未初始化或未启动，跳过"
+                    )
+
+            logger.info(f"K线数据 {symbol} 处理完成: {len(strategies)} 个策略已更新")
 
     def process_trade_event(self, event: Event) -> None:
         trade: TradeData = event.data

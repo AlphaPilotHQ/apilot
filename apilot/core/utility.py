@@ -210,6 +210,18 @@ class BarGenerator:
     def _finalize_window_bars(self) -> None:
         """Process and send window bar data"""
         if self.window_bars and self.on_window_bar:
+            from apilot.utils.logger import get_logger
+
+            logger = get_logger("BarGenerator")
+
+            # Log what we're about to send
+            bar_info = []
+            for symbol, bar in self.window_bars.items():
+                bar_info.append(f"{symbol}@{bar.datetime}")
+            logger.info(
+                f"BarGenerator: 发送窗口K线数据 [{', '.join(bar_info)}] 到回调函数 {self.on_window_bar.__name__}"
+            )
+
             # Send a copy of window data
             self.on_window_bar(self.window_bars.copy())
             self.window_bars = {}

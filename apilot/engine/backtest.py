@@ -306,7 +306,11 @@ class BacktestingEngine:
         self.bars = bars
 
         self.cross_limit_order()
-        self.strategy.on_bars(bars)
+
+        # 调用每个交易标的的on_bar方法，而不是on_bars
+        for symbol, bar in bars.items():
+            logger.debug(f"回测引擎处理K线: {symbol} @ {dt}")
+            self.strategy.on_bar(bar)
 
         # Update each symbol's closing price
         for symbol, bar in bars.items():

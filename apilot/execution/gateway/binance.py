@@ -2,7 +2,9 @@
 apilot Binance Gateway using CCXT
 """
 
-from datetime import datetime
+from datetime import datetime, timedelta
+from threading import Thread
+from time import sleep
 from typing import Any, ClassVar
 
 import ccxt
@@ -149,6 +151,13 @@ class BinanceRestApi:
         # For restoring data from small network interruption
         self.contract_symbols = set()
 
+        # For market data subscription
+        self.subscribed_symbols = set()
+        self.last_bar_time = {}  # 记录每个交易对最后一次获取的K线时间
+        self.polling_thread = None
+        self.polling_interval = 60  # 轮询间隔，单位秒
+        self.polling_active = False
+
     def connect(
         self,
         api_key: str,
@@ -210,6 +219,17 @@ class BinanceRestApi:
             self.exchange.load_markets()
             self.query_account()
             self.init_contracts()
+
+            # Initialize market data polling
+            self.logger.info("正在初始化行情数据轮询线程...")
+            self.polling_active = True
+            self.polling_thread = Thread(
+                target=self._polling_task, daemon=True, name="BinanceDataPolling"
+            )
+            self.polling_thread.start()
+            self.logger.info(
+                f"行情数据轮询线程已启动: {self.polling_thread.name}, 活跃状态: {self.polling_thread.is_alive()}"
+            )
         except Exception as e:
             self.logger.error(f"Failed to initialize Binance interface: {e}")
 
@@ -358,7 +378,18 @@ class BinanceRestApi:
 
     def subscribe(self, req: SubscribeRequest) -> None:
         """Subscribe to market data for a specific symbol"""
-        # Currently using REST API polling - subscription is handled internally
+        # Add symbol to our subscription list
+        if req.symbol not in self.subscribed_symbols:
+            self.subscribed_symbols.add(req.symbol)
+            # 初始情况下设置较早的时间戳，确保获取足够的历史数据
+            # 我们将在_fetch_klines_for_symbol中根据这个判断获取足够的历史数据
+            self.last_bar_time[req.symbol] = datetime.now() - timedelta(
+                days=1
+            )  # 设置为一天前，触发获取大量历史数据
+            self.logger.info(f"Subscribed to market data for {req.symbol}")
+
+            # 立即获取一次该交易对的数据，确保有初始数据
+            self._fetch_klines_for_symbol(req.symbol)
 
     def query_history(self, req: HistoryRequest) -> list[BarData]:
         """Query K-line history data"""
@@ -400,6 +431,121 @@ class BinanceRestApi:
             self.logger.error(f"Failed to get historical data: {e}")
             return []
 
+    def _polling_task(self) -> None:
+        """Background task to poll market data for subscribed symbols"""
+        self.logger.info("Market data polling thread started")
+
+        # 立即检查订阅的交易对
+        self.logger.info(f"当前订阅的交易对: {self.subscribed_symbols}")
+
+        while self.polling_active:
+            try:
+                # 轮询所有已订阅的交易对
+                symbols_count = len(self.subscribed_symbols)
+                if symbols_count > 0:
+                    self.logger.info(f"开始轮询 {symbols_count} 个交易对的行情数据")
+
+                for symbol in list(self.subscribed_symbols):
+                    try:
+                        self._fetch_klines_for_symbol(symbol)
+                    except Exception as e:
+                        self.logger.error(
+                            f"Error polling market data for {symbol}: {e}"
+                        )
+                        import traceback
+
+                        self.logger.error(f"详细错误: {traceback.format_exc()}")
+
+                # 等待下一次轮询
+                self.logger.info(
+                    f"行情轮询完成，等待 {self.polling_interval} 秒后再次轮询"
+                )
+                sleep(self.polling_interval)
+            except Exception as e:
+                self.logger.error(f"Error in market data polling thread: {e}")
+                import traceback
+
+                self.logger.error(f"详细错误: {traceback.format_exc()}")
+                sleep(5)  # 出错后短暂等待再重试
+
+        self.logger.info("Market data polling thread stopped")
+
+    def _fetch_klines_for_symbol(self, symbol: str) -> None:
+        """获取指定交易对的K线数据并推送到事件引擎"""
+        try:
+            # 在第一次获取时，确保有足够的历史数据用于策略计算
+            if (
+                symbol in self.last_bar_time
+                and (datetime.now() - self.last_bar_time[symbol]).total_seconds()
+                < 60 * 60
+            ):
+                # 常规更新，只获取最新的K线
+                since = int(self.last_bar_time[symbol].timestamp() * 1000)
+                limit = 10
+            else:
+                # 首次获取或长时间未更新，获取足够多的历史数据
+                # 计算48个周期前的时间戳（额外获取一些防止边界问题）
+                since = int((datetime.now() - timedelta(minutes=60)).timestamp() * 1000)
+                limit = 60  # 获取大量历史数据
+                self.logger.info(f"首次获取或长时间未更新 {symbol}，获取60条历史K线")
+
+            self.logger.info(
+                f"获取 {symbol} K线数据, since={since}, 时间={datetime.fromtimestamp(since / 1000)}"
+            )
+
+            # 获取K线数据
+            klines = self.exchange.fetch_ohlcv(
+                symbol=symbol,
+                timeframe="1m",  # 1分钟K线
+                since=since,
+                limit=limit,
+            )
+
+            self.logger.info(f"获取到 {symbol} K线数据: {len(klines)} 条")
+
+            if not klines:
+                return
+
+            # 处理获取到的K线数据
+            for ts, open_price, high_price, low_price, close_price, volume in klines:
+                # 转换时间戳
+                dt = datetime.fromtimestamp(ts / 1000)
+
+                # 如果这个K线时间早于或等于上次记录的时间，跳过
+                if dt <= self.last_bar_time[symbol]:
+                    continue
+
+                # 更新最后K线时间
+                self.last_bar_time[symbol] = dt
+
+                # 创建K线数据对象
+                bar = BarData(
+                    symbol=symbol,
+                    interval=Interval.MINUTE,
+                    datetime=dt,
+                    open_price=float(open_price),
+                    high_price=float(high_price),
+                    low_price=float(low_price),
+                    close_price=float(close_price),
+                    volume=float(volume),
+                    gateway_name=self.gateway_name,
+                )
+
+                # 推送到事件引擎
+                self.gateway.on_quote(bar)
+                self.logger.info(
+                    f"Pushed bar data: {symbol} @ {dt}, O:{open_price:.2f} H:{high_price:.2f} L:{low_price:.2f} C:{close_price:.2f}"
+                )
+
+        except Exception as e:
+            self.logger.error(f"Failed to fetch klines for {symbol}: {e}")
+
     def stop(self) -> None:
         """Stop the API"""
+        # Stop the polling thread
+        self.polling_active = False
+        if self.polling_thread and self.polling_thread.is_alive():
+            self.polling_thread.join(timeout=5)
+            self.logger.info("Market data polling thread stopped")
+
         self.logger.info("Binance interface disconnected")

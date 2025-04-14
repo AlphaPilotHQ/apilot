@@ -5,27 +5,8 @@ from functools import wraps
 from logging.handlers import TimedRotatingFileHandler
 from typing import ClassVar
 
-from colorama import Fore, Style, init
-
-# Initialize colorama
-init(autoreset=True)
 LOG_DIR = "logs"
 os.makedirs(LOG_DIR, exist_ok=True)
-
-
-class CustomFormatter(logging.Formatter):
-    FORMATS: ClassVar[dict[int, tuple[str, str]]] = {
-        logging.DEBUG: (Fore.CYAN, " "),
-        logging.INFO: (Fore.GREEN, " "),
-        logging.WARNING: (Fore.YELLOW, " "),
-        logging.ERROR: (Fore.RED, " "),
-        logging.CRITICAL: (Fore.RED + Style.BRIGHT, " "),
-    }
-
-    def format(self, record):
-        color, prefix = self.FORMATS.get(record.levelno, (Fore.WHITE, ""))
-        original_message = super().format(record)
-        return f"{color}{prefix}{original_message}{Style.RESET_ALL}"
 
 
 class CustomLogger:
@@ -54,10 +35,10 @@ class CustomLogger:
             logging.Formatter("%(asctime)s [%(levelname)s] - %(message)s")
         )
 
-        # Console handler with color formatting
+        # Console handler with standard formatting
         console_handler = logging.StreamHandler(sys.stdout)
         console_handler.setFormatter(
-            CustomFormatter("%(asctime)s [%(levelname)s] - %(message)s")
+            logging.Formatter("%(asctime)s [%(levelname)s] - %(message)s")
         )
 
         self.logger.addHandler(file_handler)
