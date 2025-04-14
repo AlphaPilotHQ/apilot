@@ -1,4 +1,4 @@
-# APilot - AI-Driven Quant, Open to All
+# APilot - AI-Driven Quantitative Trading Platform
 
 <p align="center">
     <img src ="https://img.shields.io/badge/version-0.1.2-blueviolet.svg"/>
@@ -6,40 +6,125 @@
     <img src ="https://img.shields.io/badge/license-MIT-green.svg" />
 </p>
 
-## 项目概述
+## Overview
 
-APilot 是一款高性能量化交易框架，专注于加密货币和股票市场，由 AlphaPilot.tech 团队开发。
-框架支持策略回测和实盘交易，为量化交易者提供全方位解决方案。
+APilot is a high-performance quantitative trading framework focused on cryptocurrency and stock markets, developed by the AlphaPilot.tech team. The framework supports both strategy backtesting and live trading, providing a comprehensive solution for quantitative traders.
 
-官方网站：[www.alphapilot.tech](https://www.alphapilot.tech)
+Official website: [www.alphapilot.tech](https://www.alphapilot.tech)
 
-## 核心功能
+## Key Features
 
-- **多种交易策略**：PA 策略 (价格行为)、因子策略 (开发中)
-- **专业下单算法**：BestLimit、TWAP 算法
+- **Event-driven architecture**: Built for high-performance, real-time trading systems
+- **Multiple trading strategies**: Price Action strategies, Factor strategies (in development)
+- **Professional execution algorithms**: BestLimit, TWAP algorithms
+- **Comprehensive backtesting**: Accurate simulation with detailed performance analytics
+- **Multi-exchange support**: Currently focusing on Binance, with more to come
+- **Live trading capability**: Execute strategies in real-time with risk management
+- **Extensible framework**: Easy to add new strategies, data sources, and exchanges
 
-## 策略类型
+## Strategy Types
 
-- **PA 策略**：支持趋势跟踪、均值回归等经典价格行为策略
-- **因子策略**：基于多因子模型的量化策略 (开发中)
+- **Price Action (PA) strategies**: Support for trend following, mean reversion, and other classic price action strategies
+- **Factor strategies**: Quantitative strategies based on multi-factor models (in development)
 
+## Technical Architecture
 
-## 技术架构
+### Design Principles
 
-### 设计原则
-- **Core 目录**：包含系统所有抽象接口和核心数据结构
-  - 抽象基类 (BaseEngine, BaseGateway 等)
-  - 数据模型 (OrderData, TickData 等)
-  - 常量定义 (Direction, Interval 等)
-  - 基础事件系统
+- **Core Module**: Contains all abstract interfaces and core data structures
+  - Abstract base classes (BaseEngine, BaseGateway, etc.)
+  - Data models (OrderData, TickData, etc.)
+  - Constant definitions (Direction, Interval, etc.)
+  - Basic event system
 
-- **功能目录**：包含各领域的具体实现
-  - gateway/ - 各交易所接口实现
-  - engine/ - 各种引擎的具体实现
+- **Feature Modules**: Specific implementations for different domains
+  - `execution/gateway/` - Exchange API implementations
+  - `engine/` - Specific engine implementations
+  - `strategy/` - Trading strategy templates and implementations
+  - `performance/` - Performance calculation and reporting
 
-## Gateway
+## Installation
 
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/apilot.git
+cd apilot
 
-## 许可证
+# Install the package in development mode
+pip install -e .
 
-本项目采用 MIT 许可证 - 详情请查看 [LICENSE](LICENSE) 文件
+# Install with development dependencies
+pip install -e ".[dev]"
+```
+
+## Quick Start
+
+### Backtesting a Strategy
+
+```python
+from apilot.engine import BacktestingEngine
+from apilot.strategy import SampleStrategy
+
+# Create a backtesting engine
+engine = BacktestingEngine()
+engine.set_parameters(
+    start="2023-01-01",
+    end="2023-12-31",
+    initial_capital=10000,
+    commission_rate=0.001
+)
+
+# Add a strategy
+engine.add_strategy(SampleStrategy, "MyStrategy", "BTC/USDT.BINANCE", {
+    "param1": 10,
+    "param2": 20
+})
+
+# Run backtest
+engine.run_backtest()
+
+# Analyze performance
+engine.show_performance()
+```
+
+### Running Live Trading
+
+```python
+from apilot.engine import PAEngine
+from apilot.strategy import SampleStrategy
+
+# Create a live trading engine
+engine = PAEngine(main_engine, event_engine)
+
+# Add a strategy
+engine.add_strategy(SampleStrategy, "MyStrategy", "BTC/USDT.BINANCE", {
+    "param1": 10,
+    "param2": 20
+})
+
+# Initialize and start the strategy
+engine.init_strategy("MyStrategy")
+engine.start_strategy("MyStrategy")
+```
+
+## Getting Started with Development
+
+For detailed documentation on developing with APilot, please refer to our [Development Guide](docs/development_guide.md).
+
+## Testing
+
+```bash
+# Run all tests
+python -m pytest tests/
+
+# Run specific test file
+python -m pytest tests/test_bar_generator.py
+```
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

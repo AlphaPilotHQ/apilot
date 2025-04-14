@@ -56,12 +56,11 @@ packages = ["apilot"]
 
 [tool.ruff]
 line-length = 88
-target-version = "py310"  # 与项目要求的Python版本一致
+target-version = "py310"
 extend-exclude = ["__pycache__", "*.pyc", ".git"]
 src = ["apilot"]
 
 [tool.ruff.lint]
-# 选择要检查的规则
 select = [
     "E",    # pycodestyle error
     "F",    # pyflakes
@@ -73,13 +72,12 @@ select = [
     "PT",   # flake8-pytest-style
     "RUF",  # Ruff rule
 ]
-# 忽略特定的规则
 ignore = [
-    "RUF002",  # 忽略全角标点符号检查
-    "RUF022",  # 忽略__all__排序检查
-    "E501",    # 忽略行长度警告
-    "RUF003",  # 忽略全角半角检查
-    "F404",    # 忽略__future__导入位置
+    "RUF002",  # Ignore full-width punctuation check
+    "RUF022",  # Ignore __all__ sorting check
+    "E501",    # Ignore line length warnings
+    "RUF003",  # Ignore full-width/half-width character check
+    "F404",    # Ignore __future__ import position
 ]
 
 [tool.ruff.lint.isort]
@@ -96,5 +94,5 @@ line-ending = "auto"
 classmethod-decorators = ["classmethod", "validator", "root_validator"]
 
 [tool.ruff.lint.per-file-ignores]
-"__init__.py" = ["F401"]  # 允许在 __init__.py 中导入未使用的模块
-"apilot/strategy/template.py" = ["B027"]  # 允许抽象基类中有空方法使用@virtual装饰器
+"__init__.py" = ["F401"]  # Allow unused imports in __init__.py files
+"apilot/strategy/template.py" = ["B027"]  # Allow empty methods with @virtual decorator in abstract base classes

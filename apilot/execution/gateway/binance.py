@@ -1,5 +1,5 @@
 """
-VeighNa Binance Gateway using CCXT
+apilot Binance Gateway using CCXT
 """
 
 from datetime import datetime
@@ -28,10 +28,10 @@ from apilot.core.object import (
     SubscribeRequest,
 )
 
-# Binance exchange symbols for VeighNa
+# Binance exchange symbols for apilot
 EXCHANGE_BINANCE = Exchange.BINANCE
 
-# Maps of CCXT orderType, orderStatus to VeighNa constants
+# Maps of CCXT orderType, orderStatus to apilot constants
 ORDERTYPE_BINANCE2VT = {"limit": OrderType.LIMIT, "market": OrderType.MARKET}
 ORDERTYPE_VT2BINANCE = {v: k for k, v in ORDERTYPE_BINANCE2VT.items()}
 
@@ -60,7 +60,7 @@ SYS_LOCAL_ORDER_ID_MAP = {}
 
 class BinanceGateway(BaseGateway):
     """
-    VeighNa gateway for Binance connection using CCXT.
+    apilot gateway for Binance connection using CCXT.
     """
 
     default_name = "BINANCE"
@@ -411,7 +411,7 @@ class BinanceRestApi:
     def query_history(self, req: HistoryRequest) -> list[BarData]:
         """Query K-line history data"""
         try:
-            # Convert VeighNa interval to Binance interval
+            # Convert apilot interval to Binance interval
             interval = INTERVAL_VT2BINANCE.get(req.interval, "")
             if not interval:
                 self.gateway.write_log(f"Unsupported K-line interval: {req.interval}")
@@ -434,7 +434,7 @@ class BinanceRestApi:
                 req.symbol, interval, since=start_time, limit=1000
             )
 
-            # Convert to VeighNa BarData
+            # Convert to apilot BarData
             bars = []
             for row in data:
                 ts, open_price, high_price, low_price, close_price, volume = row
