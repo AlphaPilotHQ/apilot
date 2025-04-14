@@ -8,10 +8,9 @@ Recommended import methods:
     from apilot import BarData, TickData    # Import specific components
     import apilot.core as apcore            # Extensive use of a module
 
-Version: 0.1.0
 """
 
-__version__ = "0.1.0"
+from .version import __version__
 
 # Define public API
 __all__ = [
@@ -35,6 +34,7 @@ __all__ = [
     "Status",
     "TickData",
     "TradeData",
+    "__version__",
     "core",
     "create_csv_data",
     "create_mongodb_data",

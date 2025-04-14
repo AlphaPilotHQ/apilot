@@ -1,37 +1,30 @@
-"""
-动量策略回测与优化示例
-
-此模块实现了一个基于动量指标的趋势跟踪策略,结合标准差动态止损.
-包含单次回测和参数优化功能,支持使用网格搜索寻找最优参数组合.
-"""
-
 from datetime import datetime
 from typing import ClassVar
 
 import apilot as ap
 from apilot.utils.logger import get_logger, set_level
 
-# 获取日志记录器
+# Get logger
 logger = get_logger("momentum_strategy")
 set_level("info", "momentum_strategy")
 
 
 class StdMomentumStrategy(ap.PATemplate):
     """
-    策略逻辑:
-    1. 核心思路:结合动量信号与标准差动态止损的中长期趋势跟踪策略
-    2. 入场信号:
-       - 基于动量指标(当前价格/N周期前价格-1)生成交易信号
-       - 动量 > 阈值(5%)时做多
-       - 动量 < -阈值(-5%)时做空
-       - 使用全部账户资金进行头寸管理
-    3. 风险管理:
-       - 使用基于标准差的动态追踪止损
-       - 多头持仓:止损设置在最高价-4倍标准差
-       - 空头持仓:止损设置在最低价+4倍标准差
+    Strategy logic:
+    1. Core idea: Combine momentum signal with standard deviation dynamic stop-loss for medium-term trend tracking
+    2. Entry signal:
+       - Generate trading signal based on momentum indicator (current price/N-period ago price-1)
+       - Momentum > threshold (5%) to go long
+       - Momentum < -threshold (-5%) to go short
+       - Use all account funds for position management
+    3. Risk management:
+       - Use standard deviation-based dynamic trailing stop-loss
+       - Long position: Set stop-loss at highest price - 4 times standard deviation
+       - Short position: Set stop-loss at lowest price + 4 times standard deviation
     """
 
-    # 策略参数
+    # Strategy parameters
     std_period = 30
     mom_threshold = 0.05
     trailing_std_scale = 4
@@ -50,29 +43,29 @@ class StdMomentumStrategy(ap.PATemplate):
 
     def __init__(self, pa_engine, strategy_name, symbols, setting):
         super().__init__(pa_engine, strategy_name, symbols, setting)
-        # 使用增强版BarGenerator实例处理所有交易标的，添加symbols支持多标的同步
+        # Use enhanced BarGenerator instance to process all trading symbols, add symbols support for multi-symbol synchronization
         self.bg = ap.BarGenerator(
             self.on_bar,
             5,
             self.on_5min_bar,
-            symbols=self.symbols,  # 传入交易标的列表，启用多标的同步
+            symbols=self.symbols,  # Pass in trading symbol list to enable multi-symbol synchronization
         )
 
-        # 为每个交易对创建ArrayManager
+        # Create ArrayManager for each trading pair
         self.ams = {}
         for symbol in self.symbols:
             self.ams[symbol] = ap.ArrayManager(
                 size=200
-            )  # 保留最长200bar TODO：改成动态
+            )  # Keep up to 200 bars TODO: Change to dynamic
 
-        # 为每个交易对创建状态跟踪字典
+        # Create state tracking dictionary for each trading pair
         self.momentum = {}
         self.std_value = {}
         self.intra_trade_high = {}
         self.intra_trade_low = {}
         self.pos = {}
 
-        # 初始化每个交易对的状态
+        # Initialize state for each trading pair
         for symbol in self.symbols:
             self.momentum[symbol] = 0.0
             self.std_value[symbol] = 0.0
@@ -85,43 +78,43 @@ class StdMomentumStrategy(ap.PATemplate):
 
     def on_bar(self, bar: ap.BarData):
         """
-        处理K线数据
+        Process bar data
         """
-        # 将K线传递给BarGenerator进行聚合
+        # Pass bar data to BarGenerator for aggregation
         self.bg.update_bar(bar)
 
     def on_5min_bar(self, bars: dict):
         self.cancel_all()
 
-        # 记录收到的多标的K线数据
-        logger.debug(f"on_5min_bar收到完整的多标的数据: {list(bars.keys())}")
+        # Record received multi-symbol bar data
+        logger.debug(f"on_5min_bar received complete multi-symbol data: {list(bars.keys())}")
 
-        # 对每个交易品种执行数据更新和交易逻辑
+        # Execute data update and trading logic for each trading symbol
         for symbol, bar in bars.items():
             if symbol not in self.ams:
-                logger.debug(f"忽略标的 {symbol}, 因为它不在ams中")
+                logger.debug(f"Ignore symbol {symbol} because it is not in ams")
                 continue
 
             am = self.ams[symbol]
             am.update_bar(bar)
 
-            # 如果数据不足，跳过交易逻辑
+            # Skip trading logic if data is insufficient
             if not am.inited:
                 continue
 
-            # 计算技术指标
+            # Calculate technical indicators
             self.std_value[symbol] = am.std(self.std_period)
 
-            # 计算动量因子
+            # Calculate momentum factor
             if len(am.close_array) > self.std_period + 1:
                 old_price = am.close_array[-self.std_period - 1]
                 current_price = am.close_array[-1]
                 self.momentum[symbol] = (current_price / max(old_price, 1e-6)) - 1
 
-            # 获取当前持仓
+            # Get current position
             current_pos = self.pos.get(symbol, 0)
 
-            # 持仓状态下更新跟踪止损价格
+            # Update trailing stop price in position
             if current_pos > 0:
                 self.intra_trade_high[symbol] = max(
                     self.intra_trade_high[symbol], bar.high_price
@@ -131,86 +124,86 @@ class StdMomentumStrategy(ap.PATemplate):
                     self.intra_trade_low[symbol], bar.low_price
                 )
 
-            # 交易逻辑
+            # Trading logic
             if current_pos == 0:
-                # 初始化追踪价格
+                # Initialize trailing price
                 self.intra_trade_high[symbol] = bar.high_price
                 self.intra_trade_low[symbol] = bar.low_price
 
-                # 平均分配资金给所有标的（全仓交易）
+                # Allocate funds evenly to all symbols (full position)
                 risk_percent = 1 / len(self.symbols)
-                # 使用当前账户价值而非初始资本
+                # Use current account value instead of initial capital
                 current_capital = self.pa_engine.get_current_capital()
                 capital_to_use = current_capital * risk_percent
                 size = max(1, int(capital_to_use / bar.close_price))
 
-                # 基于动量信号开仓
+                # Open position based on momentum signal
                 logger.debug(
-                    f"{bar.datetime}: {symbol} 动量值 {self.momentum[symbol]:.4f}, 阈值 {self.mom_threshold:.4f}"
+                    f"{bar.datetime}: {symbol} momentum value {self.momentum[symbol]:.4f}, threshold {self.mom_threshold:.4f}"
                 )
 
                 if self.momentum[symbol] > self.mom_threshold:
                     logger.debug(
-                        f"{bar.datetime}: {symbol} 发出多头信号: 动量 {self.momentum[symbol]:.4f} > 阈值 {self.mom_threshold}"
+                        f"{bar.datetime}: {symbol} issued long signal: momentum {self.momentum[symbol]:.4f} > threshold {self.mom_threshold}"
                     )
                     self.buy(symbol=symbol, price=bar.close_price, volume=size)
                 elif self.momentum[symbol] < -self.mom_threshold:
                     logger.debug(
-                        f"{bar.datetime}: {symbol} 发出空头信号: 动量 {self.momentum[symbol]:.4f} < 阈值 {-self.mom_threshold}"
+                        f"{bar.datetime}: {symbol} issued short signal: momentum {self.momentum[symbol]:.4f} < threshold {-self.mom_threshold}"
                     )
                     self.sell(symbol=symbol, price=bar.close_price, volume=size)
 
-            elif current_pos > 0:  # 多头持仓 → 标准差追踪止损
-                # 计算移动止损价格
+            elif current_pos > 0:  # Long position -> standard deviation trailing stop-loss
+                # Calculate trailing stop price
                 long_stop = (
                     self.intra_trade_high[symbol]
                     - self.trailing_std_scale * self.std_value[symbol]
                 )
 
-                # 当价格跌破止损线时平仓
+                # Close position if price falls below stop level
                 if bar.close_price < long_stop:
                     self.sell(
                         symbol=symbol, price=bar.close_price, volume=abs(current_pos)
                     )
 
-            elif current_pos < 0:  # 空头持仓 → 标准差追踪止损
-                # 计算移动止损价格
+            elif current_pos < 0:  # Short position -> standard deviation trailing stop-loss
+                # Calculate trailing stop price
                 short_stop = (
                     self.intra_trade_low[symbol]
                     + self.trailing_std_scale * self.std_value[symbol]
                 )
 
-                # 当价格突破止损线时平仓
+                # Close position if price exceeds stop level
                 if bar.close_price > short_stop:
                     self.buy(
                         symbol=symbol, price=bar.close_price, volume=abs(current_pos)
                     )
 
     def on_order(self, order: ap.OrderData):
-        """委托回调"""
+        """Order callback"""
         pass
 
     def on_trade(self, trade: ap.TradeData):
-        """成交回调"""
+        """Trade callback"""
         symbol = trade.symbol
 
-        # 更新持仓
+        # Update position
         position_change = (
             trade.volume if trade.direction == ap.Direction.LONG else -trade.volume
         )
         self.pos[symbol] = self.pos.get(symbol, 0) + position_change
 
-        # 更新最高/最低价追踪
+        # Update high/low price tracking
         current_pos = self.pos[symbol]
 
-        # 只在仓位方向存在时更新对应的跟踪价格
+        # Update tracking prices only when position exists
         if current_pos > 0:
-            # 多头仓位,更新最高价
+            # Long position, update highest price
             self.intra_trade_high[symbol] = max(
                 self.intra_trade_high.get(symbol, trade.price), trade.price
             )
         elif current_pos < 0:
-            # 空头仓位,更新最低价
+            # Short position, update lowest price
             self.intra_trade_low[symbol] = min(
                 self.intra_trade_low.get(symbol, trade.price), trade.price
             )
@@ -232,23 +225,23 @@ def run_backtesting(
     run_optimization=False,
 ):
     """
-    运行回测或参数优化
+    Run backtesting or parameter optimization
 
     Args:
-        strategy_class: 策略类
-        start: 开始日期
-        end: 结束日期
-        std_period: 标准差周期
-        mom_threshold: 动量阈值
-        trailing_std_scale: 跟踪止损系数
-        run_optimization: 是否运行参数优化
-        (已移除) optimization_method 参数
+        strategy_class: Strategy class
+        start: Start date
+        end: End date
+        std_period: Standard deviation period
+        mom_threshold: Momentum threshold
+        trailing_std_scale: Trailing stop-loss coefficient
+        run_optimization: Whether to run parameter optimization
+        (Removed) optimization_method parameter
     """
-    # 1 创建回测引擎
+    # 1 Create backtesting engine
     engine = ap.BacktestingEngine()
-    logger.info("1 创建回测引擎完成")
+    logger.info("1 Created backtesting engine")
 
-    # 2 设置引擎参数
+    # 2 Set engine parameters
     symbols = ["SOL-USDT.LOCAL", "BTC-USDT.LOCAL"]
 
     engine.set_parameters(
@@ -257,9 +250,9 @@ def run_backtesting(
         start=start,
         end=end,
     )
-    logger.info("2 设置引擎参数完成")
+    logger.info("2 Set engine parameters")
 
-    # 3 添加策略
+    # 3 Add strategy
     engine.add_strategy(
         strategy_class,
         {
@@ -268,9 +261,9 @@ def run_backtesting(
             "trailing_std_scale": trailing_std_scale,
         },
     )
-    logger.info("3 添加策略完成")
+    logger.info("3 Added strategy")
 
-    # 4 添加数据
+    # 4 Add data
     engine.add_csv_data(
         symbol="SOL-USDT.LOCAL",
         filepath="data/SOL-USDT_LOCAL_1m.csv",
@@ -291,49 +284,49 @@ def run_backtesting(
         close_index=4,
         volume_index=5,
     )
-    logger.info("4 添加数据完成")
+    logger.info("4 Added data")
 
-    # 5. 如果开启了优化模式，先运行参数优化
+    # 5. If optimization mode is enabled, run parameter optimization first
     if run_optimization:
-        # 创建优化参数配置
+        # Create optimization parameter configuration
         from apilot.optimizer import OptimizationSetting
 
         setting = OptimizationSetting()
         setting.set_target("total_return")
 
-        # 设置参数范围
-        setting.add_parameter("std_period", 15, 50, 5)  # 标准差周期
-        setting.add_parameter("mom_threshold", 0.02, 0.06, 0.01)  # 动量阈值
-        setting.add_parameter("trailing_std_scale", 2.0, 7.0, 1.0)  # 止损系数
+        # Set parameter ranges
+        setting.add_parameter("std_period", 15, 50, 5)  # Standard deviation period
+        setting.add_parameter("mom_threshold", 0.02, 0.06, 0.01)  # Momentum threshold
+        setting.add_parameter("trailing_std_scale", 2.0, 7.0, 1.0)  # Stop-loss coefficient
 
-        # 运行优化
+        # Run optimization
         results = engine.optimize(strategy_setting=setting)
 
-        # 应用最优参数（如果找到）
+        # Apply optimal parameters (if found)
         if results:
             best_setting = results[0].copy()
             fitness = best_setting.pop("fitness", 0)
 
-            logger.info(f"最优参数组合: {best_setting}, 适应度: {fitness:.4f}")
+            logger.info(f"Optimal parameter combination: {best_setting}, fitness: {fitness:.4f}")
 
-            # 使用最优参数重新配置策略
-            engine.strategy = None  # 清除原有策略
+            # Reconfigure strategy with optimal parameters
+            engine.strategy = None  # Clear original strategy
             engine.add_strategy(strategy_class, best_setting)
 
-    # 6 运行回测
+    # 6 Run backtesting
     engine.run_backtesting()
-    logger.info("5 运行回测完成")
+    logger.info("5 Ran backtesting")
 
-    # 7 计算结果并生成报告
+    # 7 Calculate results and generate report
     engine.report()
-    logger.info("6 计算结果和报告生成完成")
+    logger.info("6 Calculated results and generated report")
 
     return engine
 
 
 if __name__ == "__main__":
-    # 单次回测模式
+    # Single backtesting mode
     # run_backtesting()
 
-    # 优化模式 - 使用网格搜索
+    # Optimization mode - using grid search
     run_backtesting(run_optimization=True)
