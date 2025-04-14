@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import urllib.error
 import urllib.request
@@ -10,31 +11,17 @@ from typing import Any, ClassVar
 from dotenv import load_dotenv
 
 import apilot as ap
+from apilot.utils.logger import setup_logging
 
-# 加载环境变量
+setup_logging("ap_stdmom_lo", level=logging.DEBUG)
+
+logger = logging.getLogger("ap_stdmom_lo")
+
 dotenv_path = Path(__file__).parent / ".env"
 load_dotenv(dotenv_path=dotenv_path)
 
-# 获取API设置
 API_URL = os.environ.get("API_URL", "https://dev-api.alphapilot.tech")
 API_KEY = os.environ.get("API_KEY", "")
-
-# 配置日志，设置为调试级别
-logger = ap.get_logger("StdMomentumLive")
-ap.set_level("debug", "StdMomentumLive")
-
-# 调试其他关键模块的日志
-engine_logger = ap.get_logger("LiveTrading")
-ap.set_level("debug", "LiveTrading")
-
-gateway_logger = ap.get_logger("Gateway")
-ap.set_level("debug", "Gateway")
-
-bargen_logger = ap.get_logger("BarGenerator")
-ap.set_level("debug", "BarGenerator")
-
-am_logger = ap.get_logger("ArrayManager")
-ap.set_level("debug", "ArrayManager")
 
 
 class StdMomentumStrategy(ap.PATemplate):
@@ -353,7 +340,6 @@ def run_signal_service(proxy_host="127.0.0.1", proxy_port=7890):
     setting = {
         "API Key": "",
         "Secret Key": "",
-        "Session Number": 3,
         "Proxy Host": proxy_host,
         "Proxy Port": int(proxy_port),
     }

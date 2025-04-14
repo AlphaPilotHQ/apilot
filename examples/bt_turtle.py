@@ -5,17 +5,20 @@ Continuously select coins.
 Position management is complex and needs further design.
 """
 
+import logging
 from datetime import datetime
 from typing import ClassVar
 
 import numpy as np
 
 import apilot as ap
-from apilot.utils.logger import get_logger, set_level
+from apilot.utils.logger import setup_logging
 
-# 获取日志记录器
-logger = get_logger("turtle_strategy")
-set_level("info", "turtle_strategy")
+# Setup logging system
+setup_logging("bt_turtle")
+
+# Get module logger
+logger = logging.getLogger(__name__)
 
 
 class TurtleSignalStrategy(ap.PATemplate):
@@ -251,11 +254,11 @@ class TurtleSignalStrategy(ap.PATemplate):
             self.sell(symbol, price - self.atr_value * 1.5, self.fixed_size, True)
 
 
-@ap.log_exceptions()
 def run_backtesting(show_chart=True):
     """
     Run Turtle Signal Strategy backtest
     """
+    # Note: logging is already configured at module level
     # Initialize backtest engine
     bt_engine = ap.BacktestingEngine()
     logger.info("1 Backtest engine created")

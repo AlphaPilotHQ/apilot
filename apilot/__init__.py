@@ -42,13 +42,11 @@ __all__ = [
     "datafeed",
     "engine",
     "execution",
-    "get_logger",
-    "log_exceptions",
+    "setup_logging",
     "optimizer",
     "performance",
     "risk",
     "run_grid_search",
-    "set_level",
     "strategy",
     "utils",
 ]
@@ -98,4 +96,4 @@ from .strategy.template import PATemplate
 from .utils.indicators import ArrayManager
 
 # Export logging system
-from .utils.logger import get_logger, log_exceptions, set_level
+from .utils.logger import setup_logging

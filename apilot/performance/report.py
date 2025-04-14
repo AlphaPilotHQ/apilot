@@ -4,6 +4,8 @@ Performance Report Module
 Integrates calculations, charts and AI analysis to generate complete strategy performance reports
 """
 
+import logging
+
 import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
@@ -15,9 +17,8 @@ from apilot.performance.plot import (
     get_equity_trace,
     get_return_dist_trace,
 )
-from apilot.utils import get_logger
 
-logger = get_logger("PerformanceReport")
+logger = logging.getLogger(__name__)
 
 
 class PerformanceReport:

@@ -1,3 +1,4 @@
+import logging
 from typing import TYPE_CHECKING, ClassVar
 
 from apilot.core import (
@@ -10,10 +11,8 @@ from apilot.core import (
 )
 from apilot.core.constant import AlgoStatus
 from apilot.core.utility import virtual
-from apilot.utils.logger import get_logger
 
-# Module level logger initialization
-logger = get_logger("AlgoTrading")
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from .engine import AlgoEngine

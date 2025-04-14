@@ -5,15 +5,17 @@ This module implements a trend-following strategy based on momentum indicators w
 Includes single backtest and parameter optimization functionality.
 """
 
+import logging
 from datetime import datetime
 from typing import ClassVar
 
 import apilot as ap
-from apilot.utils.logger import get_logger, set_level
+from apilot.utils.logger import setup_logging
 
-# Get logger
-logger = get_logger("momentum_strategy")
-set_level("info", "momentum_strategy")
+setup_logging("bt_stdmom_lo")
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 
 class StdMomentumStrategy(ap.PATemplate):

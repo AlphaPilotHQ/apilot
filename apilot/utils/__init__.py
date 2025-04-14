@@ -17,12 +17,10 @@ Recommended usage:
 # Logging system
 # Technical indicators
 from .indicators import ArrayManager
-from .logger import get_logger, log_exceptions, set_level
+from .logger import setup_logging
 
 # Define public API
 __all__ = [
     "ArrayManager",
-    "get_logger",
-    "log_exceptions",
-    "set_level",
+    "setup_logging",
 ]

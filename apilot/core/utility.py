@@ -2,6 +2,7 @@
 General utility functions.
 """
 
+import logging
 from collections.abc import Callable
 from datetime import datetime
 from decimal import Decimal
@@ -9,6 +10,9 @@ from math import ceil, floor
 
 from .constant import Interval
 from .object import BarData
+
+# Get module logger
+logger = logging.getLogger(__name__)
 
 
 def round_to(value: float, target: float) -> float:
@@ -210,16 +214,12 @@ class BarGenerator:
     def _finalize_window_bars(self) -> None:
         """Process and send window bar data"""
         if self.window_bars and self.on_window_bar:
-            from apilot.utils.logger import get_logger
-
-            logger = get_logger("BarGenerator")
-
             # Log what we're about to send
             bar_info = []
             for symbol, bar in self.window_bars.items():
                 bar_info.append(f"{symbol}@{bar.datetime}")
             logger.info(
-                f"BarGenerator: 发送窗口K线数据 [{', '.join(bar_info)}] 到回调函数 {self.on_window_bar.__name__}"
+                f"BarGenerator: sending window bar data [{', '.join(bar_info)}] to callback {self.on_window_bar.__name__}"
             )
 
             # Send a copy of window data

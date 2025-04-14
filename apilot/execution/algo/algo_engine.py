@@ -4,6 +4,7 @@ Execution Algorithm Engine
 Manages execution and monitoring of algorithm instances, processes market data and distributes execution results.
 """
 
+import logging
 from collections import defaultdict
 
 from apilot.core.constant import AlgoStatus, Direction, OrderType
@@ -27,14 +28,12 @@ from apilot.core.object import (
     SubscribeRequest,
     TradeData,
 )
-from apilot.utils.logger import get_logger
 
 from .algo_template import AlgoTemplate
 
 ENGINE_NAME = "AlgoTrading"
 
-# Initialize logger at module level
-logger = get_logger("AlgoEngine")
+logger = logging.getLogger(__name__)
 
 
 class AlgoEngine(BaseEngine):

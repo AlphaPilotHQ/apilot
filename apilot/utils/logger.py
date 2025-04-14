@@ -1,88 +1,34 @@
 import logging
 import os
 import sys
-from functools import wraps
 from logging.handlers import TimedRotatingFileHandler
-from typing import ClassVar
-
-LOG_DIR = "logs"
-os.makedirs(LOG_DIR, exist_ok=True)
 
 
-class CustomLogger:
-    _instances: ClassVar[dict[str, "CustomLogger"]] = {}
+def setup_logging(
+    logger_name: str,
+    log_dir: str = "logs",
+    level: int = logging.INFO,
+    console: bool = True,
+    json_format: bool = False,
+):
+    os.makedirs(log_dir, exist_ok=True)
 
-    def __new__(cls, name="apilot"):
-        if name not in cls._instances:
-            instance = super().__new__(cls)
-            instance._initialize_logger(name)
-            cls._instances[name] = instance
-        return cls._instances[name]
+    logger = logging.getLogger()
+    logger.setLevel(level)
+    logger.handlers.clear()
 
-    def _initialize_logger(self, name):
-        self.logger = logging.getLogger(name)
-        self.logger.setLevel(logging.INFO)
+    log_file = os.path.join(log_dir, f"{logger_name}.log")
+    formatter = logging.Formatter(
+        '{"time":"%(asctime)s","level":"%(levelname)s","name":"%(name)s","message":"%(message)s"}'
+        if json_format
+        else "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        "%Y-%m-%d %H:%M:%S",
+    )
 
-        # Remove existing handlers
-        for handler in self.logger.handlers[:]:
-            self.logger.removeHandler(handler)
+    handlers = [TimedRotatingFileHandler(log_file, when="midnight", backupCount=7)]
+    if console:
+        handlers.append(logging.StreamHandler(sys.stdout))
 
-        # File handler with daily rotation
-        file_handler = TimedRotatingFileHandler(
-            os.path.join(LOG_DIR, f"{name}.log"), when="midnight", backupCount=7
-        )
-        file_handler.setFormatter(
-            logging.Formatter("%(asctime)s [%(levelname)s] - %(message)s")
-        )
-
-        # Console handler with standard formatting
-        console_handler = logging.StreamHandler(sys.stdout)
-        console_handler.setFormatter(
-            logging.Formatter("%(asctime)s [%(levelname)s] - %(message)s")
-        )
-
-        self.logger.addHandler(file_handler)
-        self.logger.addHandler(console_handler)
-
-
-def get_logger(name=None) -> logging.Logger:
-    return CustomLogger(name or "apilot").logger
-
-
-logger = get_logger()
-
-
-def set_level(level_name, name=None):
-    level_map = {
-        "debug": logging.DEBUG,
-        "info": logging.INFO,
-        "warning": logging.WARNING,
-        "error": logging.ERROR,
-        "critical": logging.CRITICAL,
-    }
-    level = level_map.get(level_name.lower(), logging.INFO)
-    get_logger(name).setLevel(level)
-
-
-def log_exceptions(logger_name=None):
-    def decorator(func):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            try:
-                return func(*args, **kwargs)
-            except Exception as e:
-                logger = get_logger(logger_name)
-                logger.exception(f"Error in function {func.__name__}: {e}")
-                raise
-
-        return wrapper
-
-    return decorator
-
-
-if __name__ == "__main__":
-    logger.debug("Debug message (cyan)")
-    logger.info("Info message (green)")
-    logger.warning("Warning message (yellow)")
-    logger.error("Error message (red)")
-    logger.critical("Critical message (bright red)")
+    for handler in handlers:
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)

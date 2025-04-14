@@ -1,3 +1,4 @@
+import logging
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from collections.abc import Callable
@@ -7,9 +8,8 @@ from typing import Any, ClassVar
 from apilot.core.constant import Direction, EngineType, Interval
 from apilot.core.object import BarData, OrderData, TradeData
 from apilot.core.utility import virtual
-from apilot.utils.logger import get_logger
 
-logger = get_logger("PAStrategy")
+logger = logging.getLogger(__name__)
 
 
 class PATemplate(ABC):

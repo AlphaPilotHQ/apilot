@@ -5,6 +5,7 @@ Implements real-time operation and management of trading strategies, including s
 """
 
 import copy
+import logging
 import traceback
 from collections import defaultdict
 from collections.abc import Callable
@@ -36,9 +37,8 @@ from apilot.core import (
     round_to,
 )
 from apilot.strategy import PATemplate
-from apilot.utils.logger import get_logger
 
-logger = get_logger("LiveTrading")
+logger = logging.getLogger(__name__)
 
 
 class PAEngine(BaseEngine):

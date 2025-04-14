@@ -1,12 +1,15 @@
+import logging
 from datetime import datetime
 from typing import ClassVar
 
 import apilot as ap
-from apilot.utils.logger import get_logger, set_level
+from apilot.utils.logger import setup_logging
 
-# Get logger
-logger = get_logger("momentum_strategy")
-set_level("info", "momentum_strategy")
+# Setup logging system
+setup_logging("bt_stdmom_opt")
+
+# Get module logger
+logger = logging.getLogger(__name__)
 
 
 class StdMomentumStrategy(ap.PATemplate):
@@ -220,7 +223,6 @@ class StdMomentumStrategy(ap.PATemplate):
         )
 
 
-@ap.log_exceptions()
 def run_backtesting(
     strategy_class=StdMomentumStrategy,
     start=datetime(2023, 1, 1),
@@ -233,6 +235,8 @@ def run_backtesting(
     """
     Run backtesting or parameter optimization
 
+    Note: logging is already configured at module level
+
     Args:
         strategy_class: Strategy class
         start: Start date
@@ -241,7 +245,6 @@ def run_backtesting(
         mom_threshold: Momentum threshold
         trailing_std_scale: Trailing stop-loss coefficient
         run_optimization: Whether to run parameter optimization
-        (Removed) optimization_method parameter
     """
     # 1 Create backtesting engine
     engine = ap.BacktestingEngine()

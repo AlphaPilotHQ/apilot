@@ -27,7 +27,8 @@ from apilot.datafeed import DATA_PROVIDERS
 from apilot.performance.calculator import calculate_statistics
 from apilot.performance.report import PerformanceReport
 from apilot.strategy.template import PATemplate
-from apilot.utils.logger import get_logger, set_level
+
+logger = logging.getLogger("BacktestEngine")
 
 
 # Class to store daily performance results
@@ -50,9 +51,8 @@ class DailyResult:
         self.net_pnl += profit
 
 
-# Setup logger
-logger = get_logger("BacktestEngine")
-set_level("debug", "BacktestEngine")
+# Get module logger
+logger = logging.getLogger(__name__)
 
 
 # Default settings for the backtesting engine
@@ -170,7 +170,6 @@ class BacktestingEngine:
 
     def add_data(self, provider_type, symbol, **kwargs):
         """Loads historical data for a symbol using the specified provider."""
-        logger = get_logger("BacktestEngine")
 
         logger.debug(f"Loading {symbol} data, type: {provider_type}")
         start_time = time.time()

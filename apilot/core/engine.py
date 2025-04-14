@@ -4,10 +4,9 @@ Core Engine Module
 Contains the main engine and base engine classes for managing events, gateways, and applications.
 """
 
+import logging
 from abc import ABC, abstractmethod
 from typing import Any
-
-from apilot.utils.logger import get_logger
 
 from .event import (
     EventEngine,
@@ -18,11 +17,10 @@ from .object import (
     CancelRequest,
     HistoryRequest,
     OrderRequest,
-    QuoteRequest,
     SubscribeRequest,
 )
 
-logger = get_logger("MainEngine")
+logger = logging.getLogger(__name__)
 
 
 class MainEngine:
@@ -88,7 +86,7 @@ class MainEngine:
         """
         engine: BaseEngine = self.engines.get(engine_name, None)
         if not engine:
-            get_logger().error(f"Engine not found: {engine_name}")
+            logger.error(f"Engine not found: {engine_name}")
         return engine
 
     def get_default_setting(self, gateway_name: str) -> dict[str, Any] | None:
@@ -146,24 +144,6 @@ class MainEngine:
         gateway: BaseGateway = self.get_gateway(gateway_name)
         if gateway:
             gateway.cancel_order(req)
-
-    def send_quote(self, req: QuoteRequest, gateway_name: str) -> str:
-        """
-        Send new quote request to a specific gateway.
-        """
-        gateway: BaseGateway = self.get_gateway(gateway_name)
-        if gateway:
-            return gateway.send_quote(req)
-        else:
-            return ""
-
-    def cancel_quote(self, req: CancelRequest, gateway_name: str) -> None:
-        """
-        Send cancel quote request to a specific gateway.
-        """
-        gateway: BaseGateway = self.get_gateway(gateway_name)
-        if gateway:
-            gateway.cancel_quote(req)
 
     def query_history(
         self, req: HistoryRequest, gateway_name: str

@@ -6,6 +6,7 @@ Focuses on calculating Overview and Key Metrics indicators:
 - Key Metrics: Annualized Return, Max Drawdown, Sharpe Ratio, Turnover
 """
 
+import logging
 from datetime import date
 from typing import Any
 
@@ -13,9 +14,8 @@ import numpy as np
 import pandas as pd
 
 from apilot.core import TradeData
-from apilot.utils import get_logger
 
-logger = get_logger()
+logger = logging.getLogger(__name__)
 
 
 def calculate_daily_results(

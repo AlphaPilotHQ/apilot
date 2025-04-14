@@ -4,16 +4,15 @@ CSV file data provider
 Implements data storage based on CSV files, supports bar data loading.
 """
 
+import logging
 from datetime import datetime
 
 import pandas as pd
 
 from apilot.core import BarData, Interval
 from apilot.core.database import BaseDatabase
-from apilot.utils.logger import get_logger, set_level
 
-logger = get_logger("csv_provider")
-set_level("debug", "csv_provider")
+logger = logging.getLogger(__name__)
 
 
 class CsvDatabase(BaseDatabase):

@@ -20,7 +20,6 @@ from .object import (
     OrderData,
     OrderRequest,
     PositionData,
-    QuoteRequest,
     SubscribeRequest,
     TradeData,
 )
@@ -115,11 +114,11 @@ class BaseGateway(ABC):
         Args:
             data: Quote data object or Bar data object
         """
-        from apilot.utils.logger import get_logger
+        import logging
 
-        get_logger("Gateway").info(
-            f"推送行情数据: {data.symbol}, 类型: {type(data).__name__}"
-        )
+        logger = logging.getLogger(__name__)
+
+        logger.info(f"Push quote data: {data.symbol}, type: {type(data).__name__}")
         self.on_event(EVENT_QUOTE, data)
         self.on_event(EVENT_QUOTE + data.symbol, data)
 
@@ -194,39 +193,10 @@ class BaseGateway(ABC):
         """
         pass
 
-    def send_quote(self, req: QuoteRequest) -> str:
-        """
-        Send quote to server.
-
-        Args:
-            req: Quote request object
-
-        Returns:
-            str: Quote ID
-        """
-        return ""
-
-    @abstractmethod
-    def cancel_quote(self, req: CancelRequest) -> None:
-        """
-        Cancel existing quote.
-
-        Args:
-            req: Cancel request object
-        """
-        pass
-
     @abstractmethod
     def query_account(self) -> None:
         """
         Query account balance from server.
-        """
-        pass
-
-    @abstractmethod
-    def query_position(self) -> None:
-        """
-        Query positions from server.
         """
         pass
 
