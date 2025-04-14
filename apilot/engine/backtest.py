@@ -255,7 +255,7 @@ class BacktestingEngine:
             return
 
         warmup_bars = min(100, len(self.dts))
-        logger.info(f"Using {warmup_bars} time points for strategy pre-warming")
+        logger.debug(f"Using {warmup_bars} time points for strategy pre-warming")
 
         for i in range(warmup_bars):
             try:
@@ -273,7 +273,7 @@ class BacktestingEngine:
         self.strategy.on_start()
 
         # Use remaining historical data for strategy backtesting
-        logger.info(
+        logger.debug(
             f"Starting backtesting, start index: {warmup_bars}, end index: {len(self.dts)}"
         )
         for dt in self.dts[warmup_bars:]:
@@ -282,7 +282,7 @@ class BacktestingEngine:
             except Exception as e:
                 logger.error(f"Backtesting phase error: {e}")
                 return
-        logger.info(
+        logger.debug(
             f"Backtest finished: "
             f"trade_count: {self.trade_count}, "
             f"active_limit_orders: {len(self.active_limit_orders)}, "

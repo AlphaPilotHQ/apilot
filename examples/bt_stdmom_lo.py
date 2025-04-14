@@ -168,7 +168,6 @@ class StdMomentumStrategy(ap.PATemplate):
         )
 
 
-@ap.log_exceptions()
 def run_backtesting(
     strategy_class=StdMomentumStrategy,
     start=datetime(2023, 1, 1),
