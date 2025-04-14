@@ -9,7 +9,6 @@ from logging import INFO
 
 from .constant import (
     Direction,
-    Exchange,
     Interval,
     OrderType,
     Product,
@@ -36,8 +35,7 @@ class BarData(BaseData):
     Candlestick bar data of a certain trading period.
     """
 
-    symbol: str = ""  # Full symbol with exchange (e.g. "BTC.BINANCE")
-    exchange: Exchange | None = None  # Kept for backward compatibility
+    symbol: str = ""  # Trading symbol (e.g. "BTC")
     datetime: dt = None
     interval: Interval | None = None
     volume: float = 0
@@ -48,13 +46,6 @@ class BarData(BaseData):
     low_price: float = 0
     close_price: float = 0
 
-    def __post_init__(self) -> None:
-        """Initialize with exchange from symbol if not provided"""
-        if self.exchange is None and "." in self.symbol:
-            from apilot.utils import get_exchange
-
-            self.exchange = get_exchange(self.symbol)
-
     @staticmethod
     def from_dict(data: dict) -> "BarData":
         """
@@ -62,7 +53,6 @@ class BarData(BaseData):
         """
         bar = BarData(
             symbol=data["symbol"],
-            exchange=data.get("exchange"),
             datetime=data.get("datetime"),
             gateway_name=data.get("gateway_name", ""),
             interval=data.get("interval", None),
@@ -86,8 +76,7 @@ class OrderData(BaseData):
 
     gateway_name: str = ""
 
-    symbol: str = ""  # Full symbol with exchange (e.g. "BTC.BINANCE")
-    _exchange: Exchange | None = None  # Kept for backward compatibility
+    symbol: str = ""  # Trading symbol (e.g. "BTC")
     orderid: str = ""
     type: OrderType = OrderType.LIMIT
     direction: Direction | None = None
@@ -98,22 +87,11 @@ class OrderData(BaseData):
     datetime: dt = None
     reference: str = ""
 
-    @property
-    def exchange(self) -> Exchange:
-        """Get exchange from full symbol"""
-        return self._exchange
-
-    @exchange.setter
-    def exchange(self, value: Exchange) -> None:
-        self._exchange = value
-
     def __post_init__(self) -> None:
-        """Initialize with exchange from symbol if not provided"""
-        if self._exchange is None and "." in self.symbol:
-            from apilot.utils import get_exchange
-
-            self._exchange = get_exchange(self.symbol)
-        self.orderid: str = f"{self.gateway_name}.{self.orderid}"
+        """Initialize order ID with gateway prefix"""
+        # Format orderid with gateway prefix
+        if not self.orderid.startswith(f"{self.gateway_name}."):
+            self.orderid: str = f"{self.gateway_name}.{self.orderid}"
 
     def is_active(self) -> bool:
         """
@@ -136,8 +114,7 @@ class TradeData(BaseData):
     can have several trade fills.
     """
 
-    symbol: str = ""  # Full symbol with exchange (e.g. "BTC.BINANCE")
-    exchange: Exchange | None = None  # Kept for backward compatibility
+    symbol: str = ""  # Trading symbol (e.g. "BTC")
     orderid: str = ""
     tradeid: str = ""
     direction: Direction | None = None
@@ -146,13 +123,6 @@ class TradeData(BaseData):
     volume: float = 0
     datetime: dt = None
 
-    def __post_init__(self) -> None:
-        """Initialize with exchange from symbol if not provided"""
-        if self.exchange is None and "." in self.symbol:
-            from apilot.utils import get_exchange
-
-            self.exchange = get_exchange(self.symbol)
-
 
 @dataclass
 class PositionData(BaseData):
@@ -160,8 +130,7 @@ class PositionData(BaseData):
     Position data is used for tracking each individual position holding.
     """
 
-    symbol: str = ""  # Full symbol with exchange (e.g. "BTC.BINANCE")
-    exchange: Exchange | None = None  # Kept for backward compatibility
+    symbol: str = ""  # Trading symbol (e.g. "BTC")
     direction: Direction | None = None
 
     volume: float = 0
@@ -171,12 +140,7 @@ class PositionData(BaseData):
     yd_volume: float = 0
 
     def __post_init__(self) -> None:
-        """Initialize with exchange from symbol if not provided"""
-        if self.exchange is None and "." in self.symbol:
-            from apilot.utils import get_exchange
-
-            self.exchange = get_exchange(self.symbol)
-
+        """Create position ID"""
         self.vt_positionid: str = (
             f"{self.gateway_name}.{self.symbol}.{self.direction.value}"
         )
@@ -226,8 +190,7 @@ class ContractData(BaseData):
     Contract data contains basic information about each contract traded.
     """
 
-    symbol: str = ""  # Full symbol with exchange (e.g. "BTC.BINANCE")
-    exchange: Exchange | None = None  # Kept for backward compatibility
+    symbol: str = ""  # Trading symbol (e.g. "BTC")
     name: str = ""
     product: Product | None = None
     size: float = 0
@@ -245,13 +208,6 @@ class ContractData(BaseData):
     option_portfolio: str = ""
     option_index: str = ""  # for identifying options with same strike price
 
-    def __post_init__(self) -> None:
-        """Initialize with exchange from symbol if not provided"""
-        if self.exchange is None and "." in self.symbol:
-            from apilot.utils import get_exchange
-
-            self.exchange = get_exchange(self.symbol)
-
 
 @dataclass
 class QuoteData(BaseData):
@@ -260,8 +216,7 @@ class QuoteData(BaseData):
     of a specific quote.
     """
 
-    symbol: str = ""  # Full symbol with exchange (e.g. "BTC.BINANCE")
-    exchange: Exchange | None = None  # Kept for backward compatibility
+    symbol: str = ""  # Trading symbol (e.g. "BTC")
     quoteid: str = ""
 
     bid_price: float = 0.0
@@ -273,13 +228,9 @@ class QuoteData(BaseData):
     reference: str = ""
 
     def __post_init__(self) -> None:
-        """Initialize with exchange from symbol if not provided"""
-        if self.exchange is None and "." in self.symbol:
-            from apilot.utils import get_exchange
-
-            self.exchange = get_exchange(self.symbol)
-
-        self.vt_quoteid: str = f"{self.gateway_name}.{self.quoteid}"
+        """Format quote ID with gateway prefix"""
+        if not self.quoteid.startswith(f"{self.gateway_name}."):
+            self.vt_quoteid: str = f"{self.gateway_name}.{self.quoteid}"
 
     def is_active(self) -> bool:
         """
@@ -301,15 +252,7 @@ class SubscribeRequest:
     Request sending to specific gateway for subscribing tick data update.
     """
 
-    symbol: str = ""  # Full symbol with exchange (e.g. "BTC.BINANCE")
-    exchange: Exchange | None = None  # Kept for backward compatibility
-
-    def __post_init__(self) -> None:
-        """Initialize with exchange from symbol if not provided"""
-        if self.exchange is None and "." in self.symbol:
-            from apilot.utils import get_exchange
-
-            self.exchange = get_exchange(self.symbol)
+    symbol: str = ""  # Trading symbol (e.g. "BTC")
 
 
 @dataclass
@@ -318,20 +261,12 @@ class OrderRequest:
     Request sending to specific gateway for creating a new order.
     """
 
-    symbol: str = ""  # Full symbol with exchange (e.g. "BTC.BINANCE")
-    exchange: Exchange | None = None
+    symbol: str = ""  # Trading symbol (e.g. "BTC")
     direction: Direction | None = None
     type: OrderType | None = None
     volume: float = 0
     price: float = 0
     reference: str = ""
-
-    def __post_init__(self) -> None:
-        """Initialize with exchange from symbol if not provided"""
-        if self.exchange is None and "." in self.symbol:
-            from apilot.utils import get_exchange
-
-            self.exchange = get_exchange(self.symbol)
 
     def create_order_data(self, orderid: str, gateway_name: str) -> "OrderData":
         """
@@ -339,7 +274,6 @@ class OrderRequest:
         """
         order: OrderData = OrderData(
             symbol=self.symbol,
-            exchange=self.exchange,
             orderid=orderid,
             direction=self.direction,
             type=self.type,
@@ -359,14 +293,7 @@ class CancelRequest:
     """
 
     orderid: str = ""
-    symbol: str = ""  # Full symbol with exchange (e.g. "BTC.BINANCE")
-
-    @property
-    def exchange(self) -> Exchange:
-        """Get exchange from full symbol"""
-        from apilot.utils import get_exchange
-
-        return get_exchange(self.symbol)
+    symbol: str = ""  # Trading symbol (e.g. "BTC")
 
 
 @dataclass
@@ -375,18 +302,10 @@ class HistoryRequest:
     Request sending to specific gateway for querying history data.
     """
 
-    symbol: str = ""  # Full symbol with exchange (e.g. "BTC.BINANCE")
-    exchange: Exchange | None = None  # Kept for backward compatibility
+    symbol: str = ""  # Trading symbol (e.g. "BTC")
     start: dt | None = None
     end: dt | None = None
     interval: Interval | None = None
-
-    def __post_init__(self) -> None:
-        """Initialize with exchange from symbol if not provided"""
-        if self.exchange is None and "." in self.symbol:
-            from apilot.utils import get_exchange
-
-            self.exchange = get_exchange(self.symbol)
 
 
 @dataclass
@@ -395,20 +314,12 @@ class QuoteRequest:
     Request sending to specific gateway for creating a new quote.
     """
 
-    symbol: str = ""  # Full symbol with exchange (e.g. "BTC.BINANCE")
-    exchange: Exchange | None = None  # Kept for backward compatibility
+    symbol: str = ""  # Trading symbol (e.g. "BTC")
     bid_price: float = 0
     bid_volume: int = 0
     ask_price: float = 0
     ask_volume: int = 0
     reference: str = ""
-
-    def __post_init__(self) -> None:
-        """Initialize with exchange from symbol if not provided"""
-        if self.exchange is None and "." in self.symbol:
-            from apilot.utils import get_exchange
-
-            self.exchange = get_exchange(self.symbol)
 
     def create_quote_data(self, quoteid: str, gateway_name: str) -> "QuoteData":
         """

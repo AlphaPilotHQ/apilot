@@ -9,7 +9,6 @@ import ccxt
 
 from apilot.core.constant import (
     Direction,
-    Exchange,
     Interval,
     OrderType,
     Product,
@@ -30,8 +29,8 @@ from apilot.core.object import (
 )
 from apilot.utils.logger import get_logger
 
-# Binance exchange symbols for apilot
-EXCHANGE_BINANCE = Exchange.BINANCE
+# Binance exchange name constant
+EXCHANGE_BINANCE = "BINANCE"
 
 # Maps of CCXT orderType, orderStatus to apilot constants
 ORDERTYPE_BINANCE2VT = {"limit": OrderType.LIMIT, "market": OrderType.MARKET}
@@ -69,7 +68,6 @@ class BinanceGateway(BaseGateway):
         "Proxy Host": "",
         "Proxy Port": 0,
     }
-    exchanges: ClassVar[list[Exchange]] = [Exchange.BINANCE]
 
     def __init__(self, event_engine: EventEngine, gateway_name: str = "BINANCE"):
         """Constructor"""
@@ -226,7 +224,6 @@ class BinanceRestApi:
 
             contract = ContractData(
                 symbol=symbol,
-                exchange=EXCHANGE_BINANCE,
                 name=symbol,
                 product=Product.SPOT,
                 size=1,
@@ -317,7 +314,6 @@ class BinanceRestApi:
             sys_orderid = result["id"]
             self.orders[local_orderid] = OrderData(
                 symbol=req.symbol,
-                exchange=req.exchange,
                 orderid=local_orderid,
                 type=req.type,
                 direction=req.direction,
@@ -388,7 +384,6 @@ class BinanceRestApi:
                 dt = datetime.fromtimestamp(ts / 1000)
                 bar = BarData(
                     symbol=req.symbol,
-                    exchange=EXCHANGE_BINANCE,
                     interval=req.interval,
                     datetime=dt,
                     open_price=float(open_price),

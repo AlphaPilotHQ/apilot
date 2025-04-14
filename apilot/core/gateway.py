@@ -16,7 +16,6 @@ from .object import (
     BarData,
     CancelRequest,
     ContractData,
-    Exchange,
     HistoryRequest,
     OrderData,
     OrderRequest,
@@ -47,7 +46,6 @@ class BaseGateway(ABC):
 
     default_name: str = ""
     default_setting: ClassVar[dict[str, Any]] = {}
-    exchanges: ClassVar[list[Exchange]] = []
 
     def __init__(self, event_engine: EventEngine, gateway_name: str = "") -> None:
         """

@@ -14,7 +14,6 @@ from pandas import DataFrame
 from apilot.core.constant import (
     Direction,
     EngineType,
-    Exchange,
     Interval,
     Status,
 )
@@ -53,7 +52,7 @@ class DailyResult:
 
 # Setup logger
 logger = get_logger("BacktestEngine")
-set_level("info", "BacktestEngine")
+set_level("debug", "BacktestEngine")
 
 
 # Default settings for the backtesting engine
@@ -70,10 +69,7 @@ class BacktestingEngine:
 
     def __init__(self, main_engine=None) -> None:
         self.main_engine = main_engine
-        self.symbols: list[
-            str
-        ] = []  # List of full trading symbols (e.g., "BTC.BINANCE")
-        self.exchanges: dict[str, Exchange] = {}  # Cache exchange objects for symbols
+        self.symbols: list[str] = []  # List of trading symbols (e.g., "BTC")
         self.start: datetime | None = None
         self.end: datetime | None = None
         self.sizes: dict[str, float] | None = None
@@ -149,11 +145,7 @@ class BacktestingEngine:
         self.priceticks = priceticks if priceticks is not None else {}
         self.start = start
 
-        # Cache exchange objects for performance
-        for symbol in symbols:
-            from apilot.utils import get_exchange
-
-            self.exchanges[symbol] = get_exchange(symbol)
+        # Store symbols (no need to cache exchange objects anymore)
 
         self.capital = capital
         self.annual_days = annual_days
@@ -199,7 +191,7 @@ class BacktestingEngine:
 
         # Load data
         t0 = time.time()
-        logger.info(f"Loading {symbol} data from provider")
+        logger.debug(f"Loading {symbol} data from provider")
 
         # Extract relevant kwargs for load_bar_data
         data_params = {}
@@ -217,13 +209,12 @@ class BacktestingEngine:
             **data_params,  # Pass extra params like downsampling settings
         )
         t1 = time.time()
-        logger.info(
+        logger.debug(
             f"Provider loaded {len(bars)} bars for {symbol}, took: {(t1 - t0):.2f}s"
         )
 
         # Process loaded data
         t0 = time.time()
-        logger.info(f"Processing {symbol} data")
         bar_count = 0
         for bar in bars:
             bar.symbol = symbol
@@ -232,19 +223,19 @@ class BacktestingEngine:
             bar_count += 1
 
         t1 = time.time()
-        logger.info(f"Processed {bar_count} bars for {symbol}, took: {(t1 - t0):.2f}s")
+        logger.debug(f"Processed {bar_count} bars for {symbol}, took: {(t1 - t0):.2f}s")
 
         # Sort and deduplicate timestamps
         t0 = time.time()
-        logger.info(f"Sorting time points, current count: {len(self.dts)}")
+        logger.debug(f"Sorting time points, current count: {len(self.dts)}")
         self.dts = sorted(set(self.dts))
         t1 = time.time()
-        logger.info(
+        logger.debug(
             f"Time points sorted, unique count: {len(self.dts)}, took: {(t1 - t0):.2f}s"
         )
 
         total_time = time.time() - start_time
-        logger.info(f"Finished loading {symbol} data, total time: {total_time:.2f}s")
+        logger.debug(f"Finished loading {symbol} data, total time: {total_time:.2f}s")
         return self
 
     def add_csv_data(self, symbol, filepath, **kwargs):
@@ -308,8 +299,8 @@ class BacktestingEngine:
         if not bars:
             logger.debug(f"No data at time point {dt}")
         else:
-            if "SOL-USDT.LOCAL" not in bars:
-                logger.debug(f"No SOL-USDT.LOCAL data at time point {dt}")
+            if "SOL-USDT" not in bars:
+                logger.debug(f"No SOL-USDT data at time point {dt}")
 
         # Update strategy's multiple bar data
         self.bars = bars
@@ -400,7 +391,6 @@ class BacktestingEngine:
             # Create trade object
             trade = TradeData(
                 symbol=order.symbol,
-                exchange=order.exchange,
                 orderid=order.orderid,
                 tradeid=str(self.trade_count),
                 direction=order.direction,

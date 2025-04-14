@@ -16,7 +16,6 @@ from .gateway import BaseGateway
 from .object import (
     BarData,
     CancelRequest,
-    Exchange,
     HistoryRequest,
     OrderRequest,
     QuoteRequest,
@@ -41,7 +40,6 @@ class MainEngine:
 
         self.gateways: dict[str, BaseGateway] = {}
         self.engines: dict[str, BaseEngine] = {}
-        self.exchanges: list[Exchange] = []
 
         self.init_engines()  # Initialize function engines
 
@@ -66,10 +64,7 @@ class MainEngine:
         gateway: BaseGateway = gateway_class(self.event_engine, gateway_name)
         self.gateways[gateway_name] = gateway
 
-        # Add gateway supported exchanges into engine
-        for exchange in gateway.exchanges:
-            if exchange not in self.exchanges:
-                self.exchanges.append(exchange)
+        # No need to track exchanges anymore
 
         return gateway
 
@@ -111,11 +106,12 @@ class MainEngine:
         """
         return list(self.gateways.keys())
 
-    def get_all_exchanges(self) -> list[Exchange]:
+    def get_all_exchanges(self) -> list[str]:
         """
         Get all exchanges.
+        (Kept for backward compatibility, now returns empty list)
         """
-        return self.exchanges
+        return []
 
     def connect(self, setting: dict, gateway_name: str) -> None:
         """

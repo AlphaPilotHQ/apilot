@@ -6,7 +6,7 @@ Manages execution and monitoring of algorithm instances, processes market data a
 
 from collections import defaultdict
 
-from apilot.core.constant import AlgoStatus, Direction, Exchange, OrderType
+from apilot.core.constant import AlgoStatus, Direction, OrderType
 from apilot.core.engine import (
     BaseEngine,
     EventEngine,
@@ -65,9 +65,7 @@ class AlgoEngine(BaseEngine):
         """Load algorithm classes"""
         from .best_limit_algo import BestLimitAlgo
         from .stop_algo import StopAlgo
-        from .twap_algo import TwapAlgo
 
-        self.add_algo_template(TwapAlgo)
         self.add_algo_template(StopAlgo)
         self.add_algo_template(BestLimitAlgo)
 
@@ -170,9 +168,9 @@ class AlgoEngine(BaseEngine):
         for algo_name in list(self.algos.keys()):
             self.stop_algo(algo_name)
 
-    def subscribe(self, symbol: str, exchange: Exchange, gateway_name: str) -> None:
+    def subscribe(self, symbol: str, gateway_name: str) -> None:
         """Subscribe to market data"""
-        req: SubscribeRequest = SubscribeRequest(symbol=symbol, exchange=exchange)
+        req: SubscribeRequest = SubscribeRequest(symbol=symbol)
         self.main_engine.subscribe(req, gateway_name)
 
     def send_order(

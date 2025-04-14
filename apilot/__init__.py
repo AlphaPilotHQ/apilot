@@ -23,7 +23,6 @@ __all__ = [
     "ContractData",
     "Direction",
     "EventEngine",
-    "Exchange",
     "Interval",
     "LocalOrderManager",
     "MainEngine",
@@ -61,7 +60,6 @@ from . import core, datafeed, engine, execution, optimizer, performance, strateg
 # Export constants
 from .core.constant import (
     Direction,
-    Exchange,
     Interval,
     OrderType,
     Product,

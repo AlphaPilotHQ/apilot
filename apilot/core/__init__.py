@@ -31,7 +31,6 @@ __all__ = [
     "EngineType",
     "Event",
     "EventEngine",
-    "Exchange",
     "Interval",
     "LogData",
     "MainEngine",
@@ -55,7 +54,6 @@ from apilot.utils.indicators import ArrayManager
 from .constant import (
     Direction,  # type: Enum
     EngineType,  # type: Enum
-    Exchange,  # type: Enum
     Interval,  # type: Enum
     OrderType,  # type: Enum
     Product,  # type: Enum

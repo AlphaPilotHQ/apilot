@@ -24,7 +24,6 @@ from apilot.core import (
     EngineType,
     Event,
     EventEngine,
-    Exchange,
     Interval,
     MainEngine,
     OrderData,
@@ -37,7 +36,6 @@ from apilot.core import (
 )
 from apilot.strategy import PATemplate
 from apilot.utils.logger import get_logger
-from apilot.utils.symbol import split_symbol
 
 logger = get_logger("LiveTrading")
 
@@ -121,7 +119,6 @@ class PAEngine(BaseEngine):
         # Create request and send order.
         original_req: OrderRequest = OrderRequest(
             symbol=contract.symbol,
-            exchange=contract.exchange,
             direction=direction,
             type=type,
             price=price,
@@ -269,26 +266,17 @@ class PAEngine(BaseEngine):
             logger.error(f"{error_msg}")
             return
 
-        # 检查symbols参数 - 可以是字符串或字符串列表
+        # Check symbols parameter - can be string or list of strings
         if isinstance(symbols, str):
             if not symbols:
                 error_msg = "Symbol cannot be empty"
                 logger.error(f"{error_msg}")
                 return
-            # 验证单个交易对格式
-            symbol_str, exchange_str = split_symbol(symbols)
-            if exchange_str not in Exchange.__members__:
-                error_msg = (
-                    "Failed to create strategy, incorrect exchange suffix in local code"
-                )
-                logger.error(f"{error_msg}")
-                return
         elif isinstance(symbols, list) and symbols:
-            # 验证所有交易对的格式
+            # All symbols should be non-empty
             for symbol in symbols:
-                symbol_str, exchange_str = split_symbol(symbol)
-                if exchange_str not in Exchange.__members__:
-                    error_msg = f"Failed to create strategy, incorrect exchange suffix in {symbol}"
+                if not symbol:
+                    error_msg = "Symbol cannot be empty"
                     logger.error(f"{error_msg}")
                     return
         else:
@@ -296,11 +284,11 @@ class PAEngine(BaseEngine):
             logger.error(f"{error_msg}")
             return
 
-        # 创建策略实例
+        # Create strategy instance
         strategy: PATemplate = strategy_class(self, strategy_name, symbols, setting)
         self.strategies[strategy_name] = strategy
 
-        # 将策略添加到每个交易对的映射中
+        # Add strategy to each symbol's mapping
         for symbol in strategy.symbols:
             strategies: list = self.symbol_strategy_map[symbol]
             strategies.append(strategy)
@@ -340,9 +328,7 @@ class PAEngine(BaseEngine):
             logger.info(f"From exchange get {symbol} history data")
             contract: ContractData | None = self.main_engine.get_contract(symbol)
             if contract:
-                req: SubscribeRequest = SubscribeRequest(
-                    symbol=contract.symbol, exchange=contract.exchange
-                )
+                req: SubscribeRequest = SubscribeRequest(symbol=contract.symbol)
                 self.main_engine.subscribe(req, contract.gateway_name)
             else:
                 error_msg = (

@@ -37,16 +37,6 @@ class OrderType(Enum):
     STOP_LIMIT = "STOP_LIMIT"
 
 
-class Exchange(Enum):
-    BINANCE = "BINANCE"
-    BINANCE_FUTURES = "BINANCEF"
-    OKEX = "OKEX"
-    BYBIT = "BYBIT"
-    COINBASE = "COINBASE"
-    KRAKEN = "KRAKEN"
-    LOCAL = "LOCAL"
-
-
 class Interval(Enum):
     MINUTE = "1m"
     MINUTE3 = "3m"

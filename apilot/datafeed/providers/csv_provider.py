@@ -56,7 +56,6 @@ class CsvDatabase(BaseDatabase):
             for _, row in df.iterrows():
                 bar = BarData(
                     symbol=symbol,
-                    exchange="LOCAL",  # TODO: Can this be removed?
                     datetime=row["datetime"],
                     interval=interval,
                     volume=float(row.iloc[self.volume_index])

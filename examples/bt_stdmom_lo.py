@@ -182,7 +182,7 @@ def run_backtesting(
     logger.info("1 Create backtesting engine completed")
 
     # 2 Set engine parameters
-    symbols = ["SOL-USDT.LOCAL", "BTC-USDT.LOCAL"]
+    symbols = ["SOL-USDT", "BTC-USDT"]
 
     engine.set_parameters(
         symbols=symbols,
@@ -205,8 +205,8 @@ def run_backtesting(
 
     # 4 Add data
     engine.add_csv_data(
-        symbol="SOL-USDT.LOCAL",
-        filepath="data/SOL-USDT_LOCAL_1m.csv",
+        symbol="SOL-USDT",
+        filepath="data/SOL-USDT_1m.csv",
         datetime_index=0,
         open_index=1,
         high_index=2,
@@ -215,8 +215,8 @@ def run_backtesting(
         volume_index=5,
     )
     engine.add_csv_data(
-        symbol="BTC-USDT.LOCAL",
-        filepath="data/BTC-USDT_LOCAL_1m.csv",
+        symbol="BTC-USDT",
+        filepath="data/BTC-USDT_1m.csv",
         datetime_index=0,
         open_index=1,
         high_index=2,

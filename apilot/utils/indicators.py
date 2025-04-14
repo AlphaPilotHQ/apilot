@@ -107,136 +107,6 @@ class ArrayManager:
             return result
         return result[-1] if len(result) > 0 else np.nan
 
-    def std(self, n: int, array: bool = False) -> float | np.ndarray:
-        """Calculates Standard Deviation (STD)."""
-        if not self.inited or n <= 0 or n > len(self.close_array):
-            return np.nan if not array else np.full(self.size, np.nan)
-
-        std_dev = np.zeros_like(self.close_array)
-        for i in range(n - 1, len(self.close_array)):
-            std_dev[i] = np.std(self.close_array[i - n + 1 : i + 1], ddof=1)
-        std_dev[: n - 1] = np.nan
-
-        if array:
-            return std_dev
-        return std_dev[-1]
-
-    def atr(self, n: int, array: bool = False) -> float | np.ndarray:
-        """Calculates Average True Range (ATR)."""
-        if len(self.close_array) < 1 or n <= 0 or n > len(self.close_array):
-            return np.nan if not array else np.full(self.size, np.nan)
-
-        tr = np.zeros_like(self.close_array)
-        for i in range(1, len(self.close_array)):
-            high_low = self.high_array[i] - self.low_array[i]
-            high_close = abs(self.high_array[i] - self.close_array[i - 1])
-            low_close = abs(self.low_array[i] - self.close_array[i - 1])
-            tr[i] = max(high_low, high_close, low_close)
-        tr[0] = self.high_array[0] - self.low_array[0]
-
-        atr_result = np.zeros_like(self.close_array)
-        if len(tr) >= n:
-            atr_result[n - 1] = np.mean(tr[0:n])
-            for i in range(n, len(self.close_array)):
-                atr_result[i] = (atr_result[i - 1] * (n - 1) + tr[i]) / n
-        atr_result[: n - 1] = np.nan
-
-        if array:
-            return atr_result
-        return atr_result[-1] if len(atr_result) > 0 else np.nan
-
-    def rsi(self, n: int, array: bool = False) -> float | np.ndarray:
-        """Calculates Relative Strength Index (RSI)."""
-        if len(self.close_array) < n + 1 or n <= 0:
-            return np.nan if not array else np.full(self.size, np.nan)
-
-        delta = np.diff(self.close_array)
-        delta = np.insert(delta, 0, 0)
-
-        gain = np.where(delta > 0, delta, 0)
-        loss = np.where(delta < 0, -delta, 0)
-
-        avg_gain = np.zeros_like(self.close_array)
-        avg_loss = np.zeros_like(self.close_array)
-
-        if len(gain) >= n and len(loss) >= n:
-            avg_gain[n] = np.mean(gain[1 : n + 1])
-            avg_loss[n] = np.mean(loss[1 : n + 1])
-
-        for i in range(n + 1, len(self.close_array)):
-            avg_gain[i] = (avg_gain[i - 1] * (n - 1) + gain[i]) / n
-            avg_loss[i] = (avg_loss[i - 1] * (n - 1) + loss[i]) / n
-
-        rs = np.divide(
-            avg_gain,
-            avg_loss,
-            out=np.full_like(avg_gain, np.inf),
-            where=avg_loss != 0,
-        )
-
-        rsi = 100 - (100 / (1 + rs))
-        rsi[:n] = np.nan
-
-        if array:
-            return rsi
-        return rsi[-1] if len(rsi) > 0 else np.nan
-
-    def macd(
-        self,
-        fast_period: int,
-        slow_period: int,
-        signal_period: int,
-        array: bool = False,
-    ) -> (
-        tuple[float, float, float]
-        | tuple[np.ndarray | None, np.ndarray | None, np.ndarray | None]
-    ):
-        """Calculates Moving Average Convergence Divergence (MACD)."""
-        if (
-            len(self.close_array) < slow_period
-            or fast_period <= 0
-            or slow_period <= 0
-            or signal_period <= 0
-            or fast_period >= slow_period
-        ):
-            nan_array = np.full(self.size, np.nan)
-            return (
-                (np.nan, np.nan, np.nan)
-                if not array
-                else (nan_array.copy(), nan_array.copy(), nan_array.copy())
-            )
-
-        ema_fast = self.ema(fast_period, array=True)
-        ema_slow = self.ema(slow_period, array=True)
-
-        if not isinstance(ema_fast, np.ndarray) or not isinstance(ema_slow, np.ndarray):
-            nan_array = np.full(self.size, np.nan)
-            return (
-                (np.nan, np.nan, np.nan)
-                if not array
-                else (nan_array.copy(), nan_array.copy(), nan_array.copy())
-            )
-
-        macd = ema_fast - ema_slow
-
-        signal = np.zeros_like(macd)
-        alpha_signal = 2.0 / (signal_period + 1)
-        start_idx = np.argmax(~np.isnan(macd))
-        if start_idx < len(signal):
-            signal[start_idx] = macd[start_idx]
-            for i in range(start_idx + 1, len(macd)):
-                signal[i] = alpha_signal * macd[i] + (1 - alpha_signal) * signal[i - 1]
-        signal[:start_idx] = np.nan
-
-        hist = macd - signal
-
-        if array:
-            return macd, signal, hist
-        last_macd = macd[-1] if len(macd) > 0 else np.nan
-        last_signal = signal[-1] if len(signal) > 0 else np.nan
-        last_hist = hist[-1] if len(hist) > 0 else np.nan
-        return last_macd, last_signal, last_hist
-
     def donchian(
         self, n: int, array: bool = False
     ) -> tuple[float, float] | tuple[np.ndarray, np.ndarray]:
@@ -262,48 +132,19 @@ class ArrayManager:
             return up, down
         return up[-1] if len(up) > 0 else np.nan, down[-1] if len(down) > 0 else np.nan
 
-    def mfi(self, n: int, array: bool = False) -> float | np.ndarray:
-        """Calculates Money Flow Index (MFI)."""
-        required_len = n + 1
-        if (
-            len(self.close_array) < required_len
-            or len(self.volume_array) < required_len
-            or n <= 0
-        ):
+    def std(self, n: int, array: bool = False) -> float | np.ndarray:
+        """Calculates Standard Deviation (STD)."""
+        if not self.inited or n <= 0 or n > len(self.close_array):
             return np.nan if not array else np.full(self.size, np.nan)
 
-        tp = (self.high_array + self.low_array + self.close_array) / 3
-
-        mf = tp * self.volume_array
-
-        diff = np.diff(tp)
-        diff = np.insert(diff, 0, 0)
-
-        positive_flow = np.where(diff > 0, mf, 0)
-        negative_flow = np.where(diff < 0, mf, 0)
-
-        positive_mf_sum = np.zeros_like(self.close_array)
-        negative_mf_sum = np.zeros_like(self.close_array)
-
-        for i in range(n, len(self.close_array)):
-            positive_mf_sum[i] = np.sum(positive_flow[i - n + 1 : i + 1])
-            negative_mf_sum[i] = np.sum(negative_flow[i - n + 1 : i + 1])
-
-        mfr = np.full_like(positive_mf_sum, np.nan)
-        non_zero_mask = negative_mf_sum != 0
-        mfr[non_zero_mask] = (
-            positive_mf_sum[non_zero_mask] / negative_mf_sum[non_zero_mask]
-        )
-
-        result = 100 - (100 / (1 + mfr))
-        result[:n] = np.nan
-
-        zero_mask = (positive_mf_sum == 0) & (negative_mf_sum == 0)
-        result[zero_mask] = 50.0
+        std_dev = np.zeros_like(self.close_array)
+        for i in range(n - 1, len(self.close_array)):
+            std_dev[i] = np.std(self.close_array[i - n + 1 : i + 1], ddof=1)
+        std_dev[: n - 1] = np.nan
 
         if array:
-            return result
-        return result[-1] if len(result) > 0 else np.nan
+            return std_dev
+        return std_dev[-1]
 
     def boll(
         self, n: int, dev: float, array: bool = False
@@ -325,6 +166,30 @@ class ArrayManager:
             )
 
         return up, down
+
+    def atr(self, n: int, array: bool = False) -> float | np.ndarray:
+        """Calculates Average True Range (ATR)."""
+        if len(self.close_array) < 1 or n <= 0 or n > len(self.close_array):
+            return np.nan if not array else np.full(self.size, np.nan)
+
+        tr = np.zeros_like(self.close_array)
+        for i in range(1, len(self.close_array)):
+            high_low = self.high_array[i] - self.low_array[i]
+            high_close = abs(self.high_array[i] - self.close_array[i - 1])
+            low_close = abs(self.low_array[i] - self.close_array[i - 1])
+            tr[i] = max(high_low, high_close, low_close)
+        tr[0] = self.high_array[0] - self.low_array[0]
+
+        atr_result = np.zeros_like(self.close_array)
+        if len(tr) >= n:
+            atr_result[n - 1] = np.mean(tr[0:n])
+            for i in range(n, len(self.close_array)):
+                atr_result[i] = (atr_result[i - 1] * (n - 1) + tr[i]) / n
+        atr_result[: n - 1] = np.nan
+
+        if array:
+            return atr_result
+        return atr_result[-1] if len(atr_result) > 0 else np.nan
 
     def keltner(
         self, n: int, dev: float, array: bool = False

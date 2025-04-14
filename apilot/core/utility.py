@@ -173,7 +173,6 @@ class BarGenerator:
                 dt = current_window_time  # Use already aligned time
                 self.window_bars[symbol] = BarData(
                     symbol=bar.symbol,
-                    exchange=bar.exchange,
                     datetime=dt,
                     gateway_name=bar.gateway_name,
                     open_price=bar.open_price,
@@ -283,7 +282,6 @@ class BarGenerator:
         """Create a new window bar from source bar."""
         return BarData(
             symbol=source.symbol,
-            exchange=source.exchange,
             datetime=dt,
             gateway_name=source.gateway_name,
             open_price=source.open_price,
@@ -299,7 +297,6 @@ class BarGenerator:
         """Create a complete new bar from source bar."""
         return BarData(
             symbol=source.symbol,
-            exchange=source.exchange,
             datetime=dt,
             gateway_name=source.gateway_name,
             open_price=source.open_price,
@@ -350,7 +347,6 @@ class BarGenerator:
                 if not window_bar:
                     window_bar = BarData(
                         symbol=bar.symbol,
-                        exchange=bar.exchange,
                         datetime=bar.datetime,
                         gateway_name=bar.gateway_name,
                         open_price=bar.open_price,
