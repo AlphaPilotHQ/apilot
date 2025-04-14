@@ -42,7 +42,7 @@ Repository = "https://github.com/AlphaPilotHQ/apilot"
 Issues = "https://github.com/AlphaPilotHQ/apilot/issues"
 
 [tool.setuptools]
-packages = ["apilot"]
+packages = {find = {include = ["apilot", "apilot.*"]}}
 
 [tool.setuptools.dynamic]
 version = {attr = "apilot.version.__version__"}
