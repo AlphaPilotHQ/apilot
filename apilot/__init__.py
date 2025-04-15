@@ -36,7 +36,6 @@ __all__ = [
     "Status",
     "TradeData",
     "__version__",
-    "algo",
     "core",
     "create_csv_data",
     "create_mongodb_data",
@@ -54,7 +53,6 @@ __all__ = [
 
 # Export submodules (package level)
 from . import (
-    algo,
     core,
     datafeed,
     engine,
@@ -73,13 +71,12 @@ from .core.constant import (
     Product,
     Status,
 )
-from .core.engine import MainEngine
 
 # Export core engine components
 from .core.event import EventEngine
 
 # Export core data objects
-from .core.object import (
+from .core.models import (
     AccountData,
     BarData,
     ContractData,
@@ -87,13 +84,11 @@ from .core.object import (
     PositionData,
     TradeData,
 )
-
-# Export utility classes
-from .core.utility import BarGenerator
+from .engine import MainEngine
 
 # Export backtesting and optimization components
 from .engine.backtest import BacktestingEngine
-from .engine.live import PAEngine
+from .engine.live import LiveEngine
 
 # Export gateway components
 from .gateway.binance import BinanceGateway
@@ -104,6 +99,9 @@ from .performance.report import PerformanceReport
 
 # Export strategy templates
 from .strategy.template import PATemplate
+
+# Export utility classes
+from .utils.bar_generator import BarGenerator
 from .utils.indicators import ArrayManager
 
 # Export logging system

@@ -6,8 +6,7 @@ from copy import copy
 from typing import Any, ClassVar
 
 from apilot.core.constant import Direction, EngineType, Interval
-from apilot.core.object import BarData, OrderData, TradeData
-from apilot.core.utility import virtual
+from apilot.core.models import BarData, OrderData, TradeData
 
 logger = logging.getLogger(__name__)
 
@@ -82,15 +81,15 @@ class PATemplate(ABC):
     def on_init(self) -> None:
         pass
 
-    @virtual
+    @abstractmethod
     def on_start(self) -> None:
         pass
 
-    @virtual
+    @abstractmethod
     def on_stop(self) -> None:
         pass
 
-    @virtual
+    @abstractmethod
     def on_bar(self, bar: BarData) -> None:
         pass
 

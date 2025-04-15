@@ -19,8 +19,6 @@ try:
 except ImportError:
     pass
 
-# MongoDB provider has been moved to examples directory, no longer auto-registered
-# If you need to use it, please refer to examples/data_providers/mongodb_provider.py
 
 # Define public API
 __all__ = [

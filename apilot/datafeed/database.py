@@ -10,7 +10,7 @@ from datetime import datetime
 from typing import Any
 
 from apilot.core.constant import Interval
-from apilot.core.object import BarData
+from apilot.core.models import BarData
 
 
 @dataclass

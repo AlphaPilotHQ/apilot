@@ -6,7 +6,7 @@ from threading import Thread
 from time import sleep
 from typing import Any, TypeAlias
 
-from apilot.core.constant import (
+from .constant import (
     EVENT_TIMER,
 )
 

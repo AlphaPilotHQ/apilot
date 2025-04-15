@@ -4,7 +4,7 @@ Technical indicators and array-based calculations.
 
 import numpy as np
 
-from apilot.core.object import BarData
+from apilot.core.models import BarData
 
 
 class ArrayManager:

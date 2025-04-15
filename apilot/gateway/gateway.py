@@ -12,7 +12,7 @@ from apilot.core.event import (
     Event,
     EventEngine,
 )
-from apilot.core.object import (
+from apilot.core.models import (
     AccountData,
     BarData,
     CancelRequest,

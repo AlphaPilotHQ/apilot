@@ -8,7 +8,7 @@ import logging
 from typing import Any
 
 from apilot.core.event import EventEngine
-from apilot.core.object import (
+from apilot.core.models import (
     BarData,
     CancelRequest,
     HistoryRequest,

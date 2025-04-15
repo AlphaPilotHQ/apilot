@@ -10,7 +10,8 @@ from datetime import datetime
 import pandas as pd
 
 from apilot.core import BarData, Interval
-from apilot.core.database import BaseDatabase
+
+from .database import BaseDatabase
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +26,6 @@ class CsvDatabase(BaseDatabase):
         self.low_index = kwargs.get("low_index", 3)
         self.close_index = kwargs.get("close_index", 4)
         self.volume_index = kwargs.get("volume_index", 5)
-        self.openinterest_index = kwargs.get("openinterest_index", -1)
 
         self.dtformat = kwargs.get("dtformat", "%Y-%m-%d %H:%M:%S")
 
@@ -51,7 +51,7 @@ class CsvDatabase(BaseDatabase):
 
             bars = []
 
-            # Convert to BarData objects
+            # Convert to BarData models
             for _, row in df.iterrows():
                 bar = BarData(
                     symbol=symbol,
@@ -72,14 +72,11 @@ class CsvDatabase(BaseDatabase):
                     close_price=float(row.iloc[self.close_index])
                     if self.close_index >= 0
                     else 0,
-                    open_interest=float(row.iloc[self.openinterest_index])
-                    if self.openinterest_index >= 0
-                    else 0,
                     gateway_name="CSV",
                 )
                 bars.append(bar)
 
-            logger.debug(f"Successfully created {len(bars)} Bar objects")
+            logger.debug(f"Successfully created {len(bars)} Bar models")
             return bars
 
         except Exception as e:

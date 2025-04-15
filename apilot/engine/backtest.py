@@ -17,16 +17,16 @@ from apilot.core.constant import (
     Interval,
     Status,
 )
-from apilot.core.object import (
+from apilot.core.models import (
     BarData,
     OrderData,
     TradeData,
 )
-from apilot.core.utility import round_to
 from apilot.datafeed import DATA_PROVIDERS
 from apilot.performance.calculator import calculate_statistics
 from apilot.performance.report import PerformanceReport
-from apilot.strategy.template import PATemplate
+from apilot.strategy.pa_template import PATemplate
+from apilot.utils.utility import round_to
 
 logger = logging.getLogger("BacktestEngine")
 
@@ -241,14 +241,11 @@ class BacktestingEngine:
         """Convenience method to add data from a CSV file."""
         return self.add_data("csv", symbol, filepath=filepath, **kwargs)
 
-    # MongoDB loader removed, use CSV or implement custom provider.
-
     def run_backtesting(self) -> None:
         self.strategy.on_init()
         logger.debug("Strategy on_init() called")
 
         # Pre-warming phase - use first N bars to initialize strategy
-        # But ensure there's enough data for pre-warming
         if not self.dts:
             logger.error("No valid data points found, check data loading")
             return
@@ -258,7 +255,7 @@ class BacktestingEngine:
 
         for i in range(warmup_bars):
             try:
-                self.new_bars(self.dts[i])
+                self.new_bar(self.dts[i])
             except Exception as e:
                 logger.error(f"Pre-warming phase error: {e}")
                 return
@@ -277,7 +274,7 @@ class BacktestingEngine:
         )
         for dt in self.dts[warmup_bars:]:
             try:
-                self.new_bars(dt)
+                self.new_bar(dt)
             except Exception as e:
                 logger.error(f"Backtesting phase error: {e}")
                 return
@@ -287,33 +284,6 @@ class BacktestingEngine:
             f"active_limit_orders: {len(self.active_limit_orders)}, "
             f"limit_orders: {len(self.limit_orders)}"
         )
-
-    def new_bars(self, dt: datetime) -> None:
-        self.datetime = dt
-
-        # Get current time point's bars for all trading symbols
-        bars = self.history_data.get(dt, {})
-
-        # Debug log: record current time point's symbols
-        if not bars:
-            logger.debug(f"No data at time point {dt}")
-        else:
-            if "SOL-USDT" not in bars:
-                logger.debug(f"No SOL-USDT data at time point {dt}")
-
-        # Update strategy's multiple bar data
-        self.bars = bars
-
-        self.cross_limit_order()
-
-        # 调用每个交易标的的on_bar方法，而不是on_bars
-        for symbol, bar in bars.items():
-            logger.debug(f"回测引擎处理K线: {symbol} @ {dt}")
-            self.strategy.on_bar(bar)
-
-        # Update each symbol's closing price
-        for symbol, bar in bars.items():
-            self.update_daily_close(bar.close_price, symbol)
 
     def update_daily_close(self, price: float, symbol: str) -> None:
         d: date = self.datetime.date()
@@ -327,15 +297,22 @@ class BacktestingEngine:
 
     def new_bar(self, bar: BarData) -> None:
         """
-        Process new bar data
+        Process new bar data for a single symbol. Robust and simple.
         """
         self.bars[bar.symbol] = bar
         self.datetime = bar.datetime
 
         self.cross_limit_order()
-        self.strategy.on_bar(bar)
+        try:
+            self.strategy.on_bar(bar)
+        except Exception as e:
+            logger.error(f"on_bar error for {bar.symbol} @ {bar.datetime}: {e}")
 
-        self.update_daily_close(bar.close_price, bar.symbol)
+        price = getattr(bar, "close_price", None)
+        if price is not None:
+            self.update_daily_close(price, bar.symbol)
+        else:
+            logger.warning(f"Bar missing close_price: {bar.symbol} @ {bar.datetime}")
 
     def cross_limit_order(self) -> None:
         """

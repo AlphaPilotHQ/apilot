@@ -7,8 +7,7 @@ import ccxt
 
 from apilot.core.constant import Direction, Interval, OrderType, Product, Status
 from apilot.core.event import EventEngine
-from apilot.core.gateway import BaseGateway
-from apilot.core.object import (
+from apilot.core.models import (
     AccountData,
     BarData,
     CancelRequest,
@@ -18,6 +17,8 @@ from apilot.core.object import (
     OrderRequest,
     SubscribeRequest,
 )
+
+from .gateway import BaseGateway
 
 logger = logging.getLogger(__name__)
 

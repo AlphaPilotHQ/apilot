@@ -15,12 +15,10 @@ from apilot.core import (
     # 数据类
     AccountData,
     # 引擎类
-    BaseEngine,
     ContractData,
     # 事件类
     Event,
     EventEngine,
-    MainEngine,
     # 组件类
     OrderData,
     OrderRequest,
@@ -28,6 +26,9 @@ from apilot.core import (
     QuoteData,
     TradeData,
 )
+
+from .base_engine import BaseEngine
+from .main_engine import MainEngine
 
 
 class OmsEngine(BaseEngine):
@@ -118,7 +119,6 @@ class OmsEngine(BaseEngine):
     def process_quote_event(self, event: Event) -> None:
         """处理行情事件，可以是QuoteData或BarData"""
         data = event.data
-        # 如果是QuoteData，保存到quotes字典
         if hasattr(data, "quoteid"):
             quote: QuoteData = data
             self.quotes[quote.quoteid] = quote
