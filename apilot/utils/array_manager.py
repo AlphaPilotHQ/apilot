@@ -22,7 +22,6 @@ class ArrayManager:
         self.low_array: np.ndarray = np.zeros(size)
         self.close_array: np.ndarray = np.zeros(size)
         self.volume_array: np.ndarray = np.zeros(size)
-        self.turnover_array: np.ndarray = np.zeros(size)
 
     def update_bar(self, bar: BarData) -> None:
         """
@@ -38,14 +37,12 @@ class ArrayManager:
         self.low_array[:-1] = self.low_array[1:]
         self.close_array[:-1] = self.close_array[1:]
         self.volume_array[:-1] = self.volume_array[1:]
-        self.turnover_array[:-1] = self.turnover_array[1:]
 
         self.open_array[-1] = bar.open_price
         self.high_array[-1] = bar.high_price
         self.low_array[-1] = bar.low_price
         self.close_array[-1] = bar.close_price
         self.volume_array[-1] = bar.volume
-        self.turnover_array[-1] = bar.turnover
 
     @property
     def open(self) -> np.ndarray:
@@ -66,10 +63,6 @@ class ArrayManager:
     @property
     def volume(self) -> np.ndarray:
         return self.volume_array
-
-    @property
-    def turnover(self) -> np.ndarray:
-        return self.turnover_array
 
     def sma(self, n: int, array: bool = False) -> float | np.ndarray:
         """Calculates Simple Moving Average (SMA)."""

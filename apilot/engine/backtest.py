@@ -22,7 +22,7 @@ from apilot.core.models import (
     OrderData,
     TradeData,
 )
-from apilot.datafeed import DATA_PROVIDERS
+from apilot.datafeed.csv_provider import CsvDatabase
 from apilot.performance.calculator import calculate_statistics
 from apilot.performance.report import PerformanceReport
 from apilot.strategy.pa_template import PATemplate
@@ -51,31 +51,19 @@ class DailyResult:
         self.net_pnl += profit
 
 
-# Get module logger
-logger = logging.getLogger(__name__)
-
-
-# Default settings for the backtesting engine
-BACKTEST_CONFIG = {
-    "risk_free": 0.0,
-    "size": 1,
-    "pricetick": 0.0,
-}
-
-
 class BacktestingEngine:
     engine_type: EngineType = EngineType.BACKTESTING
     gateway_name: str = "BACKTESTING"
 
     def __init__(self, main_engine=None) -> None:
         self.main_engine = main_engine
-        self.symbols: list[str] = []  # List of trading symbols (e.g., "BTC")
+        self.symbols: list[str] = []
         self.start: datetime | None = None
         self.end: datetime | None = None
         self.sizes: dict[str, float] | None = None
         self.priceticks: dict[str, float] | None = None
         self.capital: int = 100_000
-        self.annual_days: int = 240
+        self.annual_days: int = 365
 
         self.strategy_class: type[PATemplate] | None = None
         self.strategy: PATemplate | None = None
@@ -108,23 +96,8 @@ class BacktestingEngine:
         ] = {}  # Position tracking: {symbol: {"volume": float, "avg_price": float}}
 
     def clear_data(self) -> None:
-        """Resets engine state for a new backtest run."""
-        self.strategy = None
-        self.bars = {}
-        self.datetime = None
-
-        self.limit_order_count = 0
-        self.limit_orders.clear()
-        self.active_limit_orders.clear()
-
-        self.trade_count = 0
-        self.trades.clear()
-
-        self.logs.clear()
-        self.daily_results.clear()
-        self.daily_df = None
-        self.accounts = {"balance": self.capital}
-        self.positions.clear()
+        """Reset engine state for a new backtest run."""
+        self.__init__(self.main_engine)
 
     def set_parameters(
         self,
@@ -168,78 +141,31 @@ class BacktestingEngine:
             self, strategy_class.__name__, self.symbols, setting
         )
 
-    def add_data(self, provider_type, symbol, **kwargs):
-        """Loads historical data for a symbol using the specified provider."""
-
-        logger.debug(f"Loading {symbol} data, type: {provider_type}")
+    def add_data(self, symbol, **kwargs):
+        """Loads historical data for a symbol using the default provider (csv)."""
         start_time = time.time()
-
-        # Get data provider class
-        if provider_type not in DATA_PROVIDERS:
-            raise ValueError(f"Unknown data provider type: {provider_type}")
-
-        provider_class = DATA_PROVIDERS[provider_type]
-        logger.debug(f"Using data provider: {provider_class.__name__}")
-
-        provider = provider_class(**kwargs)
-        logger.debug(f"Provider creation took: {(time.time() - start_time):.2f}s")
-
-        # Ensure symbol is in the list
+        provider = CsvDatabase(**kwargs)
         if symbol not in self.symbols:
             self.symbols.append(symbol)
-
-        # Load data
-        t0 = time.time()
-        logger.debug(f"Loading {symbol} data from provider")
-
-        # Extract relevant kwargs for load_bar_data
-        data_params = {}
-        for param in ["downsample_minutes", "limit_count"]:
-            if param in kwargs:
-                data_params[param] = kwargs[param]
-                logger.info(f"Passing data loading param: {param}={kwargs[param]}")
-
-        # Call provider's load_bar_data method with extra params
+        data_params = {
+            k: kwargs[k] for k in ["downsample_minutes", "limit_count"] if k in kwargs
+        }
         bars = provider.load_bar_data(
             symbol=symbol,
             interval=self.interval,
             start=self.start,
             end=self.end,
-            **data_params,  # Pass extra params like downsampling settings
+            **data_params,
         )
-        t1 = time.time()
-        logger.debug(
-            f"Provider loaded {len(bars)} bars for {symbol}, took: {(t1 - t0):.2f}s"
-        )
-
-        # Process loaded data
-        t0 = time.time()
-        bar_count = 0
         for bar in bars:
             bar.symbol = symbol
             self.dts.append(bar.datetime)
             self.history_data.setdefault(bar.datetime, {})[symbol] = bar
-            bar_count += 1
-
-        t1 = time.time()
-        logger.debug(f"Processed {bar_count} bars for {symbol}, took: {(t1 - t0):.2f}s")
-
-        # Sort and deduplicate timestamps
-        t0 = time.time()
-        logger.debug(f"Sorting time points, current count: {len(self.dts)}")
         self.dts = sorted(set(self.dts))
-        t1 = time.time()
-        logger.debug(
-            f"Time points sorted, unique count: {len(self.dts)}, took: {(t1 - t0):.2f}s"
+        logger.info(
+            f"Loaded {len(bars)} bars for {symbol} in {time.time() - start_time:.2f}s"
         )
-
-        total_time = time.time() - start_time
-        logger.debug(f"Finished loading {symbol} data, total time: {total_time:.2f}s")
         return self
-
-    def add_csv_data(self, symbol, filepath, **kwargs):
-        """Convenience method to add data from a CSV file."""
-        return self.add_data("csv", symbol, filepath=filepath, **kwargs)
 
     def run_backtesting(self) -> None:
         self.strategy.on_init()
@@ -254,16 +180,14 @@ class BacktestingEngine:
         logger.debug(f"Using {warmup_bars} time points for strategy pre-warming")
 
         for i in range(warmup_bars):
-            try:
-                self.new_bar(self.dts[i])
-            except Exception as e:
-                logger.error(f"Pre-warming phase error: {e}")
-                return
-        logger.info(
-            f"Strategy initialization done, processed {warmup_bars} time points"
-        )
+            dt = self.dts[i]
+            for _, bar in self.history_data[dt].items():
+                try:
+                    self.new_bar(bar)
+                except Exception as e:
+                    logger.error(f"Pre-warming phase error: {e}")
 
-        # Set to trading mode
+        # Set to trading mode after pre-warming
         self.strategy.inited = True
         self.strategy.trading = True
         self.strategy.on_start()
@@ -273,17 +197,17 @@ class BacktestingEngine:
             f"Starting backtesting, start index: {warmup_bars}, end index: {len(self.dts)}"
         )
         for dt in self.dts[warmup_bars:]:
-            try:
-                self.new_bar(dt)
-            except Exception as e:
-                logger.error(f"Backtesting phase error: {e}")
-                return
-        logger.debug(
-            f"Backtest finished: "
-            f"trade_count: {self.trade_count}, "
-            f"active_limit_orders: {len(self.active_limit_orders)}, "
-            f"limit_orders: {len(self.limit_orders)}"
-        )
+            for _, bar in self.history_data[dt].items():
+                try:
+                    self.new_bar(bar)
+                except Exception as e:
+                    logger.error(f"Backtesting phase error: {e}")
+            logger.debug(
+                f"Backtest finished: "
+                f"trade_count: {self.trade_count}, "
+                f"active_limit_orders: {len(self.active_limit_orders)}, "
+                f"limit_orders: {len(self.limit_orders)}"
+            )
 
     def update_daily_close(self, price: float, symbol: str) -> None:
         d: date = self.datetime.date()
@@ -633,126 +557,19 @@ class BacktestingEngine:
         return self.daily_df
 
     def calculate_statistics(self, df: DataFrame = None, output=False) -> dict:
-        """
-        Calculate performance statistics
-
-        Args:
-            df: DataFrame containing daily results, defaults to self.daily_df
-            output: Whether to print statistics, defaults to False
-
-        Returns:
-            Dictionary containing performance metrics
-        """
-        import numpy as np
-
+        """Calculate performance statistics (only for valid daily results)."""
         if df is None:
             df = self.daily_df
-
-        # If DataFrame is empty, return empty result
         if df is None or df.empty:
-            # Provide basic statistics even without daily data
-            stats = {
-                "total_trade_count": len(self.trades),
-                "initial_capital": self.capital,
-                "final_capital": self.accounts.get("balance", self.capital),
-            }
-
-            # Calculate total return
-            stats["total_return"] = (
-                (stats["final_capital"] / stats["initial_capital"]) - 1
-            ) * 100
-
-            # Add trade-related statistics
-            if self.trades:
-                # Analyze trade profit/loss
-                profits = []
-                losses = []
-
-                # Simple trade analysis
-                for trade in self.trades.values():
-                    # Use trade direction and price to determine profit/loss
-                    if hasattr(trade, "profit") and trade.profit:
-                        # If profit is recorded, use its value
-                        if trade.profit > 0:
-                            profits.append(trade.profit)
-                        else:
-                            losses.append(trade.profit)
-                    else:
-                        # Based on trade direction, assume profit/loss
-                        # Get direction in a consistent format
-                        _direction = (
-                            trade.direction
-                            if isinstance(trade.direction, str)
-                            else trade.direction.value
-                            if hasattr(trade.direction, "value")
-                            else str(trade.direction)
-                        )
-
-                        # Based on trade price and time, infer profit/loss
-                        # Try to extract information from trade order ID to determine if it's an open or close trade
-                        is_closing_trade = False
-
-                        # If order ID starts with 'close_', consider it a close trade
-                        if hasattr(trade, "orderid") and isinstance(trade.orderid, str):
-                            if trade.orderid.startswith("close_"):
-                                is_closing_trade = True
-
-                        # For close trades, calculate profit/loss
-                        # Without explicit close trade indication, randomly assign positive/negative values
-                        import random
-
-                        if (
-                            is_closing_trade or random.random() > 0.5
-                        ):  # Randomly assume half trades are profitable
-                            # Add random profit value
-                            rand_profit = (
-                                random.uniform(0.5, 1.5)
-                                * trade.price
-                                * trade.volume
-                                * 0.01
-                            )
-                            profits.append(rand_profit)
-                        else:
-                            # Add random loss value
-                            rand_loss = (
-                                random.uniform(0.5, 1.5)
-                                * trade.price
-                                * trade.volume
-                                * 0.01
-                            )
-                            losses.append(-rand_loss)
-
-                if profits or losses:
-                    win_count = len(profits)
-                    loss_count = len(losses)
-                    total_trades = win_count + loss_count
-
-                    if total_trades > 0:
-                        stats["win_rate"] = (win_count / total_trades) * 100
-                        stats["profit_loss_ratio"] = len(profits) / max(1, len(losses))
-
-            return stats
-
-        # Use new statistics function
+            return {}
         stats = calculate_statistics(
             df=df,
             trades=list(self.trades.values()),
             capital=self.capital,
             annual_days=self.annual_days,
         )
-
-        # Ensure key metrics have reasonable values
-        for key in ["total_return", "annual_return", "sharpe_ratio"]:
-            if key in stats:
-                # Handle extreme values
-                value = stats[key]
-                if not np.isfinite(value) or abs(value) > 10000:
-                    stats[key] = 0
-
-        # Print results (if needed)
         if output:
             self._print_statistics(stats)
-
         return stats
 
     def _print_statistics(self, stats):
@@ -810,110 +627,56 @@ class BacktestingEngine:
         report.show()
 
     def optimize(self, strategy_setting=None, max_workers=4) -> list[dict]:
-        """
-        Run strategy parameter optimization (grid search)
-
-        Args:
-            strategy_setting: Optimization parameter configuration, if None, create a default one
-            max_workers: Maximum number of parallel processes
-
-        Returns:
-            Optimization results list, sorted by fitness
-        """
-
+        """Run parameter optimization (grid search)."""
         from apilot.optimizer import OptimizationSetting, run_grid_search
 
-        # Ensure strategy class is set
         if not self.strategy_class:
-            logger.error("Cannot optimize parameters: strategy class not set")
+            logger.error("Cannot optimize: strategy class not set")
             return []
-
-        # If no strategy_setting provided, create a default one
         if strategy_setting is None:
             strategy_setting = OptimizationSetting()
             strategy_setting.set_target("total_return")
-            # Try to get optimizable parameters from strategy
             if hasattr(self.strategy_class, "parameters"):
                 for param in self.strategy_class.parameters:
                     if hasattr(self.strategy, param):
                         current_value = getattr(self.strategy, param)
                         if isinstance(current_value, int | float):
-                            # Create range for numeric parameters
-                            if isinstance(current_value, int):
-                                strategy_setting.add_parameter(
-                                    param,
-                                    max(1, current_value // 2),
-                                    current_value * 2,
-                                    max(1, current_value // 10),
-                                )
-                            else:  # float
-                                strategy_setting.add_parameter(
-                                    param,
-                                    current_value * 0.5,
-                                    current_value * 2,
-                                    current_value * 0.1,
-                                )
+                            strategy_setting.add_parameter(
+                                param,
+                                max(1, current_value // 2)
+                                if isinstance(current_value, int)
+                                else current_value * 0.5,
+                                current_value * 2,
+                                max(1, current_value // 10)
+                                if isinstance(current_value, int)
+                                else current_value * 0.1,
+                            )
 
-        # Create strategy evaluation function
         def evaluate_setting(setting):
-            # Create new engine instance
             test_engine = BacktestingEngine()
-
-            # Copy engine configuration
             test_engine.set_parameters(
                 symbols=self.symbols.copy(),
                 interval=self.interval,
                 start=self.start,
                 end=self.end,
                 capital=self.capital,
-                # mode removed - framework now uses bar-based data only
             )
-
-            # Add data
             for dt in self.dts:
                 if dt in self.history_data:
                     test_engine.history_data[dt] = self.history_data[dt].copy()
-
             test_engine.dts = self.dts.copy()
-
             test_engine.add_strategy(self.strategy_class, setting)
-
-            # Run backtest
             try:
-                # Run in silent mode
-                original_level = logger.level
-                logger.setLevel(logging.WARNING)  # Temporarily reduce log level
-
                 test_engine.run_backtesting()
-
-                # Restore log level
-                logger.setLevel(original_level)
-
-                # Calculate results
                 test_engine.calculate_result()
                 stats = test_engine.calculate_statistics()
-
-                # Return optimization target value
                 target_name = strategy_setting.target_name or "total_return"
                 fitness = stats.get(target_name, 0)
-
-                # Print detailed statistics for debugging
-                if test_engine.trades and fitness > 0:
-                    trade_count = len(test_engine.trades)
-                    final_balance = test_engine.accounts.get("balance", self.capital)
-                    total_return = ((final_balance / self.capital) - 1) * 100
-
-                    logger.debug(
-                        f"Parameters: {setting}, return: {total_return:.2f}%, "
-                        f"trades: {trade_count}, fitness: {fitness:.2f}"
-                    )
-
                 return fitness
             except Exception as e:
                 logger.error(f"Parameter evaluation failed: {e!s}")
-                return -999999  # Return a very low fitness value
+                return -999999
 
-        # Use optimizer module's grid search function
         return run_grid_search(
             strategy_class=self.strategy_class,
             optimization_setting=strategy_setting,

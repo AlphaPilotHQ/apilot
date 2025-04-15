@@ -12,7 +12,7 @@ from typing import ClassVar
 import apilot as ap
 from apilot.utils.logger import setup_logging
 
-setup_logging("bt_stdmom_lo")
+setup_logging("bt_stdmom_lo", level=logging.DEBUG)
 
 logger = logging.getLogger("bt_stdmom_lo")
 
@@ -76,6 +76,12 @@ class StdMomentumStrategy(ap.PATemplate):
 
     def on_init(self):
         self.load_bar(self.std_period)
+
+    def on_start(self):
+        pass
+
+    def on_stop(self):
+        pass
 
     def on_bar(self, bar: ap.BarData):
         """Process 1-minute bar data"""
@@ -204,7 +210,7 @@ def run_backtesting(
     logger.info("3 Add strategy completed")
 
     # 4 Add data
-    engine.add_csv_data(
+    engine.add_data(
         symbol="SOL-USDT",
         filepath="data/SOL-USDT_1m.csv",
         datetime_index=0,
@@ -214,7 +220,7 @@ def run_backtesting(
         close_index=4,
         volume_index=5,
     )
-    engine.add_csv_data(
+    engine.add_data(
         symbol="BTC-USDT",
         filepath="data/BTC-USDT_1m.csv",
         datetime_index=0,

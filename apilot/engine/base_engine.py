@@ -8,6 +8,13 @@ from abc import ABC, abstractmethod
 
 from apilot.core.event import EventEngine
 
+ENGINE_REGISTRY = []
+
+
+def register_engine(cls):
+    ENGINE_REGISTRY.append(cls)
+    return cls
+
 
 class BaseEngine(ABC):
     """

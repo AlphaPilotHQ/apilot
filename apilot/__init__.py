@@ -98,11 +98,11 @@ from .optimizer import OptimizationSetting, run_grid_search
 from .performance.report import PerformanceReport
 
 # Export strategy templates
-from .strategy.template import PATemplate
+from .strategy.pa_template import PATemplate
+from .utils.array_manager import ArrayManager
 
 # Export utility classes
 from .utils.bar_generator import BarGenerator
-from .utils.indicators import ArrayManager
 
 # Export logging system
 from .utils.logger import setup_logging

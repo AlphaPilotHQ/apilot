@@ -279,9 +279,9 @@ def run_backtesting(show_chart=True):
     )
 
     # Add data - using index-based data loading method
-    bt_engine.add_csv_data(
+    bt_engine.add_data(
         symbol="SOL-USDT.LOCAL",
-        filepath="data/SOL-USDT_LOCAL_1m.csv",
+        filepath="data/SOL-USDT_1m.csv",
         datetime_index=0,
         open_index=1,
         high_index=2,

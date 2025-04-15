@@ -37,7 +37,7 @@ from apilot.utils.utility import round_to
 from .base_engine import BaseEngine
 from .main_engine import MainEngine
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("LiveEngine")
 
 
 class LiveEngine(BaseEngine):

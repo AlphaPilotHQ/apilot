@@ -76,6 +76,7 @@ from .models import (
     BarData,
     CancelRequest,
     ContractData,
+    HistoryRequest,
     OrderData,
     OrderRequest,
     PositionData,

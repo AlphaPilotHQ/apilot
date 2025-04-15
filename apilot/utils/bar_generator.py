@@ -83,8 +83,6 @@ class BarGenerator:
                     low_price=bar.low_price,
                     close_price=bar.close_price,
                     volume=bar.volume,
-                    turnover=bar.turnover,
-                    open_interest=bar.open_interest,
                 )
             else:
                 window_bar = self.window_bars[symbol]
@@ -92,8 +90,6 @@ class BarGenerator:
                 window_bar.low_price = min(window_bar.low_price, bar.low_price)
                 window_bar.close_price = bar.close_price
                 window_bar.volume += getattr(bar, "volume", 0)
-                window_bar.turnover += getattr(bar, "turnover", 0)
-                window_bar.open_interest = bar.open_interest
         if self.window > 0 and self.on_window_bar:
             if not (sample_bar.datetime.minute + 1) % self.window:
                 if not self.multi_symbol_mode or self._is_window_complete():
@@ -109,9 +105,9 @@ class BarGenerator:
             bar_info = []
             for symbol, bar in self.window_bars.items():
                 bar_info.append(f"{symbol}@{bar.datetime}")
-            logger.debug(
-                f"BarGenerator: sending window bar data [{', '.join(bar_info)}] to callback {self.on_window_bar.__name__}"
-            )
+            # logger.debug(
+            #     f"BarGenerator: sending window bar data [{', '.join(bar_info)}] to callback {self.on_window_bar.__name__}"
+            # )
             self.on_window_bar(self.window_bars.copy())
             self.window_bars = {}
 
@@ -170,8 +166,6 @@ class BarGenerator:
             low_price=source.low_price,
             close_price=source.close_price,
             volume=source.volume,
-            turnover=source.turnover,
-            open_interest=source.open_interest,
         )
 
     def _create_new_bar(self, source: BarData, dt: datetime) -> BarData:
@@ -184,8 +178,6 @@ class BarGenerator:
             low_price=source.low_price,
             close_price=source.close_price,
             volume=source.volume,
-            turnover=source.turnover,
-            open_interest=source.open_interest,
         )
 
     def _update_window_bar(self, target: BarData, source: BarData) -> None:
@@ -193,8 +185,6 @@ class BarGenerator:
         target.low_price = min(target.low_price, source.low_price)
         target.close_price = source.close_price
         target.volume = getattr(target, "volume", 0) + source.volume
-        target.turnover = getattr(target, "turnover", 0) + source.turnover
-        target.open_interest = source.open_interest
 
     def _update_bar_data(self, target: BarData, source: BarData) -> None:
         if target:
@@ -202,8 +192,6 @@ class BarGenerator:
             target.low_price = min(target.low_price, source.low_price)
             target.close_price = source.close_price
             target.volume += source.volume
-            target.turnover += source.turnover
-            target.open_interest = source.open_interest
 
     def on_hour_bar(self, bars: dict[str, BarData]) -> None:
         if self.window == 1:
@@ -221,8 +209,6 @@ class BarGenerator:
                         low_price=bar.low_price,
                         close_price=bar.close_price,
                         volume=bar.volume,
-                        turnover=bar.turnover,
-                        open_interest=bar.open_interest,
                     )
                     self.window_bars[symbol] = window_bar
                 else:
@@ -230,8 +216,6 @@ class BarGenerator:
                     window_bar.low_price = min(window_bar.low_price, bar.low_price)
                     window_bar.close_price = bar.close_price
                     window_bar.volume += bar.volume
-                    window_bar.turnover += bar.turnover
-                    window_bar.open_interest = bar.open_interest
             self.interval_count += 1
             if not self.interval_count % self.window:
                 self.interval_count = 0

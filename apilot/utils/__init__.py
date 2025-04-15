@@ -16,7 +16,7 @@ Recommended usage:
 
 # Logging system
 # Technical indicators
-from .indicators import ArrayManager
+from .array_manager import ArrayManager
 from .logger import setup_logging
 
 # Define public API

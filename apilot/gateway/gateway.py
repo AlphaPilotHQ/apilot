@@ -2,21 +2,19 @@ import logging
 from abc import ABC, abstractmethod
 from typing import Any, ClassVar
 
-from apilot.core.event import (
+from apilot.core import (
     EVENT_ACCOUNT,
     EVENT_CONTRACT,
     EVENT_ORDER,
     EVENT_POSITION,
     EVENT_QUOTE,
     EVENT_TRADE,
-    Event,
-    EventEngine,
-)
-from apilot.core.models import (
     AccountData,
     BarData,
     CancelRequest,
     ContractData,
+    Event,
+    EventEngine,
     HistoryRequest,
     OrderData,
     OrderRequest,
@@ -25,7 +23,7 @@ from apilot.core.models import (
     TradeData,
 )
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("BaseGateway")
 
 
 class BaseGateway(ABC):
@@ -214,10 +212,4 @@ class BaseGateway(ABC):
         pass
 
     def get_default_setting(self) -> dict[str, Any]:
-        """
-        Get default connection settings.
-
-        Returns:
-            Dict[str, Any]: Default settings
-        """
         return self.default_setting

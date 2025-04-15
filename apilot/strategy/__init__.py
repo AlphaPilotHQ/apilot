@@ -10,7 +10,7 @@ Main Components:
 """
 
 # Import base class from the template module
-from .template import PATemplate
+from .pa_template import PATemplate
 
 # Define public API
 __all__ = [
