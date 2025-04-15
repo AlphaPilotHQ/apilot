@@ -236,14 +236,24 @@ class PATemplate(ABC):
         use_database: bool = False,
     ) -> None:
         """Loads historical bar data, suitable for backtesting and live trading."""
+        import logging
+
+        logger = logging.getLogger("ap_stdmom_lo")
         if not self.symbols:
+            logger.warning("[PATemplate.load_bar] symbols为空，无法加载历史K线")
             return
 
         callback = callback or self.on_bar
 
         for symbol in self.symbols:
+            logger.info(
+                f"[PATemplate.load_bar] 调用pa_engine.load_bar, symbol={symbol}, count={count}, interval={interval}, use_database={use_database}"
+            )
             bars = self.pa_engine.load_bar(
                 symbol, count, interval, callback, use_database
+            )
+            logger.info(
+                f"[PATemplate.load_bar] symbol={symbol} 返回bars类型={type(bars)}, 数量={len(bars) if bars else 0}"
             )
             if bars and callback:
                 for bar in bars:

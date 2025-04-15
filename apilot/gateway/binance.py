@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from threading import Event, Thread
 from typing import Any, ClassVar
 
@@ -111,10 +111,10 @@ class BinanceApi:
                 continue
             contract = ContractData(
                 symbol=symbol,
-                name=symbol,
                 product=Product.SPOT,
-                size=1,
                 pricetick=10 ** -data["precision"]["price"],
+                min_volume=data.get("limits", {}).get("amount", {}).get("min", 1),
+                max_volume=data.get("limits", {}).get("amount", {}).get("max"),
                 gateway_name=self.gateway.gateway_name,
             )
             self.gateway.on_contract(contract)
@@ -204,8 +204,11 @@ class BinanceApi:
                         HistoryRequest(
                             symbol=symbol,
                             interval=Interval.MINUTE,
-                            start=datetime.utcnow() - timedelta(minutes=2),
+                            start=datetime.now(timezone.utc) - timedelta(minutes=2),
                         )
+                    )
+                    logger.info(
+                        f"Fetched {len(bars)} bars for {symbol}: {[bar.datetime for bar in bars]}"
                     )
                     for bar in bars:
                         self.gateway.on_quote(bar)

@@ -13,8 +13,7 @@ from dotenv import load_dotenv
 import apilot as ap
 from apilot.utils.logger import setup_logging
 
-setup_logging("ap_stdmom_lo", level=logging.DEBUG)
-
+setup_logging("ap_stdmom_lo", level=logging.INFO)
 logger = logging.getLogger("ap_stdmom_lo")
 
 dotenv_path = Path(__file__).parent / ".env"
@@ -27,8 +26,8 @@ API_KEY = os.environ.get("API_KEY", "")
 class StdMomentumStrategy(ap.PATemplate):
     # 策略参数
     std_period = 48
-    mom_threshold = 0.05
-    trailing_std_scale = 4
+    mom_threshold = 0.01
+    trailing_std_scale = 2
 
     parameters: ClassVar[list[str]] = [
         "std_period",
@@ -78,24 +77,37 @@ class StdMomentumStrategy(ap.PATemplate):
             self.pos[symbol] = 0
 
     def on_init(self):
-        self.load_bar(self.std_period)
-        logger.info("策略初始化完成")
+        logger.info(
+            f"[{self.strategy_name}] on_init called, ArrayManager size={getattr(self, 'am_size', 'unknown')}"
+        )
+        self.load_bar(self.am_size)
+        logger.info(f"[{self.strategy_name}] 历史K线已自动推进on_bar")
 
     def on_start(self):
+        logger.info(f"[{self.strategy_name}] on_start called")
         logger.info(
             f"策略参数: 周期={self.std_period}, 动量阈值={self.mom_threshold}, 止损系数={self.trailing_std_scale}"
         )
 
+    def on_stop(self):
+        # 可以加日志，或者直接pass
+        logger.info(f"策略 {self.strategy_name} 已停止")
+        pass
+
     def on_bar(self, bar):
+        logger.info(f"[{self.strategy_name}] on_bar called, bar time: {bar.datetime}")
         # 记录收到的K线数据详细信息
         logger.info(
             f"策略收到K线数据: {bar.symbol} @ {bar.datetime}, 价格: O={bar.open_price:.2f} H={bar.high_price:.2f} L={bar.low_price:.2f} C={bar.close_price:.2f}"
         )
 
-        # 记录ArrayManager中的数据量
+        # 记录ArrayManager中的数据量和初始化状态
         symbol = bar.symbol
         if symbol in self.ams:
             am = self.ams[symbol]
+            logger.info(
+                f"ArrayManager推进: {symbol}, 当前数据量={getattr(am, 'count', '未知')}, inited={getattr(am, 'inited', '未知')}"
+            )
             data_count = (
                 len(am.close_array)
                 if hasattr(am, "close_array") and am.close_array is not None
@@ -328,14 +340,16 @@ class StdMomentumStrategy(ap.PATemplate):
 
 
 def run_signal_service(proxy_host="127.0.0.1", proxy_port=7890):
-    event_engine = ap.EventEngine()
-    main_engine = ap.MainEngine(event_engine)
+    main_engine = ap.MainEngine()
+    logger.info("1. EventEngine MainEngine Ready")
 
     # 添加Binance网关
     main_engine.add_gateway(ap.BinanceGateway)
+    logger.info("2. Binance Gateway Added")
 
     # 创建交易引擎
-    pa_engine = ap.PAEngine(main_engine, event_engine)
+    pa_engine = main_engine.add_engine(ap.LiveEngine)
+    logger.info("3 PAEngine Ready")
 
     setting = {
         "API Key": "",
@@ -343,44 +357,31 @@ def run_signal_service(proxy_host="127.0.0.1", proxy_port=7890):
         "Proxy Host": proxy_host,
         "Proxy Port": int(proxy_port),
     }
-
-    logger.info("正在连接到Binance公共行情接口...")
-    # 通过网关连接
     main_engine.get_gateway("BINANCE").connect(setting)
-
-    # 等待网关连接和合约初始化
-    logger.info("等待网关连接和合约初始化 (10秒)...")
-    sleep(10)
-
+    logger.info("等待网关连接和合约初始化 (5秒)...")
+    sleep(5)
     logger.info("已连接到Binance行情接口")
 
     # 添加策略
     strategy_name = "StdMomentum"
     symbols = ["SOL/USDT"]
-    # 设置策略参数
     strategy_setting = {
         "std_period": 48,
-        "mom_threshold": 0.05,
-        "trailing_std_scale": 4.0,
+        "mom_threshold": 0.005,
+        "trailing_std_scale": 1.0,
     }
-
-    # 添加策略
     logger.info(f"添加信号策略: {strategy_name}, 监控品种: {symbols}")
     pa_engine.add_strategy(
         StdMomentumStrategy, strategy_name, symbols, strategy_setting
     )
+    logger.info("4. Strategy Added")
 
-    # 初始化策略
-    logger.info("初始化信号策略...")
     future = pa_engine.init_strategy(strategy_name)
-    future.result()  # 等待初始化完成
-
-    # 启动策略
-    logger.info("启动信号策略...")
+    future.result()  # 阻塞直到初始化线程真正完成
     pa_engine.start_strategy(strategy_name)
+    logger.info("5 strategy strated")
 
     # 保持主线程运行
-    logger.info("信号服务已启动，按Ctrl+C停止")
     count = 0
     while True:
         count += 1

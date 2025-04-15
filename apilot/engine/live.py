@@ -275,8 +275,43 @@ class LiveEngine(BaseEngine):
         callback: Callable[[BarData], None],
         use_database: bool,
     ) -> list:
-        logger.info(f"From exchange get {symbol} history data")
-        return []
+        """
+        Load historical bars from the exchange for the given symbol.
+        """
+        from datetime import datetime, timedelta, timezone
+
+        from apilot.core.models import HistoryRequest
+
+        logger.info(
+            f"Requesting {count} bars for {symbol} ({interval}) from exchange..."
+        )
+        # Calculate time range for historical bars
+        end = datetime.now(timezone.utc)
+        # Parse interval value to get minutes. Support '1m', '5m', etc.
+        minutes = 1
+        if hasattr(interval, "value"):
+            val = interval.value
+            if isinstance(val, str) and val.endswith("m"):
+                try:
+                    minutes = int(val[:-1])
+                except Exception:
+                    minutes = 1
+            elif isinstance(val, int):
+                minutes = val
+        start = end - timedelta(minutes=minutes * count)
+        req = HistoryRequest(
+            symbol=symbol,
+            interval=interval,
+            start=start,
+            end=end,
+        )
+        try:
+            bars = self.main_engine.query_history(req, gateway_name="BINANCE")
+            logger.info(f"Fetched {len(bars)} bars for {symbol}.")
+        except Exception as e:
+            logger.error(f"Failed to fetch bars for {symbol}: {e}")
+            bars = []
+        return bars
 
     def call_strategy_func(
         self, strategy: PATemplate, func: Callable, params: Any = None
@@ -371,8 +406,6 @@ class LiveEngine(BaseEngine):
                 logger.error(f"{error_msg}")
                 subscription_failed = True
 
-        # 即使某些交易对订阅失败，也标记策略初始化完成
-        # 但日志中会记录失败的交易对
         strategy.inited = True
 
         if subscription_failed:

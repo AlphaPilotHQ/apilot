@@ -116,7 +116,7 @@ class BaseGateway(ABC):
             data: Quote data object or Bar data object
         """
 
-        logger.info(f"Push quote data: {data.symbol}, type: {type(data).__name__}")
+        logger.debug(f"Push quote data: {data.symbol}, type: {type(data).__name__}")
         self.on_event(EVENT_QUOTE, data)
         self.on_event(EVENT_QUOTE + "_" + data.symbol, data)
 
