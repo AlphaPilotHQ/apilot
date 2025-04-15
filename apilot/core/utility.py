@@ -217,7 +217,7 @@ class BarGenerator:
             bar_info = []
             for symbol, bar in self.window_bars.items():
                 bar_info.append(f"{symbol}@{bar.datetime}")
-            logger.info(
+            logger.debug(
                 f"BarGenerator: sending window bar data [{', '.join(bar_info)}] to callback {self.on_window_bar.__name__}"
             )
 
