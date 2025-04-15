@@ -49,6 +49,15 @@ __all__ = [
 ]
 
 # Import constant definitions
+# Import database interfaces (now in datafeed)
+from apilot.datafeed.database import (
+    BarOverview,  # type: class
+    BaseDatabase,  # type: class
+    use_database,  # type: function
+)
+
+# Import gateway interfaces (now in gateway package)
+from apilot.gateway.gateway import BaseGateway  # type: class
 from apilot.utils.indicators import ArrayManager
 
 from .constant import (
@@ -58,13 +67,6 @@ from .constant import (
     OrderType,  # type: Enum
     Product,  # type: Enum
     Status,  # type: Enum
-)
-
-# Import database interfaces
-from .database import (
-    BarOverview,  # type: class
-    BaseDatabase,  # type: class
-    use_database,  # type: function
 )
 
 # Import engine components
@@ -82,9 +84,6 @@ from .event import (
     Event,  # type: class
     EventEngine,  # type: class
 )
-
-# Import gateway interfaces
-from .gateway import BaseGateway  # type: class
 
 # Import core data objects
 from .object import (

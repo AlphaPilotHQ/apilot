@@ -45,67 +45,17 @@ Official website: [www.alphapilot.tech](https://www.alphapilot.tech)
 
 ## Installation
 
-```bash
-# Clone the repository
-git clone https://github.com/yourusername/apilot.git
-cd apilot
 
-# Install the package in development mode
-pip install -e .
-
-# Install with development dependencies
-pip install -e ".[dev]"
-```
 
 ## Quick Start
 
 ### Backtesting a Strategy
 
-```python
-from apilot.engine import BacktestingEngine
-from apilot.strategy import SampleStrategy
 
-# Create a backtesting engine
-engine = BacktestingEngine()
-engine.set_parameters(
-    start="2023-01-01",
-    end="2023-12-31",
-    initial_capital=10000,
-    commission_rate=0.001
-)
 
-# Add a strategy
-engine.add_strategy(SampleStrategy, "MyStrategy", "BTC/USDT.BINANCE", {
-    "param1": 10,
-    "param2": 20
-})
-
-# Run backtest
-engine.run_backtest()
-
-# Analyze performance
-engine.show_performance()
-```
 
 ### Running Live Trading
 
-```python
-from apilot.engine import PAEngine
-from apilot.strategy import SampleStrategy
-
-# Create a live trading engine
-engine = PAEngine(main_engine, event_engine)
-
-# Add a strategy
-engine.add_strategy(SampleStrategy, "MyStrategy", "BTC/USDT.BINANCE", {
-    "param1": 10,
-    "param2": 20
-})
-
-# Initialize and start the strategy
-engine.init_strategy("MyStrategy")
-engine.start_strategy("MyStrategy")
-```
 
 ## Getting Started with Development
 

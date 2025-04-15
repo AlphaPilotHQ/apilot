@@ -4,8 +4,6 @@ APilot quantitative trading platform constant definitions.
 This module contains all enumerations used throughout the platform.
 """
 
-# Standard library imports
-from datetime import timedelta
 from enum import Enum
 
 
@@ -33,16 +31,13 @@ class Product(Enum):
 class OrderType(Enum):
     LIMIT = "LIMIT"
     MARKET = "MARKET"
-    STOP = "STOP"
-    STOP_LIMIT = "STOP_LIMIT"
+    BRACKET = "BRACKET"  # market stop order SL, limit stop order TP
 
 
 class Interval(Enum):
     MINUTE = "1m"
-    MINUTE3 = "3m"
     MINUTE5 = "5m"
     MINUTE15 = "15m"
-    MINUTE30 = "30m"
     HOUR = "1h"
     HOUR4 = "4h"
     DAILY = "d"
@@ -54,15 +49,11 @@ class EngineType(Enum):
     BACKTESTING = "BACKTESTING"
 
 
-class AlgoStatus(Enum):
-    RUNNING = "RUNNING"
-    PAUSED = "PAUSED"
-    STOPPED = "STOPPED"
-    FINISHED = "FINISHED"
-
-
-INTERVAL_DELTA_MAP: dict[Interval, timedelta] = {
-    Interval.MINUTE: timedelta(minutes=1),
-    Interval.HOUR: timedelta(hours=1),
-    Interval.DAILY: timedelta(days=1),
-}
+# Event types
+EVENT_TIMER = "EVENT_TIMER"
+EVENT_TRADE = "EVENT_TRADE"
+EVENT_ORDER = "EVENT_ORDER"
+EVENT_POSITION = "EVENT_POSITION"
+EVENT_ACCOUNT = "EVENT_ACCOUNT"
+EVENT_QUOTE = "EVENT_QUOTE"
+EVENT_CONTRACT = "EVENT_CONTRACT"

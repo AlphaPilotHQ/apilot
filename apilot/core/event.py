@@ -1,43 +1,24 @@
 from collections import defaultdict
 from collections.abc import Callable
+from dataclasses import dataclass
 from queue import Empty, Queue
 from threading import Thread
 from time import sleep
-from typing import Any
+from typing import Any, TypeAlias
 
-# Event types
-EVENT_TIMER = "eTimer"
-EVENT_TRADE = "eTrade."
-EVENT_ORDER = "eOrder."
-EVENT_POSITION = "ePosition."
-EVENT_ACCOUNT = "eAccount."
-EVENT_QUOTE = "eQuote."
-EVENT_CONTRACT = "eContract."
+from apilot.core.constant import (
+    EVENT_TIMER,
+)
 
 
-# PA strategy events
-EVENT_PA_LOG: str = "EVENT_PA_LOG"
-EVENT_PA_STRATEGY = "EVENT_PA_STRATEGY"
-
-# Algo trading events
-EVENT_ALGO_LOG = "eAlgoLog"
-EVENT_ALGO_UPDATE = "eAlgoUpdate"
-
-
+@dataclass
 class Event:
-    """
-    Event object consists of a type string which is used
-    by event engine for distributing event, and a data
-    object which contains the real data.
-    """
-
-    def __init__(self, type: str, data: Any = None) -> None:
-        self.type: str = type
-        self.data: Any = data
+    type: str
+    data: Any = None
 
 
-# Defines handler function to be used in event engine.
-HandlerType: callable = Callable[[Event], None]
+# Type alias for event handler functions
+HandlerType: TypeAlias = Callable[[Event], None]
 
 
 class EventEngine:

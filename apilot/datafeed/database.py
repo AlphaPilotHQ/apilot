@@ -9,8 +9,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
-from .constant import Interval
-from .object import BarData
+from apilot.core.constant import Interval
+from apilot.core.object import BarData
 
 
 @dataclass

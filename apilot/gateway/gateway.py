@@ -1,7 +1,8 @@
+import logging
 from abc import ABC, abstractmethod
 from typing import Any, ClassVar
 
-from .event import (
+from apilot.core.event import (
     EVENT_ACCOUNT,
     EVENT_CONTRACT,
     EVENT_ORDER,
@@ -11,7 +12,7 @@ from .event import (
     Event,
     EventEngine,
 )
-from .object import (
+from apilot.core.object import (
     AccountData,
     BarData,
     CancelRequest,
@@ -23,6 +24,8 @@ from .object import (
     SubscribeRequest,
     TradeData,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class BaseGateway(ABC):
@@ -75,7 +78,7 @@ class BaseGateway(ABC):
             trade: Trade data object
         """
         self.on_event(EVENT_TRADE, trade)
-        self.on_event(EVENT_TRADE + trade.symbol, trade)
+        self.on_event(EVENT_TRADE + "_" + trade.symbol, trade)
 
     def on_order(self, order: OrderData) -> None:
         """
@@ -85,7 +88,7 @@ class BaseGateway(ABC):
             order: Order data object
         """
         self.on_event(EVENT_ORDER, order)
-        self.on_event(EVENT_ORDER + order.orderid_with_gateway, order)
+        self.on_event(EVENT_ORDER + "_" + order.orderid_with_gateway, order)
 
     def on_position(self, position: PositionData) -> None:
         """
@@ -95,7 +98,7 @@ class BaseGateway(ABC):
             position: Position data object
         """
         self.on_event(EVENT_POSITION, position)
-        self.on_event(EVENT_POSITION + position.symbol, position)
+        self.on_event(EVENT_POSITION + "_" + position.symbol, position)
 
     def on_account(self, account: AccountData) -> None:
         """
@@ -105,7 +108,7 @@ class BaseGateway(ABC):
             account: Account data object
         """
         self.on_event(EVENT_ACCOUNT, account)
-        self.on_event(EVENT_ACCOUNT + account.accountid, account)
+        self.on_event(EVENT_ACCOUNT + "_" + account.accountid, account)
 
     def on_quote(self, data: Any) -> None:
         """
@@ -114,13 +117,10 @@ class BaseGateway(ABC):
         Args:
             data: Quote data object or Bar data object
         """
-        import logging
-
-        logger = logging.getLogger(__name__)
 
         logger.info(f"Push quote data: {data.symbol}, type: {type(data).__name__}")
         self.on_event(EVENT_QUOTE, data)
-        self.on_event(EVENT_QUOTE + data.symbol, data)
+        self.on_event(EVENT_QUOTE + "_" + data.symbol, data)
 
     def on_contract(self, contract: ContractData) -> None:
         """
