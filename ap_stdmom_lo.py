@@ -287,9 +287,7 @@ class StdMomentumStrategy(ap.PATemplate):
             # 使用全局API配置
             global API_URL, API_KEY
 
-            # 准备数据
             data = {
-                "strategy_name": self.strategy_name,
                 "symbol": symbol,
                 "direction": direction.value,
                 "price": price,
@@ -297,22 +295,21 @@ class StdMomentumStrategy(ap.PATemplate):
                 "timestamp": timestamp.strftime("%Y-%m-%d %H:%M:%S"),
                 "signal_type": signal_type,
             }
-
             if extra_info:
                 data.update(extra_info)
 
-            # 转换为JSON
-            json_data = json.dumps(data).encode("utf-8")
-
-            # 准备请求头
-            headers = {
-                "Content-Type": "application/json",
+            payload = {
+                "data": data,
+                "strategyId": self.strategy_name,
+                "time": int(timestamp.timestamp()),
             }
 
+            json_data = json.dumps(payload).encode("utf-8")
+
+            headers = {"Content-Type": "application/json"}
             if API_KEY:
                 headers["X-AP-API-Key"] = API_KEY
 
-            # 创建请求
             req = urllib.request.Request(
                 url=API_URL,
                 data=json_data,
@@ -320,7 +317,6 @@ class StdMomentumStrategy(ap.PATemplate):
                 method="POST",
             )
 
-            # 发送请求
             response = urllib.request.urlopen(req)
             if response.status in (200, 201, 202):
                 logger.info(
