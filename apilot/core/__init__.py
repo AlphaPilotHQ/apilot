@@ -45,7 +45,6 @@ __all__ = [
     "SubscribeRequest",
     "TradeData",
     "get_database",
-    "use_database",
 ]
 
 

@@ -5,7 +5,7 @@ Contains database interfaces and data source implementations for storing and loa
 """
 
 from .csv_provider import CsvDatabase
-from .database import BarOverview, BaseDatabase, use_database
+from .database import BarOverview, BaseDatabase
 
 # Define public API
 __all__ = [
@@ -14,5 +14,4 @@ __all__ = [
     "register_provider",
     "BaseDatabase",
     "BarOverview",
-    "use_database",
 ]
