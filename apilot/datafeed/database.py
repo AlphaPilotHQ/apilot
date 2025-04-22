@@ -61,12 +61,3 @@ DATABASE_CONFIG: dict[str, Any] = {"name": "", "params": {}}
 def register_database(name: str, database_class: type) -> None:
     """Register custom database implementation"""
     _DATABASE_REGISTRY[name] = database_class
-
-
-def use_database(name: str, **kwargs) -> BaseDatabase:
-    """Use specified database implementation"""
-    if name in _DATABASE_REGISTRY:
-        database_class = _DATABASE_REGISTRY[name]
-        return database_class(**kwargs)
-    else:
-        raise ValueError(f"Database implementation not found: {name}")

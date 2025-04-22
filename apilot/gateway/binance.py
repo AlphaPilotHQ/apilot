@@ -87,6 +87,7 @@ class BinanceApi:
         self.order_map = {}
         self.polling_symbols = set()
         self.stop_event = Event()
+        self.last_timestamp = {}
 
     def connect(self, api_key, secret_key, proxy_host, proxy_port):
         params = {"apiKey": api_key, "secret": secret_key}
@@ -121,6 +122,9 @@ class BinanceApi:
 
     def subscribe(self, symbol):
         self.polling_symbols.add(symbol)
+        # initialize last timestamp aligned to current minute
+        aligned = datetime.now(timezone.utc).replace(second=0, microsecond=0)
+        self.last_timestamp[symbol] = int(aligned.timestamp() * 1000)
 
     def query_account(self):
         try:
@@ -197,24 +201,40 @@ class BinanceApi:
             return []
 
     def _poll_market_data(self):
+        # aligned incremental polling for 1-minute bars
         while not self.stop_event.is_set():
+            # sleep until next minute boundary plus small buffer
+            now = datetime.now(timezone.utc)
+            next_min = now.replace(second=0, microsecond=0) + timedelta(minutes=1)
+            wait_secs = (next_min - now).total_seconds()
+            # interruptible sleep with small buffer
+            if self.stop_event.wait(wait_secs + 1):
+                break
             for symbol in list(self.polling_symbols):
+                last_ts = self.last_timestamp.get(symbol, 0)
                 try:
-                    bars = self.query_history(
-                        HistoryRequest(
+                    timeframe = self.INTERVAL_MAP[Interval.MINUTE]
+                    klines = self.exchange.fetch_ohlcv(symbol, timeframe, last_ts, 1000)
+                    for t, o, h, low_price, c, v in klines:
+                        if t <= last_ts:
+                            continue
+                        bar = BarData(
                             symbol=symbol,
                             interval=Interval.MINUTE,
-                            start=datetime.now(timezone.utc) - timedelta(minutes=2),
+                            datetime=datetime.fromtimestamp(t / 1000, timezone.utc),
+                            open_price=o,
+                            high_price=h,
+                            low_price=low_price,
+                            close_price=c,
+                            volume=v,
+                            gateway_name=self.gateway.gateway_name,
                         )
-                    )
-                    logger.info(
-                        f"Fetched {len(bars)} bars for {symbol}: {[bar.datetime for bar in bars]}"
-                    )
-                    for bar in bars:
+                        logger.info(f"BinanceGateway get Bar: {bar}")
                         self.gateway.on_quote(bar)
+                        last_ts = t
+                    self.last_timestamp[symbol] = last_ts
                 except Exception as e:
                     logger.error(f"Polling error: {e}")
-            self.stop_event.wait(60)
 
     def close(self):
         self.stop_event.set()

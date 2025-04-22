@@ -13,7 +13,6 @@ from concurrent.futures import Future, ThreadPoolExecutor
 from typing import Any
 
 from apilot.core import (
-    # Constants and utility functions
     EVENT_ORDER,
     EVENT_QUOTE,
     EVENT_TRADE,
@@ -88,34 +87,22 @@ class LiveEngine(BaseEngine):
         """处理行情事件"""
         data = event.data
 
-        # 如果是BarData，交给策略处理
         if hasattr(data, "open_price"):
             bar: BarData = data
             symbol = bar.symbol
 
-            # 为订阅该交易对的所有策略调用on_bar方法
             strategies = self.symbol_strategy_map.get(symbol, [])
             if not strategies:
                 logger.warning(f"收到 {symbol} 的K线数据，但没有策略订阅此交易对")
                 return
 
-            logger.info(
-                f"处理 {symbol} K线数据: 时间={bar.datetime}, 价格={bar.close_price:.2f}, 策略数量={len(strategies)}"
-            )
-
-            # 直接调用on_bar方法，不再使用bar_dict和on_bars
             for strategy in strategies:
                 if strategy.inited and strategy.trading:
-                    logger.info(
-                        f"调用策略 {strategy.strategy_name} 的on_bar方法，传递K线: {symbol} @ {bar.datetime}"
-                    )
                     self.call_strategy_func(strategy, strategy.on_bar, bar)
                 else:
                     logger.warning(
                         f"策略 {strategy.strategy_name} 未初始化或未启动，跳过"
                     )
-
-            logger.info(f"K线数据 {symbol} 处理完成: {len(strategies)} 个策略已更新")
 
     def process_trade_event(self, event: Event) -> None:
         trade: TradeData = event.data
@@ -273,7 +260,6 @@ class LiveEngine(BaseEngine):
         count: int,
         interval: Interval,
         callback: Callable[[BarData], None],
-        use_database: bool,
     ) -> list:
         """
         Load historical bars from the exchange for the given symbol.
@@ -282,9 +268,6 @@ class LiveEngine(BaseEngine):
 
         from apilot.core.models import HistoryRequest
 
-        logger.info(
-            f"Requesting {count} bars for {symbol} ({interval}) from exchange..."
-        )
         # Calculate time range for historical bars
         end = datetime.now(timezone.utc)
         # Parse interval value to get minutes. Support '1m', '5m', etc.
@@ -307,7 +290,6 @@ class LiveEngine(BaseEngine):
         )
         try:
             bars = self.main_engine.query_history(req, gateway_name="BINANCE")
-            logger.info(f"Fetched {len(bars)} bars for {symbol}.")
         except Exception as e:
             logger.error(f"Failed to fetch bars for {symbol}: {e}")
             bars = []
@@ -366,9 +348,6 @@ class LiveEngine(BaseEngine):
         return self.init_executor.submit(self._init_strategy, strategy_name)
 
     def _init_strategy(self, strategy_name: str) -> None:
-        """
-        Init strategies in queue.
-        """
         strategy: PATemplate = self.strategies[strategy_name]
 
         if strategy.inited:
@@ -377,7 +356,6 @@ class LiveEngine(BaseEngine):
             )
             logger.error(f"{error_msg}")
             return
-
         logger.info(f"{strategy_name} starting initialization")
 
         # Call on_init function of strategy

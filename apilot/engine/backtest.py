@@ -595,7 +595,6 @@ class BacktestingEngine:
         count: int,
         interval: Interval = Interval.MINUTE,
         callback: Callable | None = None,
-        use_database: bool = False,
     ) -> list[BarData]:
         """Placeholder method for backtesting environment, actual data loaded via add_csv_data etc."""
         logger.debug(f"Backtest engine load_bar called: {symbol}, {count} count bar")
