@@ -111,3 +111,6 @@ Desktop.ini
 !/data/.gitkeep
 
 CLAUDE.md
+
+.windsurfrules
+.gitignore

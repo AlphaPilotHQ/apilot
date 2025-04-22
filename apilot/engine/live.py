@@ -13,7 +13,6 @@ from concurrent.futures import Future, ThreadPoolExecutor
 from typing import Any
 
 from apilot.core import (
-    # Constants and utility functions
     EVENT_ORDER,
     EVENT_QUOTE,
     EVENT_TRADE,

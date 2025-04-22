@@ -27,22 +27,6 @@ logger = logging.getLogger("BaseGateway")
 
 
 class BaseGateway(ABC):
-    """
-    Abstract base class for trading gateways.
-
-    A gateway connects trading platform with brokerage APIs,
-    providing standardized interface for:
-    1. Market data subscription
-    2. Order management
-    3. Account information queries
-
-    Implementation requirements:
-    * Thread-safe and non-blocking
-    * Must implement all abstractmethod
-    * Must handle callbacks for on_trade, on_order,
-      on_position, on_account, on_contract
-    """
-
     default_name: str = ""
     default_setting: ClassVar[dict[str, Any]] = {}
 
@@ -115,8 +99,6 @@ class BaseGateway(ABC):
         Args:
             data: Quote data object or Bar data object
         """
-
-        logger.debug(f"Push quote data: {data.symbol}, type: {type(data).__name__}")
         self.on_event(EVENT_QUOTE, data)
         self.on_event(EVENT_QUOTE + "_" + data.symbol, data)
 
@@ -185,7 +167,6 @@ class BaseGateway(ABC):
     def cancel_order(self, req: CancelRequest) -> None:
         """
         Cancel existing order.
-
         Args:
             req: Cancel request object
         """
@@ -202,10 +183,8 @@ class BaseGateway(ABC):
     def query_history(self, req: HistoryRequest) -> list[BarData]:
         """
         Query bar history data from server.
-
         Args:
             req: History request object
-
         Returns:
             List[BarData]: List of bar data
         """

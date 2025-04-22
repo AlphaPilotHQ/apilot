@@ -8,12 +8,6 @@ pip install -e ".[dev]"
 # Run all tests
 python -m pytest tests/
 
-# Run a single test file
-python -m pytest tests/test_bar_generator.py
-
-# Run a specific test
-python -m pytest tests/test_bar_generator.py::TestBarGenerator::test_x_minute_window
-
 # Linting
 ruff check apilot/
 
@@ -35,7 +29,3 @@ mypy apilot/
 - **Organization**: Clear separation between initialization, public and private methods
 - **Comments**: Minimize comments, focus on complex logic and TODOs
 
-## Project Focus
-- Primary: Crypto exchanges (Binance, future: Bybit/OKX)
-- Secondary: U.S. stock markets
-- Architecture: Event-driven for strategy development

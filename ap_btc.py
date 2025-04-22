@@ -42,7 +42,6 @@ class StdMomentumStrategy(ap.PATemplate):
     def __init__(self, pa_engine, strategy_name, symbols, setting):
         super().__init__(pa_engine, strategy_name, symbols, setting)
 
-        # 使用增强版BarGenerator实例处理所有交易标的
         self.bg = ap.BarGenerator(
             self.on_bar,
             1,
@@ -55,13 +54,11 @@ class StdMomentumStrategy(ap.PATemplate):
         for symbol in self.symbols:
             self.ams[symbol] = ap.ArrayManager(size=self.am_size)
 
-        # 为每个交易对创建状态跟踪字典
         self.momentum = {}
         self.std_value = {}
         self.intra_trade_high = {}
         self.pos = {}
 
-        # 初始化每个交易对的状态
         for symbol in self.symbols:
             self.momentum[symbol] = 0.0
             self.std_value[symbol] = 0.0
@@ -70,35 +67,23 @@ class StdMomentumStrategy(ap.PATemplate):
 
     def on_init(self):
         self.load_bar(self.am_size)
-        logger.info(f"[{self.strategy_name}] 历史K线已自动推进on_bar")
+        logger.info("on_init")
 
     def on_start(self):
-        logger.info(f"[{self.strategy_name}] on_start called")
-        logger.info(
-            f"策略参数: 周期={self.std_period}, 动量阈值={self.mom_threshold}, 止损系数={self.trailing_std_scale}"
-        )
+        logger.info("on_start")
 
     def on_stop(self):
-        logger.info(f"策略 {self.strategy_name} 已停止")
-        pass
+        logger.info("on_stop")
 
     def on_bar(self, bar):
-        symbol = bar.symbol
-        if symbol in self.ams:
-            am = self.ams[symbol]
-            am_status = "已初始化" if am.inited else "未初始化"
-            logger.info(f"ArrayManager状态: {symbol}, 状态={am_status}")
-
         try:
             self.bg.update_bar(bar)
         except Exception as e:
             logger.error(f"BarGenerator处理出错: {e}")
 
     def on_1min_bar(self, bars):
-        logger.info(f"on_1min_bar被调用，收到 {len(bars)} 个交易对的K线数据")
         self.cancel_all()
 
-        # 对每个交易品种执行数据更新和交易逻辑
         for symbol, bar in bars.items():
             if symbol not in self.ams:
                 logger.info(f"忽略标的 {symbol}, 因为它不在ams中")
@@ -107,21 +92,15 @@ class StdMomentumStrategy(ap.PATemplate):
             am = self.ams[symbol]
             am.update_bar(bar)
 
-            # 如果数据不足，跳过交易逻辑
             if not am.inited:
                 continue
 
             try:
                 self.std_value[symbol] = am.std(self.std_period)
-
-                # 计算动量因子
                 if len(am.close_array) > self.std_period + 1:
                     old_price = am.close_array[-self.std_period - 1]
                     current_price = am.close_array[-1]
                     self.momentum[symbol] = (current_price / max(old_price, 1e-6)) - 1
-                    logger.info(
-                        f"指标计算: {symbol}, 动量={self.momentum[symbol]:.4f}, 标准差={self.std_value[symbol]:.4f}"
-                    )
                 else:
                     logger.info(
                         f"数据不足以计算动量: {symbol}, 需要至少 {self.std_period + 1} 个周期的数据"
@@ -129,7 +108,6 @@ class StdMomentumStrategy(ap.PATemplate):
             except Exception as e:
                 logger.error(f"计算指标出错: {symbol}, 错误: {e!s}")
 
-            # 获取当前持仓
             current_pos = self.pos.get(symbol, 0)
 
             if current_pos > 0:
@@ -140,11 +118,6 @@ class StdMomentumStrategy(ap.PATemplate):
             if current_pos == 0:
                 self.intra_trade_high[symbol] = bar.high_price
                 size = 1
-
-                # 详细记录判断过程
-                logger.info(
-                    f"判断入场条件: {symbol}, 动量={self.momentum[symbol]:.4f}, 阈值={self.mom_threshold}"
-                )
 
                 if self.momentum[symbol] > self.mom_threshold:
                     logger.info(
@@ -163,14 +136,12 @@ class StdMomentumStrategy(ap.PATemplate):
                         signal_type="entry",
                         extra_info=extra_info,
                     ):
-                        # 更新内部持仓状态
                         self.pos[symbol] = size
                         logger.info(
                             f"已发送多头信号到API: {symbol}, 价格={bar.close_price}, 数量={size}"
                         )
 
             elif current_pos > 0:
-                # 计算移动止损价格
                 long_stop = (
                     self.intra_trade_high[symbol]
                     - self.trailing_std_scale * self.std_value[symbol]
@@ -219,68 +190,46 @@ class StdMomentumStrategy(ap.PATemplate):
         extra_info: dict[str, Any] | None = None,
     ) -> bool:
         try:
-            # 使用全局API配置
-            global API_URL, API_KEY
-
-            # 构建通知内容 - 添加emoji
-            notification_text = f"🚀 {self.strategy_name}: Your Next Big Trade Starts Here\n📊 Signal type: {signal_type}\n💱 Symbol: {symbol}\n💰 Price: ${price}"
-            title_text = "Your Next Big Trade Starts Here"
-
             data = {
                 "symbol": symbol,
                 "direction": direction.value,
                 "price": price,
                 "signal_type": signal_type,
-                "notification": notification_text,
-                "title": title_text,
             }
             if extra_info:
                 data.update(extra_info)
 
-            # 使用当前时间戳
-            current_time = datetime.now()
             payload = {
                 "data": data,
-                "strategyId": "6800c11f7d8349638b37b3af",
-                "time": int(current_time.timestamp() * 1000),
+                "strategyId": "6807515645011a07107ba029",
+                "time": int(datetime.now().timestamp() * 1000),
             }
 
-            # 设置请求头
+            # 设置请求头并发送请求
             headers = {"Content-Type": "application/json"}
             if API_KEY:
                 headers["X-AP-API-Key"] = API_KEY
             else:
                 logger.warning("未设置API密钥，请检查环境变量API_KEY是否已配置")
 
-            logger.info(f"发送信号请求: {API_URL}, strategyId={payload['strategyId']}")
-
-            # 发送HTTP请求
             response = requests.post(
                 url=API_URL,
                 json=payload,
                 headers=headers,
-                timeout=10,  # 设置超时时间
-            )
-
-            # 检查响应
-            logger.info(
-                f"响应状态码: {response.status_code}，响应内容: {response.text}"
+                timeout=10,
             )
 
             if response.status_code in (200, 201, 202):
                 logger.info(
-                    f"✅ 交易信号已发送到API: {self.strategy_name}, {symbol}, {direction.value}, {price}"
+                    f"signal sent successfully: {self.strategy_name}, {symbol}, {direction.value}, {price}"
                 )
                 return True
-            else:
-                logger.error(f"❌ 发送交易信号失败状态码: {response.status_code}")
-                return False
 
-        except requests.exceptions.RequestException as e:
-            logger.error(f"❌ API请求错误: {e}")
+            logger.error(f"Signal failed to send: {response.status_code}")
             return False
+
         except Exception as e:
-            logger.error(f"❌ 发送交易信号失败: {e}")
+            logger.error(f"Signal failed to send: {e}")
             return False
 
 
@@ -307,7 +256,7 @@ def run_signal_service(proxy_host="127.0.0.1", proxy_port=7890):
     symbols = ["SOL/USDT"]
     strategy_setting = {
         "std_period": 20,
-        "mom_threshold": 0.005,
+        "mom_threshold": -0.005,
         "trailing_std_scale": 1.0,
     }
     pa_engine.add_strategy(
@@ -319,10 +268,40 @@ def run_signal_service(proxy_host="127.0.0.1", proxy_port=7890):
     future.result()
     pa_engine.start_strategy(strategy_name)
     logger.info("5 strategy strated")
-
-    # 保持主线程运行
     while True:
-        sleep(1)
+        # 每20秒打印一次当前状态
+        for _ in range(20):
+            sleep(1)
+
+        # 从引擎获取策略对象
+        strategy = pa_engine.strategies.get(strategy_name)
+        if not strategy:
+            logger.error(f"找不到策略: {strategy_name}")
+            continue
+
+        for symbol in symbols:
+            am = strategy.ams.get(symbol)
+            if am and am.inited:
+                momentum = strategy.momentum.get(symbol, 0)
+                std_value = strategy.std_value.get(symbol, 0)
+                threshold = strategy.mom_threshold
+                current_pos = strategy.pos.get(symbol, 0)
+                logger.info(
+                    f"状态: {symbol} momentum={momentum:.6f} (阈值={threshold}), std={std_value:.6f}"
+                )
+                logger.info(f"条件检查: {momentum > threshold}")
+
+                # 如果有持仓，计算并显示止损线
+                if current_pos > 0:
+                    intra_high = strategy.intra_trade_high.get(symbol, 0)
+                    trailing_scale = strategy.trailing_std_scale
+                    stop_price = intra_high - trailing_scale * std_value
+                    latest_price = am.close_array[-1] if len(am.close_array) > 0 else 0
+                    logger.info(
+                        f"止损线: {stop_price:.4f}, 当前价格: {latest_price:.4f}, 最高价: {intra_high:.4f}"
+                    )
+            else:
+                logger.info(f"状态: {symbol} 数据管理器尚未初始化或不存在")
 
 
 if __name__ == "__main__":
