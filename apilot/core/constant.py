@@ -44,11 +44,6 @@ class Interval(Enum):
     WEEKLY = "w"
 
 
-class EngineType(Enum):
-    LIVE = "LIVE"
-    BACKTESTING = "BACKTESTING"
-
-
 # Event types
 EVENT_TIMER = "EVENT_TIMER"
 EVENT_TRADE = "EVENT_TRADE"

@@ -136,8 +136,8 @@ class ContractData(BaseData):
     product: Product | None = None
     pricetick: float = 0
 
-    min_volume: float = 1  # minimum order volume
-    max_volume: float | None = None  # maximum order volume
+    min_amount: float = 1  # minimum order volume
+    max_amount: float | None = None  # maximum order volume
 
 
 @dataclass
