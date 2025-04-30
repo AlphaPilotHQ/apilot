@@ -55,6 +55,8 @@ class LiveEngine(BaseEngine):
         self.MAX_TRADE_CACHE_SIZE = 10000
         self.tradeids = OrderedDict()
 
+        # Removed redundant EVENT_QUOTE registration; now handled in init_engine
+
     def init_engine(self) -> None:
         self.event_engine.register(EVENT_ORDER, self.process_order_event)
         self.event_engine.register(EVENT_TRADE, self.process_trade_event)
@@ -90,38 +92,25 @@ class LiveEngine(BaseEngine):
         self.call_strategy_func(strategy, strategy.on_order, order)
 
     def process_quote_event(self, event: Event) -> None:
-        """处理行情事件"""
         data = event.data
-        logger.info(f"LiveEngine.process_quote_event: 接收到行情事件: {data}")
-
-        # 检查数据类型
-        if not hasattr(data, "open_price"):
-            logger.warning(f"LiveEngine.process_quote_event: 接收到的数据没有open_price属性，不是K线数据")
-            return
 
         bar: BarData = data
         symbol = bar.symbol
-        logger.info(f"LiveEngine.process_quote_event: 处理K线数据 {symbol} {bar.datetime} {bar.close_price}")
+        logger.info(f"LiveEngine.process_quote_event: get bar data {symbol} {bar.datetime} close: {bar.close_price}")
 
         strategies = self.symbol_strategy_map.get(symbol, set())
         if not strategies:
-            logger.warning(f"LiveEngine.process_quote_event: 收到 {symbol} 的K线数据，但没有策略订阅此交易对")
+            logger.warning(f"LiveEngine.process_quote_event: no strategy subscription {symbol}")
             return
-
-        logger.info(f"LiveEngine.process_quote_event: 找到 {len(strategies)} 个订阅 {symbol} 的策略")
+        logger.info(f"LiveEngine.process_quote_event: get {len(strategies)} strategy subscription {symbol}")
 
         for strategy in strategies:
-            strategy_name = getattr(strategy, 'strategy_name', '未知策略')
+            strategy_name = getattr(strategy, "strategy_name")
             if strategy.inited and strategy.trading:
-                logger.info(f"LiveEngine.process_quote_event: 向策略 {strategy_name} 传递K线数据: {symbol} {bar.datetime}")
 
-                # Directly use bg.update_bar to generate new K-lines, not on_bar
-                # Ensure that K-lines are first passed through BarGenerator for processing, and then correctly passed to on_bar
                 if hasattr(strategy, 'bg'):
-                    logger.info(f"LiveEngine.process_quote_event: 策略 {strategy_name} 有BarGenerator，使用bg.update_bar")
                     strategy.bg.update_bar(bar)
                 else:
-                    logger.info(f"LiveEngine.process_quote_event: 策略 {strategy_name} 没有BarGenerator，直接调用on_bar")
                     self.call_strategy_func(strategy, strategy.on_bar, bar)
             else:
                 logger.warning(f"LiveEngine.process_quote_event: 策略 {strategy_name} 未初始化或未启动，跳过")
@@ -339,18 +328,6 @@ class LiveEngine(BaseEngine):
 
         # Call on_init function of strategy
         self.call_strategy_func(strategy, strategy.on_init)
-
-        # Preload ArrayManager
-        # if hasattr(strategy, "am") and hasattr(strategy.am, "size"):
-        #     preload_size = strategy.am.size
-        #     try:
-        #         bars = self.load_bar(strategy.symbol, preload_size, Interval.MINUTE)
-        #         if bars:
-        #             logger.info(f"Preload {strategy.strategy_name}  ArrayManager ({preload_size} k line)")
-        #             for bar in bars:
-        #                 self.call_strategy_func(strategy, strategy.on_bar, bar)
-        #     except Exception as e:
-        #         logger.error(f"Preload ArrayManager error: {e}")
 
         # sub market data for the single symbol
         contract = self.main_engine.get_contract(strategy.symbol)

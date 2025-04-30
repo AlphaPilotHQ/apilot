@@ -234,14 +234,13 @@ class BinanceRestApi:
                 try:
                     timeframe = self.INTERVAL_MAP[Interval.MINUTE]
                     klines = self.exchange.fetch_ohlcv(symbol, timeframe, last_ts, 1000)
-                    # 计算当前分钟的时间戳（毫秒）用于过滤未完成K线
                     current_min_ts = int(datetime.now(timezone.utc).replace(second=0,
                                                       microsecond=0).timestamp() * 1000)
 
                     for t, o, h, l, c, v in klines:
-                        if t <= last_ts:
+                        if t < last_ts:
                             continue
-                        # 过滤掉当前正在形成的K线
+
                         if t >= current_min_ts:
                             continue
                         bar = BarData(
