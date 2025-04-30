@@ -37,6 +37,7 @@ class BinanceGateway(BaseGateway):
             secret_key=setting["Secret Key"],
             proxy_host=setting.get("Proxy Host", ""),
             proxy_port=setting.get("Proxy Port", 0),
+            symbol=setting.get("Symbol", None),  # Pass symbol to only initialize specific contract
         )
 
         # Wait until API signals readiness or timeout
@@ -61,8 +62,8 @@ class BinanceGateway(BaseGateway):
     def query_account(self):
         self.api.query_account()
 
-    def query_history(self, req: HistoryRequest) -> list[BarData]:
-        return self.api.query_history(req)
+    def query_history(self, req: HistoryRequest, count: int) -> list[BarData]:
+        return self.api.query_history(req, count)
 
     def close(self):
         self.api.close()
@@ -95,7 +96,7 @@ class BinanceRestApi:
         self.last_timestamp = {}
         self.ready = False
 
-    def connect(self, api_key, secret_key, proxy_host, proxy_port):
+    def connect(self, api_key, secret_key, proxy_host, proxy_port, symbol=None):
         params = {"apiKey": api_key, "secret": secret_key}
         if proxy_host and proxy_port:
             proxy = f"http://{proxy_host}:{proxy_port}"
@@ -104,8 +105,8 @@ class BinanceRestApi:
         self.exchange = ccxt.binance(params)
         try:
             self.exchange.load_markets()
-            self._init_contracts()
-            self.query_account()
+            self._init_contracts(symbol)
+            # self.query_account()
 
             # Start polling thread then mark API ready
             Thread(target=self._poll_market_data, daemon=True).start()
@@ -115,19 +116,32 @@ class BinanceRestApi:
         except Exception as e:
             logger.error(f"Connect failed: {e}")
 
-    def _init_contracts(self):
-        for symbol, data in self.exchange.markets.items():
-            if not data["active"]:
-                continue
-            contract = ContractData(
-                symbol=symbol,
-                product=Product.SPOT,
-                pricetick=10 ** -data["precision"]["price"],
-                min_volume=data.get("limits", {}).get("amount", {}).get("min", 1),
-                max_volume=data.get("limits", {}).get("amount", {}).get("max"),
-                gateway_name=self.gateway.gateway_name,
-            )
-            self.gateway.on_contract(contract)
+    def _init_contracts(self, symbol=None):
+        """
+        Initialize contract data for a specific symbol.
+        A valid symbol must be provided, otherwise an error will be logged.
+        """
+        if not symbol:
+            logger.error("Symbol must be provided to initialize contracts")
+            return
+
+        if symbol in self.exchange.markets:
+            data = self.exchange.markets[symbol]
+            if data["active"]:
+                contract = ContractData(
+                    symbol=symbol,
+                    product=Product.SPOT,
+                    pricetick=10 ** -data["precision"]["price"],
+                    min_amount=data.get("limits", {}).get("amount", {}).get("min", 1),
+                    max_amount=data.get("limits", {}).get("amount", {}).get("max"),
+                    gateway_name=self.gateway.gateway_name,
+                )
+                self.gateway.on_contract(contract)
+                logger.info(f"Initialized contract for {symbol}")
+            else:
+                logger.warning(f"Symbol {symbol} is not active")
+        else:
+            logger.error(f"Symbol {symbol} not found in Binance markets")
 
     def subscribe(self, symbol):
         self.polling_symbols.add(symbol)
@@ -185,29 +199,26 @@ class BinanceRestApi:
         except Exception as e:
             logger.error(f"Cancel order failed: {e}")
 
-    def query_history(self, req: HistoryRequest):
-        try:
-            timeframe = self.INTERVAL_MAP[req.interval]
-            since = int(req.start.timestamp() * 1000)
-            klines = self.exchange.fetch_ohlcv(req.symbol, timeframe, since)
-            bars = [
-                BarData(
+    def query_history(self, req: HistoryRequest, count:int):
+        timeframe = self.INTERVAL_MAP[req.interval]
+        since = int(req.start.timestamp() * 1000)
+        klines = self.exchange.fetch_ohlcv(req.symbol, timeframe, since, limit=count+1)
+        bars = []
+        for t, o, h, l, c, v in klines:
+            bar_time = datetime.fromtimestamp(t / 1000, timezone.utc)
+            if bar_time + timedelta(seconds=60) <= datetime.now(timezone.utc):
+                bars.append(BarData(
                     symbol=req.symbol,
                     interval=req.interval,
-                    datetime=datetime.fromtimestamp(t / 1000),
+                    datetime=bar_time,
                     open_price=o,
                     high_price=h,
-                    low_price=low_price,
+                    low_price=l,
                     close_price=c,
                     volume=v,
                     gateway_name=self.gateway.gateway_name,
-                )
-                for t, o, h, low_price, c, v in klines
-            ]
-            return bars
-        except Exception as e:
-            logger.error(f"Query history failed: {e}")
-            return []
+                ))
+        return bars
 
     def _poll_market_data(self):
         # aligned incremental polling for 1-minute bars
@@ -215,17 +226,23 @@ class BinanceRestApi:
             # sleep until next minute boundary plus small buffer
             now = datetime.now(timezone.utc)
             next_min = now.replace(second=0, microsecond=0) + timedelta(minutes=1)
-            wait_secs = (next_min - now).total_seconds()
-            # interruptible sleep with small buffer
-            if self.stop_event.wait(wait_secs + 1):
+            wait_secs = (next_min - now).total_seconds() + 2  # 2-s safety buffer
+            if self.stop_event.wait(wait_secs):
                 break
             for symbol in list(self.polling_symbols):
                 last_ts = self.last_timestamp.get(symbol, 0)
                 try:
                     timeframe = self.INTERVAL_MAP[Interval.MINUTE]
                     klines = self.exchange.fetch_ohlcv(symbol, timeframe, last_ts, 1000)
-                    for t, o, h, low_price, c, v in klines:
+                    # 计算当前分钟的时间戳（毫秒）用于过滤未完成K线
+                    current_min_ts = int(datetime.now(timezone.utc).replace(second=0,
+                                                      microsecond=0).timestamp() * 1000)
+
+                    for t, o, h, l, c, v in klines:
                         if t <= last_ts:
+                            continue
+                        # 过滤掉当前正在形成的K线
+                        if t >= current_min_ts:
                             continue
                         bar = BarData(
                             symbol=symbol,
@@ -233,7 +250,7 @@ class BinanceRestApi:
                             datetime=datetime.fromtimestamp(t / 1000, timezone.utc),
                             open_price=o,
                             high_price=h,
-                            low_price=low_price,
+                            low_price=l,
                             close_price=c,
                             volume=v,
                             gateway_name=self.gateway.gateway_name,

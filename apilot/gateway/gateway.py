@@ -98,6 +98,9 @@ class BaseGateway(ABC):
         Args:
             data: Quote data object or Bar data object
         """
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"Gateway.on_quote: 发布行情事件 {data.symbol} {getattr(data, 'datetime', None)} {getattr(data, 'close_price', None)}")
         self.on_event(EVENT_QUOTE, data)
         self.on_event(EVENT_QUOTE + "_" + data.symbol, data)
 
