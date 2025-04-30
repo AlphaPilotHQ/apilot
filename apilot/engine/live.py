@@ -7,9 +7,9 @@ Implements real-time operation and management of trading strategies, including s
 import copy
 import logging
 import traceback
-from collections import defaultdict
+from datetime import datetime, timedelta, timezone
+from collections import defaultdict, OrderedDict
 from collections.abc import Callable
-from concurrent.futures import Future, ThreadPoolExecutor
 from typing import Any
 
 from apilot.core import (
@@ -20,7 +20,6 @@ from apilot.core import (
     CancelRequest,
     ContractData,
     Direction,
-    EngineType,
     Event,
     EventEngine,
     Interval,
@@ -30,6 +29,7 @@ from apilot.core import (
     SubscribeRequest,
     TradeData,
 )
+from apilot.core.models import HistoryRequest
 from apilot.strategy import PATemplate
 from apilot.utils.utility import round_to
 
@@ -40,33 +40,39 @@ logger = logging.getLogger("LiveEngine")
 
 
 class LiveEngine(BaseEngine):
-    engine_type: EngineType = EngineType.LIVE
-    setting_filename: str = "live_strategy_setting.json"
-    data_filename: str = "live_strategy_data.json"
 
     def __init__(self, main_engine: MainEngine, event_engine: EventEngine) -> None:
         super().__init__(main_engine, event_engine, "APILOT")
 
         self.strategy_setting = {}
-        self.strategy_data = {}
         self.strategies = {}
-        self.symbol_strategy_map = defaultdict(list)
+        self.symbol_strategy_map = defaultdict(set)
         self.orderid_strategy_map = {}
         self.strategy_orderid_map = defaultdict(set)
-        self.init_executor = ThreadPoolExecutor(max_workers=1)
-        self.tradeids = set()
+
+        # LRU cache for trade IDs to prevent processing duplicates
+        # Limited to 10000 most recent trade IDs to control memory usage
+        self.MAX_TRADE_CACHE_SIZE = 10000
+        self.tradeids = OrderedDict()
 
     def init_engine(self) -> None:
-        self.register_event()
+        self.event_engine.register(EVENT_ORDER, self.process_order_event)
+        self.event_engine.register(EVENT_TRADE, self.process_trade_event)
+        self.event_engine.register(EVENT_QUOTE, self.process_quote_event)
         logger.info("PA strategy engine initialized successfully")
+        logger.info(f"LiveEngine.init_engine: 已注册事件处理函数 - ORDER, TRADE, QUOTE")
 
     def close(self) -> None:
         self.stop_all_strategies()
 
-    def register_event(self) -> None:
-        self.event_engine.register(EVENT_ORDER, self.process_order_event)
-        self.event_engine.register(EVENT_TRADE, self.process_trade_event)
-        self.event_engine.register(EVENT_QUOTE, self.process_quote_event)
+        self.event_engine.unregister(EVENT_ORDER, self.process_order_event)
+        self.event_engine.unregister(EVENT_TRADE, self.process_trade_event)
+        self.event_engine.unregister(EVENT_QUOTE, self.process_quote_event)
+
+        # Clear trade ID cache on shutdown
+        self.tradeids.clear()
+
+        logger.info("Live engine shutdown completed")
 
     def process_order_event(self, event: Event) -> None:
         order = event.data
@@ -86,31 +92,55 @@ class LiveEngine(BaseEngine):
     def process_quote_event(self, event: Event) -> None:
         """处理行情事件"""
         data = event.data
+        logger.info(f"LiveEngine.process_quote_event: 接收到行情事件: {data}")
 
-        if hasattr(data, "open_price"):
-            bar: BarData = data
-            symbol = bar.symbol
+        # 检查数据类型
+        if not hasattr(data, "open_price"):
+            logger.warning(f"LiveEngine.process_quote_event: 接收到的数据没有open_price属性，不是K线数据")
+            return
 
-            strategies = self.symbol_strategy_map.get(symbol, [])
-            if not strategies:
-                logger.warning(f"收到 {symbol} 的K线数据，但没有策略订阅此交易对")
-                return
+        bar: BarData = data
+        symbol = bar.symbol
+        logger.info(f"LiveEngine.process_quote_event: 处理K线数据 {symbol} {bar.datetime} {bar.close_price}")
 
-            for strategy in strategies:
-                if strategy.inited and strategy.trading:
-                    self.call_strategy_func(strategy, strategy.on_bar, bar)
+        strategies = self.symbol_strategy_map.get(symbol, set())
+        if not strategies:
+            logger.warning(f"LiveEngine.process_quote_event: 收到 {symbol} 的K线数据，但没有策略订阅此交易对")
+            return
+
+        logger.info(f"LiveEngine.process_quote_event: 找到 {len(strategies)} 个订阅 {symbol} 的策略")
+
+        for strategy in strategies:
+            strategy_name = getattr(strategy, 'strategy_name', '未知策略')
+            if strategy.inited and strategy.trading:
+                logger.info(f"LiveEngine.process_quote_event: 向策略 {strategy_name} 传递K线数据: {symbol} {bar.datetime}")
+
+                # Directly use bg.update_bar to generate new K-lines, not on_bar
+                # Ensure that K-lines are first passed through BarGenerator for processing, and then correctly passed to on_bar
+                if hasattr(strategy, 'bg'):
+                    logger.info(f"LiveEngine.process_quote_event: 策略 {strategy_name} 有BarGenerator，使用bg.update_bar")
+                    strategy.bg.update_bar(bar)
                 else:
-                    logger.warning(
-                        f"策略 {strategy.strategy_name} 未初始化或未启动，跳过"
-                    )
+                    logger.info(f"LiveEngine.process_quote_event: 策略 {strategy_name} 没有BarGenerator，直接调用on_bar")
+                    self.call_strategy_func(strategy, strategy.on_bar, bar)
+            else:
+                logger.warning(f"LiveEngine.process_quote_event: 策略 {strategy_name} 未初始化或未启动，跳过")
 
     def process_trade_event(self, event: Event) -> None:
         trade: TradeData = event.data
 
         # Avoid processing duplicate trade
         if trade.tradeid in self.tradeids:
+            # Move this trade ID to the end (most recently used)
+            self.tradeids.move_to_end(trade.tradeid)
             return
-        self.tradeids.add(trade.tradeid)
+
+        # Add new trade ID to OrderedDict
+        self.tradeids[trade.tradeid] = None
+
+        # If cache exceeds max size, remove oldest item (first item)
+        if len(self.tradeids) > self.MAX_TRADE_CACHE_SIZE:
+            self.tradeids.popitem(last=False)
 
         strategy: PATemplate | None = self.orderid_strategy_map.get(trade.orderid, None)
         if not strategy:
@@ -125,23 +155,19 @@ class LiveEngine(BaseEngine):
         # Call strategy on_trade function
         self.call_strategy_func(strategy, strategy.on_trade, trade)
 
-        # Sync strategy variables to data file
-        self.sync_strategy_data(strategy)
-
-    def send_server_order(
+    def send_limit_order(
         self,
         strategy: PATemplate,
         contract: ContractData,
         direction: Direction,
         price: float,
         volume: float,
-        type: OrderType,
-    ) -> list:
+    ) -> list[str]:
         # Create request and send order.
         original_req: OrderRequest = OrderRequest(
             symbol=contract.symbol,
             direction=direction,
-            type=type,
+            type=OrderType.LIMIT,
             price=price,
             volume=volume,
             reference=f"APILOT_{strategy.strategy_name}",
@@ -172,18 +198,6 @@ class LiveEngine(BaseEngine):
 
         return orderids
 
-    def send_limit_order(
-        self,
-        strategy: PATemplate,
-        contract: ContractData,
-        direction: Direction,
-        price: float,
-        volume: float,
-    ) -> list:
-        return self.send_server_order(
-            strategy, contract, direction, price, volume, OrderType.LIMIT
-        )
-
     def send_order(
         self,
         strategy: PATemplate,
@@ -191,52 +205,41 @@ class LiveEngine(BaseEngine):
         price: float,
         volume: float,
         stop: bool = False,
-    ) -> list:
+    ) -> list[str]:
         contract: ContractData | None = self.main_engine.get_contract(strategy.symbol)
         if not contract:
             error_msg = f"[{strategy.strategy_name}] Order failed, contract not found: {strategy.symbol}"
             logger.error(f"{error_msg}")
-            return ""
+            return []
 
         # Round order price and volume to nearest incremental value
         price: float = round_to(price, contract.pricetick)
-        volume: float = round_to(volume, contract.min_volume)
+        volume: float = round_to(volume, contract.min_amount)
 
         return self.send_limit_order(strategy, contract, direction, price, volume)
 
-    def cancel_server_order(self, orderid: str, strategy=None) -> None:
-        """
-        Cancel existing order by orderid.
-        """
-        order: OrderData | None = self.main_engine.get_order(orderid)
-        if not order:
-            if strategy:
-                error_msg = f"[{strategy.strategy_name}] Cancel order failed, order not found: {orderid}"
-                logger.error(f"{error_msg}")
-            else:
-                error_msg = f"Cancel order failed, order not found: {orderid}"
-                logger.error(f"{error_msg}")
-            return
-
-        req: CancelRequest = order.create_cancel_request()
-        self.main_engine.cancel_order(req, order.gateway_name)
-
     def cancel_order(self, strategy: PATemplate, orderid: str) -> None:
         """
-        Cancel strategy order
+        Cancel strategy order by orderid.
         """
-        self.cancel_server_order(orderid, strategy)
+        # Fetch existing order
+        order: OrderData | None = self.main_engine.get_order(orderid)
+        if not order:
+            prefix = f"[{strategy.strategy_name}] "
+            logger.error(f"{prefix}Cancel order failed, order not found: {orderid}")
+            return
+
+        # Create and send cancel request
+        req: CancelRequest = order.create_cancel_request()
+        self.main_engine.cancel_order(req, order.gateway_name)
 
     def cancel_all(self, strategy: PATemplate) -> None:
         orderids: set = self.strategy_orderid_map[strategy.strategy_name]
         if not orderids:
             return
 
-        for orderid in copy(orderids):
+        for orderid in orderids.copy():
             self.cancel_order(strategy, orderid)
-
-    def get_engine_type(self) -> EngineType:
-        return self.engine_type
 
     def get_pricetick(self, strategy: PATemplate) -> float:
         contract: ContractData | None = self.main_engine.get_contract(strategy.symbol)
@@ -254,46 +257,47 @@ class LiveEngine(BaseEngine):
         else:
             return None
 
-    def load_bar(
-        self,
-        symbol: str,
-        count: int,
-        interval: Interval,
-        callback: Callable[[BarData], None],
-    ) -> list:
+    def load_bar(self, symbol: str, count: int, interval: Interval,) -> list[BarData]:
         """
         Load historical bars from the exchange for the given symbol.
         """
-        from datetime import datetime, timedelta, timezone
-
-        from apilot.core.models import HistoryRequest
-
-        # Calculate time range for historical bars
         end = datetime.now(timezone.utc)
-        # Parse interval value to get minutes. Support '1m', '5m', etc.
-        minutes = 1
-        if hasattr(interval, "value"):
-            val = interval.value
-            if isinstance(val, str) and val.endswith("m"):
-                try:
-                    minutes = int(val[:-1])
-                except Exception:
-                    minutes = 1
-            elif isinstance(val, int):
-                minutes = val
-        start = end - timedelta(minutes=minutes * count)
-        req = HistoryRequest(
-            symbol=symbol,
-            interval=interval,
-            start=start,
-            end=end,
-        )
+        minutes_per_bar = self._get_interval_minutes(interval)
+        start = end - timedelta(minutes=minutes_per_bar * count)
+        req = HistoryRequest(symbol=symbol, interval=interval, start=start, end=end)
+
         try:
-            bars = self.main_engine.query_history(req, gateway_name="BINANCE")
+            bars = self.main_engine.query_history(req, gateway_name="BINANCE", count=count)
+            return bars
         except Exception as e:
             logger.error(f"Failed to fetch bars for {symbol}: {e}")
-            bars = []
-        return bars
+            return []
+
+    def _get_interval_minutes(self, interval: Interval) -> int:
+        """将K线周期转换为对应的分钟数"""
+        # 获取周期值
+        val = getattr(interval, "value", None)
+
+        # 如果是整数，直接返回
+        if isinstance(val, int):
+            return val
+
+        # 如果是字符串，通过映射转换
+        if isinstance(val, str):
+            interval_map = {
+                "1m": 1,
+                "5m": 5,
+                "15m": 15,
+                "30m": 30,
+                "1h": 60,
+                "4h": 240,
+                "1d": 1440,
+                "d": 1440,
+                "w": 10080,
+            }
+            return interval_map.get(val, 1)
+
+        return 1
 
     def call_strategy_func(
         self, strategy: PATemplate, func: Callable, params: Any = None
@@ -309,7 +313,7 @@ class LiveEngine(BaseEngine):
         self,
         strategy_class: type,
         strategy_name: str,
-        symbols: str | list[str],
+        symbol: str,
         setting: dict,
     ) -> None:
         if strategy_name in self.strategies:
@@ -317,109 +321,61 @@ class LiveEngine(BaseEngine):
             logger.error(f"{error_msg}")
             return
 
-        # Check symbols parameter - can be string or list of strings
-        if isinstance(symbols, str):
-            if not symbols:
-                error_msg = "Symbol cannot be empty"
-                logger.error(f"{error_msg}")
-                return
-        elif isinstance(symbols, list) and symbols:
-            # All symbols should be non-empty
-            for symbol in symbols:
-                if not symbol:
-                    error_msg = "Symbol cannot be empty"
-                    logger.error(f"{error_msg}")
-                    return
-        else:
-            error_msg = "Symbols must be a non-empty string or list"
-            logger.error(f"{error_msg}")
-            return
-
         # Create strategy instance
-        strategy: PATemplate = strategy_class(self, strategy_name, symbols, setting)
+        strategy: PATemplate = strategy_class(self, strategy_name, symbol, setting)
         self.strategies[strategy_name] = strategy
 
-        # Add strategy to each symbol's mapping
-        for symbol in strategy.symbols:
-            strategies: list = self.symbol_strategy_map[symbol]
-            strategies.append(strategy)
+        # Add strategy to the symbol's mapping
+        self.symbol_strategy_map[strategy.symbol].add(strategy)
 
-    def init_strategy(self, strategy_name: str) -> Future:
-        return self.init_executor.submit(self._init_strategy, strategy_name)
+    def init_strategy(self, strategy_name: str) -> None:
+        # Check if strategy exists
+        if strategy_name not in self.strategies:
+            raise ValueError(f"Strategy {strategy_name} not found")
 
-    def _init_strategy(self, strategy_name: str) -> None:
-        strategy: PATemplate = self.strategies[strategy_name]
-
+        strategy = self.strategies[strategy_name]
         if strategy.inited:
-            error_msg = (
-                f"{strategy_name} already initialized, duplicate operation prohibited"
-            )
-            logger.error(f"{error_msg}")
-            return
-        logger.info(f"{strategy_name} starting initialization")
+            raise RuntimeError(f"{strategy_name} already initialized, duplicate operation prohibited")
 
         # Call on_init function of strategy
         self.call_strategy_func(strategy, strategy.on_init)
 
-        # Restore strategy data(variables)
-        data: dict | None = self.strategy_data.get(strategy_name, None)
-        if data:
-            for name in strategy.variables:
-                value = data.get(name, None)
-                if value is not None:
-                    setattr(strategy, name, value)
+        # Preload ArrayManager
+        # if hasattr(strategy, "am") and hasattr(strategy.am, "size"):
+        #     preload_size = strategy.am.size
+        #     try:
+        #         bars = self.load_bar(strategy.symbol, preload_size, Interval.MINUTE)
+        #         if bars:
+        #             logger.info(f"Preload {strategy.strategy_name}  ArrayManager ({preload_size} k line)")
+        #             for bar in bars:
+        #                 self.call_strategy_func(strategy, strategy.on_bar, bar)
+        #     except Exception as e:
+        #         logger.error(f"Preload ArrayManager error: {e}")
 
-        # 订阅策略中所有交易对的行情数据
-        subscription_failed = False
-        for symbol in strategy.symbols:
-            logger.info(f"From exchange get {symbol} history data")
-            contract: ContractData | None = self.main_engine.get_contract(symbol)
-            if contract:
-                req: SubscribeRequest = SubscribeRequest(symbol=contract.symbol)
-                self.main_engine.subscribe(req, contract.gateway_name)
-            else:
-                error_msg = (
-                    f"Market data subscription failed, contract {symbol} not found"
-                )
-                logger.error(f"{error_msg}")
-                subscription_failed = True
+        # sub market data for the single symbol
+        contract = self.main_engine.get_contract(strategy.symbol)
+        if not contract:
+            raise RuntimeError(f"Market data subscription failed, contract {strategy.symbol} not found")
+
+        req = SubscribeRequest(symbol=contract.symbol)
+        self.main_engine.subscribe(req, contract.gateway_name)
 
         strategy.inited = True
-
-        if subscription_failed:
-            logger.warning(
-                f"{strategy_name} initialization completed with subscription failures"
-            )
-        else:
-            logger.info(f"{strategy_name} initialization completed")
+        logger.info(f"{strategy_name} initialization completed")
 
     def start_strategy(self, strategy_name: str) -> None:
+
         strategy: PATemplate = self.strategies[strategy_name]
         if not strategy.inited:
-            error_msg = (
-                f"Strategy {strategy_name} start failed, please initialize first"
-            )
-            logger.error(f"{error_msg}")
+            logger.error(f"Strategy {name} start failed, please initialize first")
             return
 
         if strategy.trading:
-            error_msg = (
-                f"{strategy_name} already started, please do not repeat operation"
-            )
-            logger.error(f"{error_msg}")
+            logger.error(f"{name} already started, please do not repeat operation")
             return
+
         self.call_strategy_func(strategy, strategy.on_start)
         strategy.trading = True
-
-    def sync_strategy_data(self, strategy: PATemplate) -> None:
-        """
-        Sync strategy data into json file.
-        """
-        data: dict = strategy.get_variables()
-        data.pop("inited")  # Strategy status (inited, trading) should not be synced.
-        data.pop("trading")
-
-        self.strategy_data[strategy.strategy_name] = data
 
     def stop_all_strategies(self) -> None:
         """Stop all strategies"""
@@ -436,6 +392,3 @@ class LiveEngine(BaseEngine):
 
             # Cancel all orders of the strategy
             self.cancel_all(strategy)
-
-            # Sync strategy variables to data file
-            self.sync_strategy_data(strategy)

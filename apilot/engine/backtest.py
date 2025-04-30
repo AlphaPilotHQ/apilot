@@ -13,7 +13,6 @@ from pandas import DataFrame
 
 from apilot.core.constant import (
     Direction,
-    EngineType,
     Interval,
     Status,
 )
@@ -52,7 +51,6 @@ class DailyResult:
 
 
 class BacktestingEngine:
-    engine_type: EngineType = EngineType.BACKTESTING
     gateway_name: str = "BACKTESTING"
 
     def __init__(self, main_engine=None) -> None:
@@ -469,15 +467,6 @@ class BacktestingEngine:
         orderids: list = list(self.active_limit_orders.keys())
         for orderid in orderids:
             self.cancel_order(strategy, orderid)
-
-    def sync_strategy_data(self, strategy: PATemplate) -> None:
-        """
-        Sync strategy data
-        """
-        pass
-
-    def get_engine_type(self) -> EngineType:
-        return self.engine_type
 
     def get_pricetick(self, strategy: PATemplate, symbol: str) -> float:
         return self.priceticks.get(symbol, 0.0001)
