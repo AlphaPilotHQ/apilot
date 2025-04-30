@@ -28,7 +28,6 @@ logger = logging.getLogger("BaseGateway")
 
 class BaseGateway(ABC):
     default_name: str = ""
-    default_setting: ClassVar[dict[str, Any]] = {}
 
     def __init__(self, event_engine: EventEngine, gateway_name: str = "") -> None:
         """
@@ -189,6 +188,3 @@ class BaseGateway(ABC):
             List[BarData]: List of bar data
         """
         pass
-
-    def get_default_setting(self) -> dict[str, Any]:
-        return self.default_setting

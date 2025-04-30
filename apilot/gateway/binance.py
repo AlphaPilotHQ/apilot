@@ -2,6 +2,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 from threading import Event, Thread
 from typing import Any, ClassVar
+from time import sleep
 
 import ccxt
 
@@ -25,24 +26,28 @@ logger = logging.getLogger(__name__)
 
 class BinanceGateway(BaseGateway):
     default_name = "BINANCE"
-    default_setting: ClassVar[dict[str, Any]] = {
-        "API Key": "",
-        "Secret Key": "",
-        "Proxy Host": "",
-        "Proxy Port": 0,
-    }
 
     def __init__(self, event_engine: EventEngine, gateway_name: str = "BINANCE"):
         super().__init__(event_engine, gateway_name)
-        self.api = BinanceApi(self)
+        self.api = BinanceRestApi(self)
 
     def connect(self, setting: dict):
         self.api.connect(
             api_key=setting["API Key"],
             secret_key=setting["Secret Key"],
-            proxy_host=setting["Proxy Host"],
-            proxy_port=setting["Proxy Port"],
+            proxy_host=setting.get("Proxy Host", ""),
+            proxy_port=setting.get("Proxy Port", 0),
         )
+
+        # Wait until API signals readiness or timeout
+        timeout, interval = 10.0, 0.1  # seconds
+        elapsed = 0.0
+        while not self.api.ready and elapsed < timeout:
+            sleep(interval)
+            elapsed += interval
+
+        if not self.api.ready:
+            logger.error("Binance gateway init timeout after %.1f seconds", timeout)
 
     def subscribe(self, req: SubscribeRequest):
         self.api.subscribe(req.symbol)
@@ -63,7 +68,7 @@ class BinanceGateway(BaseGateway):
         self.api.close()
 
 
-class BinanceApi:
+class BinanceRestApi:
     INTERVAL_MAP: ClassVar[dict[Interval, str]] = {
         Interval.MINUTE: "1m",
         Interval.HOUR: "1h",
@@ -88,6 +93,7 @@ class BinanceApi:
         self.polling_symbols = set()
         self.stop_event = Event()
         self.last_timestamp = {}
+        self.ready = False
 
     def connect(self, api_key, secret_key, proxy_host, proxy_port):
         params = {"apiKey": api_key, "secret": secret_key}
@@ -101,8 +107,11 @@ class BinanceApi:
             self._init_contracts()
             self.query_account()
 
+            # Start polling thread then mark API ready
             Thread(target=self._poll_market_data, daemon=True).start()
-            logger.info("Connected and polling started.")
+
+            # Mark as ready so callers can proceed
+            self.ready = True
         except Exception as e:
             logger.error(f"Connect failed: {e}")
 
@@ -139,7 +148,7 @@ class BinanceApi:
                     )
                     self.gateway.on_account(account)
         except Exception as e:
-            logger.error(f"Query account failed: {e}")
+            logger.info(f"Query account failed: {e}")
 
     def send_order(self, req: OrderRequest):
         try:

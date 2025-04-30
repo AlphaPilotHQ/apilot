@@ -25,13 +25,11 @@ dev = [
     "pytest",
     "pytest-cov",
     "ruff",
-    "pre-commit",
 ]
 all = [
     "pytest",
     "pytest-cov",
     "ruff",
-    "pre-commit",
 ]
 
 [project.urls]

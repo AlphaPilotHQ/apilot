@@ -64,11 +64,16 @@ class BarGenerator:
             return
         sample_bar = next(iter(bars.values()))
         current_window_time = self._align_bar_datetime(sample_bar)
+        
+        # 检查是否需要处理上一个窗口
         if self.window_time is not None and current_window_time != self.window_time:
             if self.window_bars:
                 if not self.multi_symbol_mode or self._is_window_complete():
                     self._finalize_window_bars()
+        
         self.window_time = current_window_time
+        
+        # 处理当前窗口中的新数据
         for symbol, bar in bars.items():
             if self.multi_symbol_mode and self.symbols and symbol not in self.symbols:
                 continue
@@ -90,7 +95,13 @@ class BarGenerator:
                 window_bar.low_price = min(window_bar.low_price, bar.low_price)
                 window_bar.close_price = bar.close_price
                 window_bar.volume += getattr(bar, "volume", 0)
-        if self.window > 0 and self.on_window_bar:
+        
+        # 关键修改: 对于window=1的情况，每次更新都应该触发回调
+        if self.window == 1 and self.on_window_bar:
+            if not self.multi_symbol_mode or self._is_window_complete():
+                self._finalize_window_bars()
+        # 对于window>1的情况保持原逻辑
+        elif self.window > 1 and self.on_window_bar:
             if not (sample_bar.datetime.minute + 1) % self.window:
                 if not self.multi_symbol_mode or self._is_window_complete():
                     self._finalize_window_bars()
