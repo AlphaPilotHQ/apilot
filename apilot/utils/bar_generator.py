@@ -76,13 +76,9 @@ class BarGenerator:
         Args:
             bar: The incoming BarData object.
         """
-        logger = logging.getLogger("BarGenerator")
-        logger.info(f"BarGenerator.update_bar: get {bar.symbol} {bar.datetime} close: {bar.close_price}")
-
         # Trigger the raw on_bar callback immediately
-        logger.info(f"BarGenerator.update_bar: 准备调用 on_bar 回调: {self.on_bar.__qualname__}")
         self.on_bar(bar)
-        logger.info(f"BarGenerator.update_bar: on_bar 回调完成: {self.on_bar.__qualname__}")
+        logger.info(f"BarGenerator.update_bar: on_bar : {self.on_bar.__qualname__}")
 
         # If no aggregation callback is set, we are done
         if not self.on_window_bar:

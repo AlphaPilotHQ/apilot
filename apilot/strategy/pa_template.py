@@ -129,15 +129,32 @@ class PATemplate(ABC):
     def get_size(self, symbol: str) -> int:
         return self.pa_engine.get_size(self, symbol)
 
-    def load_bar(self, count: int, interval: Interval = Interval.MINUTE) -> list[BarData] | None:
-        try:
-            return self.pa_engine.load_bar(self.symbol, count, interval)
-        except Exception as e:
-            logger.error(f"Failed to load bars for {self.symbol}: {e}")
-            return None
-
     def get_order(self, orderid: str) -> OrderData | None:
         return self.orders.get(orderid, None)
 
     def get_all_active_orderids(self) -> list[str]:
         return list(self.active_orderids)
+
+    def load_bar(
+        self,
+        count: int,
+        interval: Interval = Interval.MINUTE,
+        callback: Callable[[BarData], Any] | None = None,
+    ) -> list[BarData] | None:
+
+        try:
+            bars = self.pa_engine.load_bar(self.symbol, count, interval)
+        except Exception as e:
+            logger.error(f"Failed to load bars for {self.symbol}: {e}")
+            return None
+
+        if callback is None:
+            if hasattr(self, "bg") and callable(getattr(self, "bg").update_bar):
+                callback = self.bg.update_bar
+            else:
+                callback = self.on_bar
+
+        for bar in bars or []:
+            callback(bar)
+
+        return bars
