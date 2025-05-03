@@ -15,7 +15,7 @@ from apilot.core.models import (
     OrderRequest,
     SubscribeRequest,
 )
-from apilot.engine.base_engine import ENGINE_REGISTRY, BaseEngine
+from apilot.engine.base_engine import BaseEngine
 from apilot.gateway.gateway import BaseGateway
 
 logger = logging.getLogger("MainEngine")
@@ -25,43 +25,40 @@ class MainEngine:
     """
     Acts as the core of the trading platform.
     """
-
     def __init__(self) -> None:
         self.event_engine = EventEngine()
-
         self.event_engine.start()
 
         self.gateways: dict[str, BaseGateway] = {}
         self.engines: dict[str, BaseEngine] = {}
-
-        self.init_engines()
+        logger.info("EventEngine MainEngine Ready")
 
 
     def add_engine(self, engine_class: type[BaseEngine]) -> BaseEngine:
         """Register a new function engine. Raise if name exists."""
         engine = engine_class(self, self.event_engine)
         name = engine.engine_name
+
         if name in self.engines:
             logger.warning(f"Engine '{name}' already exists. Registration skipped.")
             return self.engines[name]
+
         self.engines[name] = engine
         return engine
 
     def add_gateway(
-        self, gateway_class: type[BaseGateway], gateway_name: str | None = None
+        self, gateway_class: type[BaseGateway], name: str | None = None
     ) -> BaseGateway:
         """Register a new gateway. Raise if name exists."""
-        name = gateway_name or gateway_class.default_name
-        if name in self.gateways:
-            logger.warning(f"Gateway '{name}' already exists. Registration skipped.")
-            return self.gateways[name]
-        gateway = gateway_class(self.event_engine, name)
-        self.gateways[name] = gateway
-        return gateway
+        gateway_name = name or gateway_class.default_name
 
-    def init_engines(self) -> None:
-        for engine_cls in ENGINE_REGISTRY:
-            self.add_engine(engine_cls)
+        if gateway_name in self.gateways:
+            logger.warning(f"Gateway '{gateway_name}' already exists.")
+            return self.gateways[gateway_name]
+
+        gateway = gateway_class(self.event_engine, gateway_name)
+        self.gateways[gateway_name] = gateway
+        return gateway
 
     def get_gateway(self, gateway_name: str) -> BaseGateway | None:
         gateway: BaseGateway | None = self.gateways.get(gateway_name, None)
@@ -106,11 +103,13 @@ class MainEngine:
 
     def query_history(self, req: HistoryRequest, gateway_name: str, count: int) -> list[BarData]:
         gateway: BaseGateway | None = self.get_gateway(gateway_name)
+        if not gateway:
+            logger.error(f"Query history failed: Gateway '{gateway_name}' not found.")
+            return []
         return gateway.query_history(req, count)
 
-
     def close(self) -> None:
-        self.event_engine.stop()
+        self.event_engine.close()
         for engine in self.engines.values():
             engine.close()
         for gateway in self.gateways.values():

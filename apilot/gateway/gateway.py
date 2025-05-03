@@ -39,26 +39,18 @@ class BaseGateway(ABC):
 
     def on_trade(self, trade: TradeData) -> None:
         self.on_event(EVENT_TRADE, trade)
-        self.on_event(EVENT_TRADE + "_" + trade.symbol, trade)
 
     def on_order(self, order: OrderData) -> None:
         self.on_event(EVENT_ORDER, order)
-        self.on_event(EVENT_ORDER + "_" + order.orderid_with_gateway, order)
 
     def on_position(self, position: PositionData) -> None:
         self.on_event(EVENT_POSITION, position)
-        self.on_event(EVENT_POSITION + "_" + position.symbol, position)
 
     def on_account(self, account: AccountData) -> None:
         self.on_event(EVENT_ACCOUNT, account)
-        self.on_event(EVENT_ACCOUNT + "_" + account.accountid, account)
 
     def on_quote(self, data: Any) -> None:
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.info(f"Gateway.on_quote: 发布行情事件 {data.symbol} {getattr(data, 'datetime', None)} {getattr(data, 'close_price', None)}")
         self.on_event(EVENT_QUOTE, data)
-        self.on_event(EVENT_QUOTE + "_" + data.symbol, data)
 
     def on_contract(self, contract: ContractData) -> None:
         self.on_event(EVENT_CONTRACT, contract)
@@ -76,6 +68,14 @@ class BaseGateway(ABC):
         pass
 
     @abstractmethod
+    def query_account(self) -> None:
+        pass
+
+    @abstractmethod
+    def query_history(self, req: HistoryRequest) -> list[BarData]:
+        pass
+
+    @abstractmethod
     def send_order(self, req: OrderRequest) -> str:
         pass
 
@@ -83,10 +83,6 @@ class BaseGateway(ABC):
     def cancel_order(self, req: CancelRequest) -> None:
         pass
 
-    @abstractmethod
-    def query_account(self) -> None:
-        pass
 
-    @abstractmethod
-    def query_history(self, req: HistoryRequest) -> list[BarData]:
-        pass
+
+

@@ -7,10 +7,12 @@ Implements real-time operation and management of trading strategies, including s
 import copy
 import logging
 import traceback
-from datetime import datetime, timedelta, timezone
 from collections import defaultdict, OrderedDict
 from collections.abc import Callable
+from datetime import datetime, timedelta, timezone
 from typing import Any
+
+from apilot.engine.base_engine import register_engine
 
 from apilot.core import (
     EVENT_ORDER,
@@ -42,7 +44,7 @@ logger = logging.getLogger("LiveEngine")
 class LiveEngine(BaseEngine):
 
     def __init__(self, main_engine: MainEngine, event_engine: EventEngine) -> None:
-        super().__init__(main_engine, event_engine, "APILOT")
+        super().__init__(main_engine, event_engine, "LiveEngine")
 
         self.strategy_setting = {}
         self.strategies = {}

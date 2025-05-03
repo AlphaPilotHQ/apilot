@@ -71,9 +71,9 @@ class EventEngine:
         self._timer_thread.start()
         print(">>> [EventEngine] start() method finished.")
 
-    def stop(self) -> None:
+    def close(self) -> None:
         """
-        Stop event engine.
+        Close event engine and release resources.
         """
         self._active = False
         self._timer_thread.join()

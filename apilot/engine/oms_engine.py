@@ -26,13 +26,10 @@ from apilot.core import (
     QuoteData,
     TradeData,
 )
-from apilot.engine.base_engine import register_engine
-
 from .base_engine import BaseEngine
 from .main_engine import MainEngine
 
 
-@register_engine
 class OmsEngine(BaseEngine):
     """
     Provides order management system function.

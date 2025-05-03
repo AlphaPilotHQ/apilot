@@ -50,14 +50,11 @@ class BinanceGateway(BaseGateway):
         if not self.api.ready:
             logger.error("Binance gateway init timeout after %.1f seconds", timeout)
 
+    def close(self):
+        self.api.close()
+
     def subscribe(self, req: SubscribeRequest):
         self.api.subscribe(req.symbol)
-
-    def send_order(self, req: OrderRequest) -> str:
-        return self.api.send_order(req)
-
-    def cancel_order(self, req: CancelRequest):
-        self.api.cancel_order(req)
 
     def query_account(self):
         self.api.query_account()
@@ -65,8 +62,11 @@ class BinanceGateway(BaseGateway):
     def query_history(self, req: HistoryRequest, count: int) -> list[BarData]:
         return self.api.query_history(req, count)
 
-    def close(self):
-        self.api.close()
+    def send_order(self, req: OrderRequest) -> str:
+        return self.api.send_order(req)
+
+    def cancel_order(self, req: CancelRequest):
+        self.api.cancel_order(req)
 
 
 class BinanceRestApi:
@@ -116,6 +116,10 @@ class BinanceRestApi:
         except Exception as e:
             logger.error(f"Connect failed: {e}")
 
+    def close(self):
+        self.stop_event.set()
+        logger.info("Disconnected.")
+
     def _init_contracts(self, symbol=None):
         """
         Initialize contract data for a specific symbol.
@@ -163,41 +167,6 @@ class BinanceRestApi:
                     self.gateway.on_account(account)
         except Exception as e:
             logger.info(f"Query account failed: {e}")
-
-    def send_order(self, req: OrderRequest):
-        try:
-            params = {
-                "symbol": req.symbol,
-                "type": self.ORDER_TYPE_MAP[req.type],
-                "side": "buy" if req.direction == Direction.LONG else "sell",
-                "amount": req.volume,
-                "price": req.price if req.type == OrderType.LIMIT else None,
-            }
-            result = self.exchange.create_order(**params)
-            orderid = result["id"]
-            order = OrderData(
-                symbol=req.symbol,
-                orderid=orderid,
-                type=req.type,
-                direction=req.direction,
-                price=req.price,
-                volume=req.volume,
-                traded=0,
-                status=Status.SUBMITTING,
-                gateway_name=self.gateway.gateway_name,
-                datetime=datetime.utcnow(),
-            )
-            self.order_map[orderid] = order
-            return orderid
-        except Exception as e:
-            logger.error(f"Order placement failed: {e}")
-            return ""
-
-    def cancel_order(self, req: CancelRequest):
-        try:
-            self.exchange.cancel_order(req.orderid, req.symbol)
-        except Exception as e:
-            logger.error(f"Cancel order failed: {e}")
 
     def query_history(self, req: HistoryRequest, count:int):
         timeframe = self.INTERVAL_MAP[req.interval]
@@ -261,6 +230,40 @@ class BinanceRestApi:
                 except Exception as e:
                     logger.error(f"Polling error: {e}")
 
-    def close(self):
-        self.stop_event.set()
-        logger.info("Disconnected.")
+    def send_order(self, req: OrderRequest):
+        try:
+            params = {
+                "symbol": req.symbol,
+                "type": self.ORDER_TYPE_MAP[req.type],
+                "side": "buy" if req.direction == Direction.LONG else "sell",
+                "amount": req.volume,
+                "price": req.price if req.type == OrderType.LIMIT else None,
+            }
+            result = self.exchange.create_order(**params)
+            orderid = result["id"]
+            order = OrderData(
+                symbol=req.symbol,
+                orderid=orderid,
+                type=req.type,
+                direction=req.direction,
+                price=req.price,
+                volume=req.volume,
+                traded=0,
+                status=Status.SUBMITTING,
+                gateway_name=self.gateway.gateway_name,
+                datetime=datetime.utcnow(),
+            )
+            self.order_map[orderid] = order
+            return orderid
+        except Exception as e:
+            logger.error(f"Order placement failed: {e}")
+            return ""
+
+    def cancel_order(self, req: CancelRequest):
+        try:
+            self.exchange.cancel_order(req.orderid, req.symbol)
+        except Exception as e:
+            logger.error(f"Cancel order failed: {e}")
+
+
+
