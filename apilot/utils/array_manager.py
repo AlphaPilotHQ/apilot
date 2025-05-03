@@ -1,15 +1,17 @@
 """
-Technical indicators and array-based calculations.
+Indicators and array-based calculations.
 """
-
+import logging
 import numpy as np
 
 from apilot.core.models import BarData
 
+logger = logging.getLogger(__name__)
+
 
 class ArrayManager:
     """
-    Manages time series bar data and calculates technical indicators.
+    Manages time series bar data and calculates indicators.
     """
 
     def __init__(self, size: int = 100) -> None:
@@ -24,13 +26,13 @@ class ArrayManager:
         self.volume_array: np.ndarray = np.zeros(size)
 
     def update_bar(self, bar: BarData) -> None:
-        """
-        Updates the arrays with the latest bar data.
-        """
         self.count += 1
+        # Debug: show current count each time a bar is updated
+        print(f"[ArrayManager.update_bar] count={self.count}")
 
         if not self.inited and self.count >= self.size:
             self.inited = True
+            print("[ArrayManager] inited")
 
         self.open_array[:-1] = self.open_array[1:]
         self.high_array[:-1] = self.high_array[1:]

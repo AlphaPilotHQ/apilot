@@ -58,7 +58,6 @@ class EventEngine:
             except Empty:
                 pass
 
-
     def _run_timer(self) -> None:
         """
         Sleep by interval second(s) and then generate a timer event.
@@ -72,9 +71,13 @@ class EventEngine:
         """
         Start event engine to process events and generate timer events.
         """
+        print(">>> [EventEngine] start() method entered.")
         self._active = True
+        print(">>> [EventEngine] Starting event processing thread...")
         self._event_thread.start()
+        print(">>> [EventEngine] Starting timer thread...")
         self._timer_thread.start()
+        print(">>> [EventEngine] start() method finished.")
 
     def stop(self) -> None:
         """
