@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 
 class BinanceGateway(BaseGateway):
-    default_name = "BINANCE"
+    default_name = "Binance"
 
     def __init__(self, event_engine: EventEngine, gateway_name: str = "BINANCE"):
         super().__init__(event_engine, gateway_name)
@@ -37,11 +37,11 @@ class BinanceGateway(BaseGateway):
             secret_key=setting["Secret Key"],
             proxy_host=setting.get("Proxy Host", ""),
             proxy_port=setting.get("Proxy Port", 0),
-            symbol=setting.get("Symbol", None),  # Pass symbol to only initialize specific contract
+            symbol=setting.get("Symbol", None),
         )
 
         # Wait until API signals readiness or timeout
-        timeout, interval = 10.0, 0.1  # seconds
+        timeout, interval = 10.0, 0.2  # seconds
         elapsed = 0.0
         while not self.api.ready and elapsed < timeout:
             sleep(interval)
@@ -99,14 +99,12 @@ class BinanceRestApi:
     def connect(self, api_key, secret_key, proxy_host, proxy_port, symbol=None):
         params = {"apiKey": api_key, "secret": secret_key}
         if proxy_host and proxy_port:
-            proxy = f"http://{proxy_host}:{proxy_port}"
-            params["proxies"] = {"http": proxy, "https": proxy}
+            params["proxy"] = f"https://{proxy_host}:{proxy_port}"
 
         self.exchange = ccxt.binance(params)
         try:
             self.exchange.load_markets()
             self._init_contracts(symbol)
-            # self.query_account()
 
             # Start polling thread then mark API ready
             Thread(target=self._poll_market_data, daemon=True).start()

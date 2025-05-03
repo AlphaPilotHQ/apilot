@@ -20,7 +20,6 @@ from apilot.gateway.gateway import BaseGateway
 
 logger = logging.getLogger("MainEngine")
 
-
 class MainEngine:
     """
     Acts as the core of the trading platform.
@@ -31,7 +30,7 @@ class MainEngine:
 
         self.gateways: dict[str, BaseGateway] = {}
         self.engines: dict[str, BaseEngine] = {}
-        logger.info("EventEngine MainEngine Ready")
+        logger.info("MainEngine inited")
 
 
     def add_engine(self, engine_class: type[BaseEngine]) -> BaseEngine:
@@ -44,6 +43,9 @@ class MainEngine:
             return self.engines[name]
 
         self.engines[name] = engine
+
+        logger.info(f"Engine '{name}' added.")
+        
         return engine
 
     def add_gateway(
@@ -58,6 +60,9 @@ class MainEngine:
 
         gateway = gateway_class(self.event_engine, gateway_name)
         self.gateways[gateway_name] = gateway
+
+        logger.info(f"Gateway '{gateway_name}' added.")
+
         return gateway
 
     def get_gateway(self, gateway_name: str) -> BaseGateway | None:

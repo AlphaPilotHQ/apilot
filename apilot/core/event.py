@@ -20,7 +20,6 @@ class Event:
 
 HandlerType: TypeAlias = Callable[[Event], None]
 
-
 class EventEngine:
 
     def __init__(self, interval: int = 1) -> None:
@@ -63,13 +62,10 @@ class EventEngine:
         """
         Start event engine to process events and generate timer events.
         """
-        print(">>> [EventEngine] start() method entered.")
         self._active = True
-        print(">>> [EventEngine] Starting event processing thread...")
         self._event_thread.start()
-        print(">>> [EventEngine] Starting timer thread...")
         self._timer_thread.start()
-        print(">>> [EventEngine] start() method finished.")
+        logger.info("EventEngine started")
 
     def close(self) -> None:
         """

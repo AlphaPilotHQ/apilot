@@ -28,6 +28,7 @@ __all__ = [
     "OptimizationSetting",
     "OrderData",
     "OrderType",
+    "OmsEngine",
     "PAEngine",
     "PATemplate",
     "PerformanceReport",
@@ -89,6 +90,7 @@ from .engine import MainEngine
 # Export backtesting and optimization components
 from .engine.backtest import BacktestingEngine
 from .engine.live import LiveEngine
+from .engine.oms_engine import OmsEngine
 
 # Export gateway components
 from .gateway.binance import BinanceGateway
@@ -99,10 +101,7 @@ from .performance.report import PerformanceReport
 
 # Export strategy templates
 from .strategy.pa_template import PATemplate
+
 from .utils.array_manager import ArrayManager
-
-# Export utility classes
 from .utils.bar_generator import BarGenerator
-
-# Export logging system
 from .utils.logger import setup_logging

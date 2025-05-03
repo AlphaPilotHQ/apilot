@@ -12,8 +12,6 @@ from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from apilot.engine.base_engine import register_engine
-
 from apilot.core import (
     EVENT_ORDER,
     EVENT_QUOTE,
