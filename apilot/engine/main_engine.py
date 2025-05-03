@@ -27,33 +27,15 @@ class MainEngine:
     """
 
     def __init__(self) -> None:
-        print(">>> [MainEngine] __init__ entered.") # 确认 __init__ 开始
-        try:
-            print(">>> [MainEngine] Attempting to create EventEngine...") # 确认尝试创建
-            self.event_engine = EventEngine()
-            print(">>> [MainEngine] EventEngine created successfully.") # 确认创建成功
+        self.event_engine = EventEngine()
 
-            print(">>> [MainEngine] Attempting to call event_engine.start()...") # 确认尝试启动
-            self.event_engine.start() # 这里会调用我们之前加了 print 的 start 方法
-            print(">>> [MainEngine] event_engine.start() called successfully.") # 确认启动调用完成
+        self.event_engine.start()
 
-            print(">>> [MainEngine] Initializing gateways and engines dictionaries...") # 确认后续步骤开始
-            self.gateways: dict[str, BaseGateway] = {}
-            self.engines: dict[str, BaseEngine] = {}
-            print(">>> [MainEngine] Dictionaries initialized.") # 确认后续步骤完成
+        self.gateways: dict[str, BaseGateway] = {}
+        self.engines: dict[str, BaseEngine] = {}
 
-            print(">>> [MainEngine] Calling self.init_engines()...") # 确认再后续步骤开始
-            self.init_engines()
-            print(">>> [MainEngine] self.init_engines() finished.") # 确认再后续步骤完成
+        self.init_engines()
 
-        except Exception as e:
-            # 如果 __init__ 过程中任何地方出错，打印异常信息
-            print(f">>> [MainEngine] !!! EXCEPTION during __init__: {e}")
-            import traceback
-            traceback.print_exc() # 打印完整的错误堆栈
-            raise # 重新抛出异常，以便程序按预期失败
-
-        print(">>> [MainEngine] __init__ finished successfully.") # 确认 __init__ 成功结束
 
     def add_engine(self, engine_class: type[BaseEngine]) -> BaseEngine:
         """Register a new function engine. Raise if name exists."""

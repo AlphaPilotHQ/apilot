@@ -18,18 +18,10 @@ class Event:
     type: str
     data: Any = None
 
-# Type alias for event handler functions
 HandlerType: TypeAlias = Callable[[Event], None]
 
 
 class EventEngine:
-    """
-    Event engine distributes event object based on its type
-    to those handlers registered.
-
-    It also generates timer event by every interval seconds,
-    which can be used for timing purpose.
-    """
 
     def __init__(self, interval: int = 1) -> None:
         """
