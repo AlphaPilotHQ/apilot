@@ -144,19 +144,17 @@ class PATemplate(ABC):
 
         try:
             bars = self.pa_engine.load_bar(self.symbol, count, interval)
-            print(f"[load_bar] {self.symbol}: got {len(bars or [])} bars")
         except Exception as e:
             logger.error(f"Failed to load bars for {self.symbol}: {e}")
             return None
-
+        
         # Auto detect callback if not provided
         if hasattr(self, "bg") and callable(getattr(self, "bg").update_bar):
             callback = self.bg.update_bar
         else:
             callback = self.on_bar
 
-        # Call callback for each bar
-        for bar in bars or []:
+        for bar in bars:
             callback(bar)
 
         return bars

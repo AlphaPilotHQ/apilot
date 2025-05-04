@@ -27,12 +27,9 @@ class ArrayManager:
 
     def update_bar(self, bar: BarData) -> None:
         self.count += 1
-        # Debug: show current count each time a bar is updated
-        print(f"[ArrayManager.update_bar] count={self.count}")
-
         if not self.inited and self.count >= self.size:
             self.inited = True
-            print("[ArrayManager] inited")
+            logger.info(f"ArrayManager inited = True, total update bar:{self.count}")
 
         self.open_array[:-1] = self.open_array[1:]
         self.high_array[:-1] = self.high_array[1:]

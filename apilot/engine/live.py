@@ -55,14 +55,13 @@ class LiveEngine(BaseEngine):
         self.MAX_TRADE_CACHE_SIZE = 10000
         self.tradeids = OrderedDict()
 
-        # Removed redundant EVENT_QUOTE registration; now handled in init_engine
+        self.init_engine()
 
     def init_engine(self) -> None:
         self.event_engine.register(EVENT_ORDER, self.process_order_event)
         self.event_engine.register(EVENT_TRADE, self.process_trade_event)
         self.event_engine.register(EVENT_QUOTE, self.process_quote_event)
-        logger.info("PA strategy engine initialized successfully")
-        logger.info(f"LiveEngine.init_engine: 已注册事件处理函数 - ORDER, TRADE, QUOTE")
+        logger.info("Engine initialized successfully: ORDER, TRADE, QUOTE")
 
     def close(self) -> None:
         self.stop_all_strategies()
@@ -73,7 +72,6 @@ class LiveEngine(BaseEngine):
 
         # Clear trade ID cache on shutdown
         self.tradeids.clear()
-
         logger.info("Live engine shutdown completed")
 
     def process_order_event(self, event: Event) -> None:
@@ -96,13 +94,13 @@ class LiveEngine(BaseEngine):
 
         bar: BarData = data
         symbol = bar.symbol
-        logger.info(f"LiveEngine.process_quote_event: get bar data {symbol} {bar.datetime} close: {bar.close_price}")
+        logger.info(f"process_quote_event: get bar data {symbol} {bar.datetime} close: {bar.close_price}")
 
         strategies = self.symbol_strategy_map.get(symbol, set())
         if not strategies:
-            logger.warning(f"LiveEngine.process_quote_event: no strategy subscription {symbol}")
+            logger.warning(f"process_quote_event: no strategy subscription {symbol}")
             return
-        logger.info(f"LiveEngine.process_quote_event: get {len(strategies)} strategy subscription {symbol}")
+        logger.info(f"process_quote_event: get {len(strategies)} strategy subscription {symbol}")
 
         for strategy in strategies:
             strategy_name = getattr(strategy, "strategy_name")
@@ -113,7 +111,7 @@ class LiveEngine(BaseEngine):
                 else:
                     self.call_strategy_func(strategy, strategy.on_bar, bar)
             else:
-                logger.warning(f"LiveEngine.process_quote_event: 策略 {strategy_name} 未初始化或未启动，跳过")
+                logger.warning(f"process_quote_event: 策略 {strategy_name} 未初始化或未启动，跳过")
 
     def process_trade_event(self, event: Event) -> None:
         trade: TradeData = event.data
@@ -252,7 +250,7 @@ class LiveEngine(BaseEngine):
         """
         end = datetime.now(timezone.utc)
         minutes_per_bar = self._get_interval_minutes(interval)
-        start = end - timedelta(minutes=minutes_per_bar * count)
+        start = end - timedelta(minutes=minutes_per_bar * (count + 1))
         req = HistoryRequest(symbol=symbol, interval=interval, start=start, end=end)
 
         try:
@@ -354,6 +352,7 @@ class LiveEngine(BaseEngine):
 
         self.call_strategy_func(strategy, strategy.on_start)
         strategy.trading = True
+        logger.info(f"{strategy_name} started")
 
     def stop_all_strategies(self) -> None:
         """Stop all strategies"""
