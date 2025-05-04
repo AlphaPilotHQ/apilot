@@ -256,7 +256,7 @@ class LiveEngine(BaseEngine):
         req = HistoryRequest(symbol=symbol, interval=interval, start=start, end=end)
 
         try:
-            bars = self.main_engine.query_history(req, gateway_name="BINANCE", count=count)
+            bars = self.main_engine.query_history(req, gateway_name="Binance", count=count)
             return bars
         except Exception as e:
             logger.error(f"Failed to fetch bars for {symbol}: {e}")
