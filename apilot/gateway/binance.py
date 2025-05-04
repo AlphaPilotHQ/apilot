@@ -2,7 +2,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 from threading import Event, Thread
 from typing import Any, ClassVar
-from time 
+import time
 
 import ccxt
 
