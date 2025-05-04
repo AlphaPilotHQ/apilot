@@ -2,7 +2,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 from threading import Event, Thread
 from typing import Any, ClassVar
-from time import sleep
+import time
 
 import ccxt
 
@@ -25,9 +25,9 @@ logger = logging.getLogger(__name__)
 
 
 class BinanceGateway(BaseGateway):
-    default_name = "BINANCE"
+    default_name = "Binance"
 
-    def __init__(self, event_engine: EventEngine, gateway_name: str = "BINANCE"):
+    def __init__(self, event_engine: EventEngine, gateway_name: str = "Binance"):
         super().__init__(event_engine, gateway_name)
         self.api = BinanceRestApi(self)
 
@@ -37,11 +37,11 @@ class BinanceGateway(BaseGateway):
             secret_key=setting["Secret Key"],
             proxy_host=setting.get("Proxy Host", ""),
             proxy_port=setting.get("Proxy Port", 0),
-            symbol=setting.get("Symbol", None),  # Pass symbol to only initialize specific contract
+            symbol=setting.get("Symbol", None),
         )
 
         # Wait until API signals readiness or timeout
-        timeout, interval = 10.0, 0.1  # seconds
+        timeout, interval = 10.0, 0.2  # seconds
         elapsed = 0.0
         while not self.api.ready and elapsed < timeout:
             sleep(interval)
@@ -50,14 +50,11 @@ class BinanceGateway(BaseGateway):
         if not self.api.ready:
             logger.error("Binance gateway init timeout after %.1f seconds", timeout)
 
+    def close(self):
+        self.api.close()
+
     def subscribe(self, req: SubscribeRequest):
         self.api.subscribe(req.symbol)
-
-    def send_order(self, req: OrderRequest) -> str:
-        return self.api.send_order(req)
-
-    def cancel_order(self, req: CancelRequest):
-        self.api.cancel_order(req)
 
     def query_account(self):
         self.api.query_account()
@@ -65,8 +62,11 @@ class BinanceGateway(BaseGateway):
     def query_history(self, req: HistoryRequest, count: int) -> list[BarData]:
         return self.api.query_history(req, count)
 
-    def close(self):
-        self.api.close()
+    def send_order(self, req: OrderRequest) -> str:
+        return self.api.send_order(req)
+
+    def cancel_order(self, req: CancelRequest):
+        self.api.cancel_order(req)
 
 
 class BinanceRestApi:
@@ -104,50 +104,137 @@ class BinanceRestApi:
 
         self.exchange = ccxt.binance(params)
         try:
+            # Load all symbols and initialize symbols
             self.exchange.load_markets()
-            self._init_contracts(symbol)
-            # self.query_account()
+            self._init_symbols(symbol)
 
-            # Start polling thread then mark API ready
             Thread(target=self._poll_market_data, daemon=True).start()
 
             # Mark as ready so callers can proceed
             self.ready = True
+            logger.info("Binance gateway connected.")
         except Exception as e:
             logger.error(f"Connect failed: {e}")
 
-    def _init_contracts(self, symbol=None):
+    def close(self):
+        self.stop_event.set()
+        logger.info("Disconnected.")
+
+    def _init_symbols(self, symbol=None):
         """
         Initialize contract data for a specific symbol.
-        A valid symbol must be provided, otherwise an error will be logged.
         """
-        if not symbol:
-            logger.error("Symbol must be provided to initialize contracts")
-            return
+        market = self.exchange.markets[symbol]
 
-        if symbol in self.exchange.markets:
-            data = self.exchange.markets[symbol]
-            if data["active"]:
-                contract = ContractData(
-                    symbol=symbol,
-                    product=Product.SPOT,
-                    pricetick=10 ** -data["precision"]["price"],
-                    min_amount=data.get("limits", {}).get("amount", {}).get("min", 1),
-                    max_amount=data.get("limits", {}).get("amount", {}).get("max"),
-                    gateway_name=self.gateway.gateway_name,
-                )
-                self.gateway.on_contract(contract)
-                logger.info(f"Initialized contract for {symbol}")
-            else:
-                logger.warning(f"Symbol {symbol} is not active")
-        else:
-            logger.error(f"Symbol {symbol} not found in Binance markets")
+        if not market["active"]:
+            logger.warning(f"Symbol {symbol} is not active")
+
+        limits = market.get("limits", {}).get("amount", {})
+        min_amount = limits.get("min", 1)
+        max_amount = limits.get("max")
+        price_precision = market["precision"]["price"]
+        price_tick = 10 ** -price_precision
+
+        contract = ContractData(
+            symbol=symbol,
+            product=Product.SPOT,
+            pricetick=price_tick,
+            min_amount=min_amount,
+            max_amount=max_amount,
+            gateway_name=self.gateway.gateway_name,
+        )
+
+        self.gateway.on_contract(contract)
+        logger.info(f"Initialized contract for {symbol}")
+
+    def _poll_market_data(self) -> None:
+        timeframe = self.INTERVAL_MAP[Interval.MINUTE]
+
+        def safe_fetch(*args, retries: int = 5, **kwargs):
+            """REST with exponential-backoff retry."""
+            for i in range(retries):
+                try:
+                    return self.exchange.fetch_ohlcv(*args, **kwargs)
+                except Exception as e:
+                    if i == retries - 1:
+                        raise
+                    logger.warning("fetch_ohlcv retry %s/%s – %s", i + 1, retries, e)
+                    time.sleep(2 ** i)
+
+        while not self.stop_event.is_set():
+            now = datetime.now(timezone.utc)
+            next_min = now.replace(second=0, microsecond=0) + timedelta(minutes=1)
+            wait_secs = (next_min - now).total_seconds() + 1.5
+            if self.stop_event.wait(wait_secs):
+                break
+
+            for symbol in list(self.polling_symbols):
+                last_ts = self.last_timestamp.get(symbol, 0)
+
+                since = max(0, last_ts - 60_000)
+                try:
+                    klines = safe_fetch(symbol, timeframe, since, limit=3)
+                except Exception as e:
+                    logger.error("Polling error (%s): %s", symbol, e)
+                    continue
+
+                period_close_ts = int(datetime.now(timezone.utc)
+                                    .replace(second=0, microsecond=0).timestamp() * 1000)
+
+                for t, o, h, l, c, v in klines:
+                    if t <= last_ts:          # ① 已处理或重叠 bar
+                        continue
+                    if t >= period_close_ts:  # ② 当期 bar 未收盘
+                        continue
+
+                    expected = last_ts + 60_000 if last_ts else t
+                    if t > expected:
+                        self._backfill_missing(symbol, expected, t - 60_000, timeframe)
+
+                    bar = BarData(
+                        symbol=symbol,
+                        interval=Interval.MINUTE,
+                        datetime=datetime.fromtimestamp(t / 1000, timezone.utc),
+                        open_price=o,
+                        high_price=h,
+                        low_price=l,
+                        close_price=c,
+                        volume=v,
+                        gateway_name=self.gateway.gateway_name,
+                    )
+                    logger.debug("BinanceGateway get Bar: %s", bar)
+                    self.gateway.on_quote(bar)
+                    last_ts = t
+
+                self.last_timestamp[symbol] = last_ts
+
+
+    def _backfill_missing(self, symbol: str, start_ts: int, end_ts: int, timeframe: str) -> None:
+        """Fetch and forward any missing bars between start_ts and end_ts (inclusive)."""
+        bars_needed = (end_ts - start_ts) // 60_000 + 1
+        klines = self.exchange.fetch_ohlcv(symbol, timeframe, start_ts, limit=bars_needed)
+
+        for t, o, h, l, c, v in klines:
+            bar = BarData(
+                symbol=symbol,
+                interval=Interval.MINUTE,
+                datetime=datetime.fromtimestamp(t / 1000, timezone.utc),
+                open_price=o,
+                high_price=h,
+                low_price=l,
+                close_price=c,
+                volume=v,
+                gateway_name=self.gateway.gateway_name,
+            )
+            logger.info("Back-filled bar: %s", bar)
+            self.gateway.on_quote(bar)
 
     def subscribe(self, symbol):
         self.polling_symbols.add(symbol)
-        # initialize last timestamp aligned to current minute
-        aligned = datetime.now(timezone.utc).replace(second=0, microsecond=0)
-        self.last_timestamp[symbol] = int(aligned.timestamp() * 1000)
+        aligned_close = (datetime.now(timezone.utc)
+                        .replace(second=0, microsecond=0)
+                        - timedelta(minutes=1))
+        self.last_timestamp[symbol] = int(aligned_close.timestamp() * 1000)
 
     def query_account(self):
         try:
@@ -163,6 +250,27 @@ class BinanceRestApi:
                     self.gateway.on_account(account)
         except Exception as e:
             logger.info(f"Query account failed: {e}")
+
+    def query_history(self, req: HistoryRequest, count:int):
+        timeframe = self.INTERVAL_MAP[req.interval]
+        since = int(req.start.timestamp() * 1000)
+        klines = self.exchange.fetch_ohlcv(req.symbol, timeframe, since, limit=count+1)
+        bars = []
+        for t, o, h, l, c, v in klines:
+            bar_time = datetime.fromtimestamp(t / 1000, timezone.utc)
+            if bar_time + timedelta(seconds=60) <= datetime.now(timezone.utc):
+                bars.append(BarData(
+                    symbol=req.symbol,
+                    interval=req.interval,
+                    datetime=bar_time,
+                    open_price=o,
+                    high_price=h,
+                    low_price=l,
+                    close_price=c,
+                    volume=v,
+                    gateway_name=self.gateway.gateway_name,
+                ))
+        return bars
 
     def send_order(self, req: OrderRequest):
         try:
@@ -199,69 +307,5 @@ class BinanceRestApi:
         except Exception as e:
             logger.error(f"Cancel order failed: {e}")
 
-    def query_history(self, req: HistoryRequest, count:int):
-        timeframe = self.INTERVAL_MAP[req.interval]
-        since = int(req.start.timestamp() * 1000)
-        klines = self.exchange.fetch_ohlcv(req.symbol, timeframe, since, limit=count+1)
-        bars = []
-        for t, o, h, l, c, v in klines:
-            bar_time = datetime.fromtimestamp(t / 1000, timezone.utc)
-            if bar_time + timedelta(seconds=60) <= datetime.now(timezone.utc):
-                bars.append(BarData(
-                    symbol=req.symbol,
-                    interval=req.interval,
-                    datetime=bar_time,
-                    open_price=o,
-                    high_price=h,
-                    low_price=l,
-                    close_price=c,
-                    volume=v,
-                    gateway_name=self.gateway.gateway_name,
-                ))
-        return bars
 
-    def _poll_market_data(self):
-        # aligned incremental polling for 1-minute bars
-        while not self.stop_event.is_set():
-            # sleep until next minute boundary plus small buffer
-            now = datetime.now(timezone.utc)
-            next_min = now.replace(second=0, microsecond=0) + timedelta(minutes=1)
-            wait_secs = (next_min - now).total_seconds() + 2  # 2-s safety buffer
-            if self.stop_event.wait(wait_secs):
-                break
-            for symbol in list(self.polling_symbols):
-                last_ts = self.last_timestamp.get(symbol, 0)
-                try:
-                    timeframe = self.INTERVAL_MAP[Interval.MINUTE]
-                    klines = self.exchange.fetch_ohlcv(symbol, timeframe, last_ts, 1000)
-                    # 计算当前分钟的时间戳（毫秒）用于过滤未完成K线
-                    current_min_ts = int(datetime.now(timezone.utc).replace(second=0,
-                                                      microsecond=0).timestamp() * 1000)
 
-                    for t, o, h, l, c, v in klines:
-                        if t <= last_ts:
-                            continue
-                        # 过滤掉当前正在形成的K线
-                        if t >= current_min_ts:
-                            continue
-                        bar = BarData(
-                            symbol=symbol,
-                            interval=Interval.MINUTE,
-                            datetime=datetime.fromtimestamp(t / 1000, timezone.utc),
-                            open_price=o,
-                            high_price=h,
-                            low_price=l,
-                            close_price=c,
-                            volume=v,
-                            gateway_name=self.gateway.gateway_name,
-                        )
-                        logger.info(f"BinanceGateway get Bar: {bar}")
-                        self.gateway.on_quote(bar)
-                        last_ts = t
-                    self.last_timestamp[symbol] = last_ts
-                except Exception as e:
-                    logger.error(f"Polling error: {e}")
-
-    def close(self):
-        self.stop_event.set()
-        logger.info("Disconnected.")

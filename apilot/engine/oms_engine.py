@@ -26,13 +26,10 @@ from apilot.core import (
     QuoteData,
     TradeData,
 )
-from apilot.engine.base_engine import register_engine
-
 from .base_engine import BaseEngine
 from .main_engine import MainEngine
 
 
-@register_engine
 class OmsEngine(BaseEngine):
     """
     Provides order management system function.
@@ -40,7 +37,7 @@ class OmsEngine(BaseEngine):
 
     def __init__(self, main_engine: MainEngine, event_engine: EventEngine) -> None:
         """"""
-        super().__init__(main_engine, event_engine, "oms")
+        super().__init__(main_engine, event_engine, "Oms")
 
         self.orders: dict[str, OrderData] = {}
         self.trades: dict[str, TradeData] = {}

@@ -10,6 +10,7 @@ from enum import Enum
 class Direction(Enum):
     LONG = "LONG"
     SHORT = "SHORT"
+    CLOSE = "CLOSE"
 
 
 class Status(Enum):
@@ -37,11 +38,8 @@ class OrderType(Enum):
 class Interval(Enum):
     MINUTE = "1m"
     MINUTE5 = "5m"
-    MINUTE15 = "15m"
     HOUR = "1h"
-    HOUR4 = "4h"
     DAILY = "d"
-    WEEKLY = "w"
 
 
 # Event types

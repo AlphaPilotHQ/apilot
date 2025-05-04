@@ -18,18 +18,9 @@ class Event:
     type: str
     data: Any = None
 
-# Type alias for event handler functions
 HandlerType: TypeAlias = Callable[[Event], None]
 
-
 class EventEngine:
-    """
-    Event engine distributes event object based on its type
-    to those handlers registered.
-
-    It also generates timer event by every interval seconds,
-    which can be used for timing purpose.
-    """
 
     def __init__(self, interval: int = 1) -> None:
         """
@@ -58,7 +49,6 @@ class EventEngine:
             except Empty:
                 pass
 
-
     def _run_timer(self) -> None:
         """
         Sleep by interval second(s) and then generate a timer event.
@@ -75,10 +65,11 @@ class EventEngine:
         self._active = True
         self._event_thread.start()
         self._timer_thread.start()
+        logger.info("EventEngine started")
 
-    def stop(self) -> None:
+    def close(self) -> None:
         """
-        Stop event engine.
+        Close event engine and release resources.
         """
         self._active = False
         self._timer_thread.join()

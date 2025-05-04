@@ -8,19 +8,11 @@ from abc import ABC, abstractmethod
 
 from apilot.core.event import EventEngine
 
-ENGINE_REGISTRY = []
-
-
-def register_engine(cls):
-    ENGINE_REGISTRY.append(cls)
-    return cls
-
 
 class BaseEngine(ABC):
     """
     Abstract class for implementing a function engine.
     """
-
     def __init__(
         self,
         main_engine,
@@ -33,7 +25,4 @@ class BaseEngine(ABC):
 
     @abstractmethod
     def close(self):
-        """
-        Close the engine and release resources.
-        """
         pass
