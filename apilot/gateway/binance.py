@@ -188,10 +188,11 @@ class BinanceRestApi:
     #                 self.last_timestamp[symbol] = last_ts
     #             except Exception as e:
     #                 logger.error(f"Polling error: {e}")
+
     def _poll_market_data(self) -> None:
         timeframe = self.INTERVAL_MAP[Interval.MINUTE]
 
-        def safe_fetch(*args, retries: int = 3, **kwargs):
+        def safe_fetch(*args, retries: int = 5, **kwargs):
             """REST with exponential-backoff retry."""
             for i in range(retries):
                 try:
@@ -203,7 +204,6 @@ class BinanceRestApi:
                     time.sleep(2 ** i)  # 1s → 2s → 4s
 
         while not self.stop_event.is_set():
-            # === 等待到下一个整分钟 + 1.5 s 缓冲 ===
             now = datetime.now(timezone.utc)
             next_min = now.replace(second=0, microsecond=0) + timedelta(minutes=1)
             wait_secs = (next_min - now).total_seconds() + 1.5
@@ -213,15 +213,13 @@ class BinanceRestApi:
             for symbol in list(self.polling_symbols):
                 last_ts = self.last_timestamp.get(symbol, 0)
 
-                # —— 每次重叠 1 根，最多拉 3 根 ——
-                since = max(0, last_ts - 60_000)          # 60_000 ms = 1 分钟
+                since = max(0, last_ts - 60_000)
                 try:
                     klines = safe_fetch(symbol, timeframe, since, limit=3)
                 except Exception as e:
                     logger.error("Polling error (%s): %s", symbol, e)
                     continue
 
-                # 当前周期的收盘时间（未收盘的数据不要）
                 period_close_ts = int(datetime.now(timezone.utc)
                                     .replace(second=0, microsecond=0).timestamp() * 1000)
 
@@ -231,7 +229,6 @@ class BinanceRestApi:
                     if t >= period_close_ts:  # ② 当期 bar 未收盘
                         continue
 
-                    # ③ 缺口检测：如果跳过不止 1 分钟，就即时补拉
                     expected = last_ts + 60_000 if last_ts else t
                     if t > expected:
                         self._backfill_missing(symbol, expected, t - 60_000, timeframe)
@@ -254,9 +251,6 @@ class BinanceRestApi:
                 self.last_timestamp[symbol] = last_ts
 
 
-    # ─────────────────────────────────────────────────────────
-    # 3. _backfill_missing() – 把漏掉的那段历史一次性补齐
-    # ─────────────────────────────────────────────────────────
     def _backfill_missing(self, symbol: str, start_ts: int, end_ts: int, timeframe: str) -> None:
         """Fetch and forward any missing bars between start_ts and end_ts (inclusive)."""
         bars_needed = (end_ts - start_ts) // 60_000 + 1

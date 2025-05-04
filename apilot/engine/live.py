@@ -316,6 +316,7 @@ class LiveEngine(BaseEngine):
 
         # Add strategy to the symbol's mapping
         self.symbol_strategy_map[strategy.symbol].add(strategy)
+        logger.info(f"Strategy {strategy_name} added")
 
     def init_strategy(self, strategy_name: str) -> None:
         # Check if strategy exists
