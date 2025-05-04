@@ -147,48 +147,6 @@ class BinanceRestApi:
         self.gateway.on_contract(contract)
         logger.info(f"Initialized contract for {symbol}")
 
-    # def _poll_market_data(self):
-    #     # aligned incremental polling for 1-minute bars
-    #     while not self.stop_event.is_set():
-    #         # sleep until next minute boundary plus small buffer
-    #         now = datetime.now(timezone.utc)
-    #         next_min = now.replace(second=0, microsecond=0) + timedelta(minutes=1)
-    #         wait_secs = (next_min - now).total_seconds() + 2  # 2-s safety buffer
-    #         if self.stop_event.wait(wait_secs):
-    #             break
-
-    #         for symbol in list(self.polling_symbols):
-    #             last_ts = self.last_timestamp.get(symbol, 0)
-    #             try:
-    #                 timeframe = self.INTERVAL_MAP[Interval.MINUTE]
-    #                 klines = self.exchange.fetch_ohlcv(symbol, timeframe, last_ts, 1000)
-    #                 current_ts = int(datetime.now(timezone.utc).replace(second=0,
-    #                                                   microsecond=0).timestamp() * 1000)
-
-    #                 for t, o, h, l, c, v in klines:
-    #                     if t <= last_ts:
-    #                         continue
-
-    #                     if t >= current_ts:
-    #                         continue
-    #                     bar = BarData(
-    #                         symbol=symbol,
-    #                         interval=Interval.MINUTE,
-    #                         datetime=datetime.fromtimestamp(t / 1000, timezone.utc),
-    #                         open_price=o,
-    #                         high_price=h,
-    #                         low_price=l,
-    #                         close_price=c,
-    #                         volume=v,
-    #                         gateway_name=self.gateway.gateway_name,
-    #                     )
-    #                     logger.info(f"BinanceGateway get Bar: {bar}")
-    #                     self.gateway.on_quote(bar)
-    #                     last_ts = t
-    #                 self.last_timestamp[symbol] = last_ts
-    #             except Exception as e:
-    #                 logger.error(f"Polling error: {e}")
-
     def _poll_market_data(self) -> None:
         timeframe = self.INTERVAL_MAP[Interval.MINUTE]
 
@@ -201,7 +159,7 @@ class BinanceRestApi:
                     if i == retries - 1:
                         raise
                     logger.warning("fetch_ohlcv retry %s/%s – %s", i + 1, retries, e)
-                    time.sleep(2 ** i)  # 1s → 2s → 4s
+                    time.sleep(2 ** i)
 
         while not self.stop_event.is_set():
             now = datetime.now(timezone.utc)
@@ -244,7 +202,7 @@ class BinanceRestApi:
                         volume=v,
                         gateway_name=self.gateway.gateway_name,
                     )
-                    logger.info("BinanceGateway get Bar: %s", bar)
+                    logger.debug("BinanceGateway get Bar: %s", bar)
                     self.gateway.on_quote(bar)
                     last_ts = t
 

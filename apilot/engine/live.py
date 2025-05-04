@@ -100,7 +100,6 @@ class LiveEngine(BaseEngine):
         if not strategies:
             logger.warning(f"process_quote_event: no strategy subscription {symbol}")
             return
-        logger.info(f"process_quote_event: get {len(strategies)} strategy subscription {symbol}")
 
         for strategy in strategies:
             strategy_name = getattr(strategy, "strategy_name")
