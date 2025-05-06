@@ -156,9 +156,19 @@ class BinanceRestApi:
                 try:
                     return self.exchange.fetch_ohlcv(*args, **kwargs)
                 except Exception as e:
+                    # 获取详细错误信息
+                    error_msg = str(e)
+                    error_type = type(e).__name__
+                    if hasattr(e, 'args') and len(e.args) > 0:
+                        details = e.args[0] if isinstance(e.args[0], dict) else {}
+                        if isinstance(details, dict) and 'message' in details:
+                            error_msg = details['message']
+                    
                     if i == retries - 1:
+                        logger.error("最终调用失败: %s - %s", error_type, error_msg)
                         raise
-                    logger.warning("fetch_ohlcv retry %s/%s – %s", i + 1, retries, e)
+                    
+                    logger.warning("fetch_ohlcv retry %s/%s – [%s] %s", i + 1, retries, error_type, error_msg)
                     time.sleep(2 ** i)
 
         while not self.stop_event.is_set():
